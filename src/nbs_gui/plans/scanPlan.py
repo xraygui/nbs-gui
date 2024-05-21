@@ -22,7 +22,7 @@ class TimescanWidget(PlanWidget):
     def submit_plan(self):
         params = self.get_params()
         item = BPlan(
-            "sst_count",
+            "nbs_count",
             params["steps"],
             dwell=params.get("dwell", None),
             comment=params.get("comment", None),
@@ -84,7 +84,7 @@ class ScanPlanWidget(PlanWidget):
         # end = float(self.modifier_input_to.text())
         # steps = int(self.modifier_input_steps.text())
         item = BPlan(
-            "sst_scan",
+            "nbs_scan",
             motor,
             params["start"],
             params["end"],

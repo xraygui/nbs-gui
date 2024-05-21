@@ -25,7 +25,7 @@ buildah config --cmd "bash $container_script_dir/run_dev.sh" $container
 
 buildah unmount $container
 
-buildah commit $container sst_gui_dev:$version
-buildah commit $container sst_gui_dev:latest
+buildah commit $container nbs_gui_dev:$version
+buildah commit $container nbs_gui_dev:latest
 
 buildah rm $container

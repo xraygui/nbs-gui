@@ -5,7 +5,7 @@ set -o xtrace
 
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 host_package_dir=$(dirname "$script_dir")/src
-container_package_dir=/usr/local/src/sst_gui
+container_package_dir=/usr/local/src/nbs-gui
 
 version="0.0.1"
 
@@ -27,7 +27,7 @@ buildah run --workingdir $container_package_dir $container -- pip3 install .
 
 buildah unmount $container
 
-buildah commit $container sst_gui:$version
-buildah commit $container sst_gui:latest
+buildah commit $container nbs_gui:$version
+buildah commit $container nbs_gui:latest
 
 buildah rm $container
