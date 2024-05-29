@@ -42,6 +42,8 @@ class MovePlanWidget(PlanWidget):
         for key, value in plan_dict.items():
             if value != "":
                 inverted_dict[value] = key
+            else:
+                inverted_dict[key] = key
         self.motors = inverted_dict
         self.noun_selection.clear()
         self.noun_selection.addItems(self.motors.keys())
