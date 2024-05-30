@@ -49,7 +49,6 @@ class NewProposalDialog(QDialog):
         self.REClientModel = run_engine
         self.setWindowTitle(title)
         vbox = QVBoxLayout()
-        vbox.addWidget(QLabel("Test!"))
         button = QPushButton("Submit")
         button.clicked.connect(self.submit_form)
         form = QFormLayout()
@@ -77,14 +76,18 @@ class NewProposalDialog(QDialog):
         self.REClientModel._client.function_execute(function)
 
 
-class ProposalStatus(StatusBox):
+class ProposalStatus(QWidget):
     def __init__(self, run_engine, user_status):
-        super().__init__(user_status, "User Metadata", "USER_MD")
+        super().__init__()
+        status = StatusBox(user_status, "User Metadata", "USER_MD")
         self.REClientModel = run_engine
 
         self.button = QPushButton("New Proposal")
         self.button.clicked.connect(self.push_button)
-        self.vbox.addWidget(self.button)
+        vbox = QVBoxLayout()
+        vbox.addWidget(status)
+        vbox.addWidget(self.button)
+        self.setLayout(vbox)
 
     def push_button(self):
         dlg = NewProposalDialog("New Proposal", self.REClientModel)
