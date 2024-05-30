@@ -11,9 +11,10 @@ from qtpy.QtWidgets import (
 )
 from bluesky_widgets.qt.run_engine_client import (
     QtRePlanQueue,
-    QtReQueueControls,
+    # QtReQueueControls,
     QtReExecutionControls,
 )
+from ..widgets.queueControl import QtReQueueControls
 from ..plans.base import PlanWidget
 
 

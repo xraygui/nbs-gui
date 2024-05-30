@@ -1,7 +1,7 @@
 from bluesky_widgets.qt.run_engine_client import (
     QtReEnvironmentControls,
     QtReManagerConnection,
-    QtReQueueControls,
+    # QtReQueueControls,
     QtReExecutionControls,
     QtReStatusMonitor,
     QtRePlanQueue,
@@ -10,6 +10,8 @@ from bluesky_widgets.qt.run_engine_client import (
     QtRePlanEditor,
     QtReConsoleMonitor,
 )
+from ..widgets.queueControl import QtReQueueControls
+
 from qtpy.QtWidgets import (
     QWidget,
     QHBoxLayout,

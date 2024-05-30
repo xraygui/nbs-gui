@@ -1,7 +1,6 @@
 from qtpy.QtWidgets import QHBoxLayout, QWidget, QVBoxLayout
 from bluesky_widgets.qt.run_engine_client import (
     QtReExecutionControls,
-    QtReQueueControls,
     QtReStatusMonitor,
     QtReRunningPlan,
 )
@@ -13,6 +12,7 @@ from ..widgets.manipulator_monitor import (
 )
 from ..widgets.views import AutoControl, AutoControlBox, AutoMonitor, AutoMonitorBox
 from ..widgets.sampleSelect import SampleSelectWidget
+from ..widgets.queueControl import QtReQueueControls
 
 
 class EnvironmentMonitor(QHBoxLayout):
