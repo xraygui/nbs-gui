@@ -12,6 +12,8 @@ from bluesky_widgets.qt.run_engine_client import (
 )
 from ..widgets.queueControl import QtReQueueControls
 
+# from ..widgets.plan_creator import QtRePlanEditor
+
 from qtpy.QtWidgets import (
     QWidget,
     QHBoxLayout,

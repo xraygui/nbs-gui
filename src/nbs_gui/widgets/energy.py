@@ -46,7 +46,7 @@ class EnergyControl(QGroupBox):
         print("Creating Energy Motor")
         for m in energy.energy.pseudo_axes_models:
             vbox.addWidget(MotorControl(m, parent_model))
-        #vbox.addWidget(PseudoManipulatorControl(energy.energy, parent_model))
+        # vbox.addWidget(PseudoManipulatorControl(energy.energy, parent_model))
         print("Creating Exit Slit")
         vbox.addWidget(
             MotorControl(parent_model.beamline.motors["Exit_Slit"], parent_model)
@@ -71,9 +71,9 @@ class EnergyControl(QGroupBox):
         print(enum)
         if self.confirm_dialog():
             if enum == 9:
-                plan = BPlan("base_grating_to_1200")
+                plan = BPlan("change_grating", 1200)
             else:
-                plan = BPlan("base_grating_to_250")
+                plan = BPlan("change_grating", 250)
             self.REClientModel._client.item_execute(plan)
 
     def confirm_dialog(self):

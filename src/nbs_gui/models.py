@@ -5,11 +5,28 @@ from bluesky_queueserver_api import BFunc
 from ophyd.signal import ConnectionTimeoutError
 from ophyd.utils.errors import DisconnectedError
 import time
+import numpy as np
 
 from .widgets.motor import MotorControl, MotorMonitor
 from .widgets.monitors import PVMonitor, PVControl
 from .widgets.gatevalve import GVControl, GVMonitor
 from .widgets.energy import EnergyControl, EnergyMonitor
+
+
+def formatFloat(value, precision=2):
+    if np.abs(value) >= 10 ** (1 - precision):
+        fmtstr = f"{{:.{precision}f}}"
+    elif value == 0:
+        fmtstr = f"{{:.{precision}f}}"
+    else:
+        fmtstr = f"{{:.{precision}e}}"
+    valueStr = fmtstr.format(value)
+    return valueStr
+
+
+def formatInt(value):
+    valueStr = "{:d}".format(value)
+    return valueStr
 
 
 class UserStatus(QObject):
@@ -217,9 +234,9 @@ class PVModelRO(BaseModel):
                 self.value_type = type(value)
         try:
             if self.value_type is float:
-                value = "{:.3g}".format(value)
+                value = formatFloat(value)
             elif self.value_type is int:
-                value = "{:d}".format(value)
+                value = formatInt(value)
             else:
                 value = str(value)
         except ValueError:
@@ -281,9 +298,9 @@ class ScalarModel(BaseModel):
                 self.value_type = type(value)
         try:
             if self.value_type is float:
-                value = "{:.2f}".format(value)
+                value = formatFloat(value)
             elif self.value_type is int:
-                value = "{:d}".format(value)
+                value = formatInt(value)
             else:
                 value = str(value)
         except ValueError:
