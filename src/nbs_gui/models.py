@@ -11,6 +11,7 @@ from .widgets.motor import MotorControl, MotorMonitor
 from .widgets.monitors import PVMonitor, PVControl
 from .widgets.gatevalve import GVControl, GVMonitor
 from .widgets.energy import EnergyControl, EnergyMonitor
+from .widgets.manipulator_monitor import RealManipulatorControl, RealManipulatorMonitor
 
 
 def formatFloat(value, precision=2):
@@ -309,7 +310,15 @@ class ScalarModel(BaseModel):
         self.valueChanged.emit(value)
 
 
-class MotorModel(PVModel):
+def MotorModel(name, obj, group, long_name, **kwargs):
+    if hasattr(obj, "motor_is_moving"):
+        return EPICSMotorModel(name, obj, group, long_name, **kwargs)
+    elif hasattr(obj, "moving"):
+        return PVPositionerModel(name, obj, group, long_name, **kwargs)
+    else:
+        raise AttributeError(f"{name} has neither moving nor motor_is_moving attributes")
+        
+class EPICSMotorModel(PVModel):
     default_controller = MotorControl
     default_monitor = MotorMonitor
     movingStatusChanged = Signal(bool)
@@ -474,8 +483,21 @@ class ControlModel(BaseModel):
         self.controlChange.emit(value)
 
 
-class HexapodModel(BaseModel):
-    pass
+class MotorTupleModel(BaseModel):
+    default_controller = RealManipulatorControl
+    default_monitor = RealManipulatorMonitor
+
+    def __init__(self, name, obj, group, long_name, **kwargs):
+        super().__init__(name, obj, group, long_name, **kwargs)
+        self.real_axes_models = []
+        for attrName in obj.component_names:
+            axis = getattr(obj, attrName)
+            self.real_axes_models.append(MotorModel(
+                name=axis.name,
+                obj=axis,
+                group=group,
+                long_name=axis.name))
+        
 
 
 class PseudoPositionerModel(BaseModel):
@@ -520,6 +542,9 @@ class EnergyAxesModel(BaseModel):
 
 
 class ManipulatorModel(BaseModel):
+    default_controller = RealManipulatorControl
+    default_monitor = RealManipulatorMonitor
+
     def __init__(self, name, obj, group, long_name, **kwargs):
         super().__init__(name, obj, group, long_name, **kwargs)
         self.real_axes_models = [

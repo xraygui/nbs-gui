@@ -62,7 +62,7 @@ class MonitorTab(QWidget):
 
         vbox.addWidget(AutoMonitorBox(beamline.detectors, "Detectors", model, "h"))
         print("Added detectors Monitor")
-        if hasattr(beamline, "vaccuum"):
+        if hasattr(beamline, "vacuum"):
             vbox.addWidget(AutoMonitorBox(beamline.vacuum, "Vacuum", model, "h"))
 
         hbox = QHBoxLayout()

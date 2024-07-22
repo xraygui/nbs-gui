@@ -180,7 +180,10 @@ class AutoControlCombo(QWidget):
         label = QLabel(title)
         dropdown = QComboBox()
         widgetStack = QStackedWidget()
-        for key, model in modelDict.items():
+        keys = sorted(modelDict.keys())
+
+        for key in keys:
+            model = modelDict[key]
             dropdown.addItem(key)
             widgetStack.addWidget(
                 AutoControl(model, parent_model, orientation=orientation)

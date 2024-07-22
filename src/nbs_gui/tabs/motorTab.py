@@ -19,7 +19,7 @@ class MotorTab(QWidget):
         print("Initializing Motor Control Tab")
         vbox = QVBoxLayout()
         vbox.addWidget(AutoControlBox(beamline.shutters, "Shutters", model))
-        vbox.addWidget(AutoControlCombo(beamline.motors, "Choose a Motor", model))
+        vbox.addWidget(AutoControlCombo(beamline.motors | beamline.manipulators | beamline.mirrors, "Choose a Motor", model))
         vbox.addWidget(AutoControl(beamline.energy, model))
         hbox = QHBoxLayout()
         print("Real Manipulator")
