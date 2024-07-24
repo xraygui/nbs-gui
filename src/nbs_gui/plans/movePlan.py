@@ -58,5 +58,5 @@ class MovePlanWidget(PlanWidget):
         motor_text = self.noun_selection.currentText()
         motor = self.motors[motor_text]
         params = self.get_params()
-        item = BPlan("move", motor, params["position"])
+        item = BPlan("mv", motor, params["position"])
         self.run_engine_client.queue_item_add(item=item)
