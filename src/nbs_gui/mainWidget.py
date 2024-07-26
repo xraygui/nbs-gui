@@ -20,15 +20,17 @@ class QtViewer(QTabWidget):
         self.tab_dict = {}
         tabs = pkg_resources.iter_entry_points("nbs_gui.tabs")
         for tab_entry_point in tabs:
-            tab = tab_entry_point.load()  # Load the modifier function
-            if callable(tab):
-                # Call the modifier function with model and self (as parent) to get the QWidget
-                if explicit_inclusion:
+            # Call the modifier function with model and self (as parent) to get the QWidget
+            if explicit_inclusion:
+                tab = tab_entry_point.load()  # Load the modifier function
+                if callable(tab):
                     if tab_entry_point.name in tabs_to_include:
                         print(f"Loading {tab_entry_point.name} from EntryPoint")
                         tab_widget = tab(model)
                         self.tab_dict[tab_entry_point.name] = tab_widget
-                elif tab_entry_point.name not in tabs_to_exclude:
+            elif tab_entry_point.name not in tabs_to_exclude:
+                tab = tab_entry_point.load()  # Load the modifier function
+                if callable(tab):
                     print(f"Loading {tab_entry_point.name} from EntryPoint")
                     tab_widget = tab(model)
                     self.tab_dict[tab_entry_point.name] = tab_widget
