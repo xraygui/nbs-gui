@@ -5,8 +5,10 @@ from qtpy.QtWidgets import (
     QPushButton,
     QFileDialog,
     QLabel,
+    QHBoxLayout,
 )
 from qtpy.QtCore import QAbstractTableModel, Qt, Signal, Slot
+from ..plans.base import PlanBase
 from bluesky_queueserver_api import BFunc
 
 
@@ -19,7 +21,47 @@ class SampleTab(QWidget):
         self.model = model
 
         self.sample_view = QtSampleView(model.user_status, parent=self)
+        self.new_sample = NewSampleWidget(model, parent)
+        self.layout.addWidget(self.new_sample)
         self.layout.addWidget(self.sample_view)
+
+
+class NewSampleWidget(PlanBase):
+    def __init__(self, model, parent=None):
+        super().__init__(
+            model,
+            parent,
+            sample_id=("Sample ID", str),
+            name=("Sample Name", str),
+            description=("Description", str),
+        )
+        self.display_name = "Add New Sample"
+        self.submit_button = QPushButton("Add New Sample", self)
+        self.submit_button.clicked.connect(self.submit_plan)
+        self.submit_button.setEnabled(False)
+        self.plan_ready.connect(self.submit_button.setEnabled)
+        self.layout.addWidget(self.submit_button)
+
+    def check_plan_ready(self):
+        params = self.get_params()
+
+        if "sample_id" in params and "name" in params:
+            self.plan_ready.emit(True)
+        else:
+            self.plan_ready.emit(False)
+
+    def submit_plan(self):
+        params = self.get_params()
+        item = BFunc(
+            "add_sample_to_globals",
+            params["sample_id"],
+            params["name"],
+            "",
+            -1,
+            0,
+            description=params.get("description", ""),
+        )
+        self.run_engine_client._client.item_execute(item)
 
 
 class QtSampleView(QTableView):
