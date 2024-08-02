@@ -9,6 +9,7 @@ import numpy as np
 
 from .widgets.motor import MotorControl, MotorMonitor
 from .widgets.monitors import PVMonitor, PVControl
+from .widgets.enums import EnumControl, EnumMonitor
 from .widgets.gatevalve import GVControl, GVMonitor
 from .widgets.energy import EnergyControl, EnergyMonitor
 from .widgets.manipulator_monitor import RealManipulatorControl, RealManipulatorMonitor
@@ -218,12 +219,14 @@ class PVModelRO(BaseModel):
     def _check_value(self):
         try:
             value = self.obj.get(connection_timeout=0.2, timeout=0.2)
+            # print(f"Time check value for {self.label}: {value}")
             self._value_changed(value)
             QTimer.singleShot(100000, self._check_value)
         except:
             QTimer.singleShot(10000, self._check_value)
 
     def _value_changed(self, value, **kwargs):
+        # print(f"{self.label} got {value}, with type {self.value_type}")
         if self.value_type is None:
             if isinstance(value, float):
                 self.value_type = float
@@ -244,6 +247,7 @@ class PVModelRO(BaseModel):
             self.value_type = None
             return
         self._value = value
+        # print(f"Emitting {value}")
         self.valueChanged.emit(value)
 
     @property
@@ -257,6 +261,53 @@ class PVModel(PVModelRO):
 
     def set(self, val):
         self.obj.set(val).wait()
+
+
+class EnumModel(PVModel):
+    default_controller = EnumControl
+    default_monitor = EnumMonitor
+
+    enumChanged = Signal(tuple)
+
+    def __init__(self, name, obj, group, long_name, **kwargs):
+        super().__init__(name, obj, group, long_name, **kwargs)
+        self._enum_strs = tuple()
+        self._get_enum_strs()
+
+    def _get_enum_strs(self):
+        if hasattr(self.obj, "enum_strs") and self.obj.enum_strs is not None:
+            self._enum_strs = tuple(self.obj.enum_strs)
+            self.enumChanged.emit(self._enum_strs)
+        else:
+            print(
+                f"Warning: {self.name} does not have enum_strs attribute or it is None. Retrying in 5 seconds."
+            )
+            QTimer.singleShot(5000, self._get_enum_strs)
+
+    @property
+    def enum_strs(self):
+        return self._enum_strs
+
+    def set(self, value):
+        if isinstance(value, str):
+            if value in self._enum_strs:
+                index = self._enum_strs.index(value)
+                self.obj.set(index).wait()
+            else:
+                raise ValueError(f"{value} is not a valid option for {self.name}")
+        elif isinstance(value, int):
+            if 0 <= value < len(self._enum_strs):
+                self.obj.set(value).wait()
+            else:
+                raise ValueError(f"{value} is not a valid index for {self.name}")
+        else:
+            raise TypeError("Value must be a string or integer")
+
+    def _value_changed(self, value, **kwargs):
+        if isinstance(value, int) and 0 <= value < len(self._enum_strs):
+            value = self._enum_strs[value]
+        self._value = str(value)
+        self.valueChanged.emit(self._value)
 
 
 class ScalarModel(BaseModel):
@@ -316,8 +367,11 @@ def MotorModel(name, obj, group, long_name, **kwargs):
     elif hasattr(obj, "moving"):
         return PVPositionerModel(name, obj, group, long_name, **kwargs)
     else:
-        raise AttributeError(f"{name} has neither moving nor motor_is_moving attributes")
-        
+        raise AttributeError(
+            f"{name} has neither moving nor motor_is_moving attributes"
+        )
+
+
 class EPICSMotorModel(PVModel):
     default_controller = MotorControl
     default_monitor = MotorMonitor
@@ -492,12 +546,9 @@ class MotorTupleModel(BaseModel):
         self.real_axes_models = []
         for attrName in obj.component_names:
             axis = getattr(obj, attrName)
-            self.real_axes_models.append(MotorModel(
-                name=axis.name,
-                obj=axis,
-                group=group,
-                long_name=axis.name))
-        
+            self.real_axes_models.append(
+                MotorModel(name=axis.name, obj=axis, group=group, long_name=axis.name)
+            )
 
 
 class PseudoPositionerModel(BaseModel):
