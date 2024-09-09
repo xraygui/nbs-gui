@@ -270,8 +270,9 @@ class EnumModel(PVModel):
     enumChanged = Signal(tuple)
 
     def __init__(self, name, obj, group, long_name, **kwargs):
+        self._enum_strs = tuple("")
+        self._index_value = 0
         super().__init__(name, obj, group, long_name, **kwargs)
-        self._enum_strs = tuple()
         self._get_enum_strs()
 
     def _get_enum_strs(self):
@@ -305,7 +306,11 @@ class EnumModel(PVModel):
 
     def _value_changed(self, value, **kwargs):
         if isinstance(value, int) and 0 <= value < len(self._enum_strs):
+            self._index_value = value
             value = self._enum_strs[value]
+        elif value in self._enum_strs:
+            index = self._enum_strs.index(value)
+            self._index_value = index
         self._value = str(value)
         self.valueChanged.emit(self._value)
 

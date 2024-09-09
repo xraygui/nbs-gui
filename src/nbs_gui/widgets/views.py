@@ -23,7 +23,11 @@ def AutoMonitor(model, parent_model, orientation="h"):
         The full GUI model.
     """
     Monitor = model.default_monitor
-    return Monitor(model, parent_model, orientation=orientation)
+    try:
+        return Monitor(model, parent_model, orientation=orientation)
+    except Exception as e:
+        print(f"Exception {e} in AutoMonitor for {model.name}")
+        raise e
 
 
 def AutoControl(model, parent_model, orientation="h"):
@@ -38,7 +42,11 @@ def AutoControl(model, parent_model, orientation="h"):
         The full GUI model.
     """
     Controller = model.default_controller
-    return Controller(model, parent_model, orientation=orientation)
+    try:
+        return Controller(model, parent_model, orientation=orientation)
+    except Exception as e:
+        print(f"Exception {e} in AutoControl for {model.name}")
+        raise e
 
 
 class AutoControlBox(QGroupBox):

@@ -30,7 +30,7 @@ class MovePlanWidget(PlanWidget):
         self.motors = {}
 
         self.user_status.register_signal(
-            "MOTOR_DESCRIPTIONS", self.signal_update_motors
+            "MOTORS_DESCRIPTIONS", self.signal_update_motors
         )
         self.create_move_modifier()
         self.signal_update_motors.connect(self.update_motors)

@@ -67,7 +67,9 @@ class MonitorTab(QWidget):
 
         hbox = QHBoxLayout()
         hbox.addWidget(
-            RealManipulatorControl(beamline.primary_manipulator, model, orientation="v")
+            RealManipulatorControl(
+                beamline.primary_sampleholder, model, orientation="v"
+            )
         )
         print("Added manipulator Monitor")
         hbox.addWidget(SampleSelectWidget(model))

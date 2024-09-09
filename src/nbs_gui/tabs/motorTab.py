@@ -19,13 +19,19 @@ class MotorTab(QWidget):
         print("Initializing Motor Control Tab")
         vbox = QVBoxLayout()
         vbox.addWidget(AutoControlBox(beamline.shutters, "Shutters", model))
-        vbox.addWidget(AutoControlCombo(beamline.motors | beamline.manipulators | beamline.mirrors, "Choose a Motor", model))
+        vbox.addWidget(
+            AutoControlCombo(
+                beamline.motors | beamline.manipulators | beamline.mirrors,
+                "Choose a Motor",
+                model,
+            )
+        )
         vbox.addWidget(AutoControl(beamline.energy, model))
         hbox = QHBoxLayout()
         print("Real Manipulator")
         hbox.addWidget(
             AutoControlBox(
-                beamline.primary_manipulator.real_axes_models, "Real Axes", model, "v"
+                beamline.primary_sampleholder.real_axes_models, "Real Axes", model, "v"
             )
         )
         print("Pseudo Manipulator")
@@ -33,7 +39,7 @@ class MotorTab(QWidget):
         print("Sleep Done")
         hbox.addWidget(
             AutoControlBox(
-                beamline.primary_manipulator.pseudo_axes_models,
+                beamline.primary_sampleholder.pseudo_axes_models,
                 "Pseudo Axes",
                 model,
                 "v",
