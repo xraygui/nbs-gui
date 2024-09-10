@@ -27,24 +27,24 @@ class MotorTab(QWidget):
             )
         )
         vbox.addWidget(AutoControl(beamline.energy, model))
-        hbox = QHBoxLayout()
-        print("Real Manipulator")
-        hbox.addWidget(
-            AutoControlBox(
-                beamline.primary_sampleholder.real_axes_models, "Real Axes", model, "v"
-            )
-        )
-        print("Pseudo Manipulator")
-        time.sleep(2.0)
-        print("Sleep Done")
-        hbox.addWidget(
-            AutoControlBox(
-                beamline.primary_sampleholder.pseudo_axes_models,
-                "Pseudo Axes",
-                model,
-                "v",
-            )
-        )
-        vbox.addLayout(hbox)
+        # hbox = QHBoxLayout()
+        # print("Real Manipulator")
+        # hbox.addWidget(
+        #     AutoControlBox(
+        #         beamline.primary_sampleholder.real_axes_models, "Real Axes", model, "v"
+        #     )
+        # )
+        # print("Pseudo Manipulator")
+        # time.sleep(2.0)
+        # print("Sleep Done")
+        # hbox.addWidget(
+        #     AutoControlBox(
+        #         beamline.primary_sampleholder.pseudo_axes_models,
+        #         "Pseudo Axes",
+        #         model,
+        #         "v",
+        #     )
+        # )
+        # vbox.addLayout(hbox)
         vbox.addStretch()
         self.setLayout(vbox)

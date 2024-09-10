@@ -1,31 +1,12 @@
-from qtpy.QtWidgets import QHBoxLayout, QWidget, QVBoxLayout
-from bluesky_widgets.qt.run_engine_client import (
-    QtReExecutionControls,
-    QtReStatusMonitor,
-    QtReRunningPlan,
-)
-from ..widgets.status import ProposalStatus, StatusBox, BLController
+from qtpy.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout
+from ..widgets.status import StatusBox, BLController
 from ..widgets.utils import HLine
 from ..widgets.manipulator_monitor import (
     RealManipulatorControl,
     PseudoManipulatorControl,
 )
-from ..widgets.views import AutoControl, AutoControlBox, AutoMonitor, AutoMonitorBox
+from ..widgets.views import AutoControlBox, AutoMonitorBox
 from ..widgets.sampleSelect import SampleSelectWidget
-
-from ..widgets.queueControl import QtReQueueControls
-
-# rom ..widgets.QtQueueControl import QtQueueControl as QtReQueueControls
-
-
-class EnvironmentMonitor(QHBoxLayout):
-    def __init__(self, run_engine, user_status, bl_control):
-        super().__init__()
-        self.addWidget(QtReStatusMonitor(run_engine))
-        self.addWidget(QtReQueueControls(run_engine))
-        self.addWidget(QtReExecutionControls(run_engine))
-        self.addWidget(ProposalStatus(run_engine, user_status))
-        self.addWidget(BLController(bl_control))
 
 
 class MonitorTab(QWidget):
@@ -37,12 +18,7 @@ class MonitorTab(QWidget):
         user_status = model.user_status
         beamline = model.beamline
         vbox = QVBoxLayout()
-        print("Adding Environment Monitor")
-        statusDisplay = EnvironmentMonitor(
-            run_engine, user_status, beamline.signals["sst_control"]
-        )
-        vbox.addLayout(statusDisplay)
-        vbox.addWidget(HLine())
+
         beamBox = QHBoxLayout()
         print("Creating Beamline signals box")
 
@@ -77,8 +53,6 @@ class MonitorTab(QWidget):
             StatusBox(user_status, "Selected Information", "SAMPLE_SELECTED")
         )
         vbox.addLayout(hbox)
-        vbox.addWidget(QtReRunningPlan(run_engine))
-        print("Added Running Plan Monitor")
 
         vbox.addStretch()
         self.setLayout(vbox)

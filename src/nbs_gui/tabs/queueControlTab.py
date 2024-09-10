@@ -1,24 +1,14 @@
 from bluesky_widgets.qt.run_engine_client import (
-    QtReEnvironmentControls,
-    QtReManagerConnection,
-    # QtReQueueControls,
-    QtReExecutionControls,
-    QtReStatusMonitor,
     QtRePlanQueue,
     QtRePlanHistory,
-    QtReRunningPlan,
     QtRePlanEditor,
     QtReConsoleMonitor,
 )
-from ..widgets.queueControl import QtReQueueControls
+from qtpy.QtWidgets import QWidget, QVBoxLayout, QTabWidget, QSplitter
+from qtpy.QtCore import Qt
+from .planTab import PlanSubmissionWidget
 
 # from ..widgets.plan_creator import QtRePlanEditor
-
-from qtpy.QtWidgets import (
-    QWidget,
-    QHBoxLayout,
-    QVBoxLayout,
-)
 
 
 class QueueControlTab(QWidget):
@@ -27,32 +17,29 @@ class QueueControlTab(QWidget):
     def __init__(self, model, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.model = model.run_engine
-        vbox = QVBoxLayout()
-        hbox = QHBoxLayout()
-        hbox.addWidget(QtReManagerConnection(self.model))
-        hbox.addWidget(QtReEnvironmentControls(self.model))
-        hbox.addWidget(QtReQueueControls(self.model))
-        hbox.addWidget(QtReExecutionControls(self.model))
-        hbox.addWidget(QtReStatusMonitor(self.model))
+        main_layout = QVBoxLayout()
 
-        hbox.addStretch()
-        vbox.addLayout(hbox)
+        vertical_splitter = QSplitter(Qt.Vertical)
 
-        hbox = QHBoxLayout()
-        vbox1 = QVBoxLayout()
+        horizontal_splitter = QSplitter(Qt.Horizontal)
 
-        # Register plan editor (opening plans in the editor by double-clicking the plan in the table)
         pe = QtRePlanEditor(self.model)
+        ps = PlanSubmissionWidget(model, self)
+        pe._tab_widget.addTab(ps, "Plan Widgets")
+
+        horizontal_splitter.addWidget(pe)
+
+        tab_widget = QTabWidget()
         pq = QtRePlanQueue(self.model)
+        ph = QtRePlanHistory(self.model)
         pq.registered_item_editors.append(pe.edit_queue_item)
 
-        vbox1.addWidget(pe, stretch=1)
-        vbox1.addWidget(pq, stretch=1)
-        hbox.addLayout(vbox1)
-        vbox2 = QVBoxLayout()
-        vbox2.addWidget(QtReRunningPlan(self.model), stretch=1)
-        vbox2.addWidget(QtRePlanHistory(self.model), stretch=2)
-        hbox.addLayout(vbox2)
-        vbox.addLayout(hbox)
-        vbox.addWidget(QtReConsoleMonitor(self.model))
-        self.setLayout(vbox)
+        tab_widget.addTab(pq, "Plan Queue")
+        tab_widget.addTab(ph, "Plan History")
+        horizontal_splitter.addWidget(tab_widget)
+
+        vertical_splitter.addWidget(horizontal_splitter)
+        vertical_splitter.addWidget(QtReConsoleMonitor(self.model))
+
+        main_layout.addWidget(vertical_splitter)
+        self.setLayout(main_layout)
