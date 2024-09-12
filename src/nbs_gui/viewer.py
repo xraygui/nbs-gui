@@ -13,6 +13,8 @@ from .widgets.header import Header
 
 from qtpy.QtWidgets import QAction, QApplication, QVBoxLayout, QWidget
 
+import pkg_resources
+
 
 class CustomWindow(Window):
     def __init__(self, *args, **kwargs):
@@ -27,11 +29,18 @@ class CustomWindow(Window):
 
     def update_widget(self, new_qt_widget, model):
         # Remove all widgets from the main layout
+
+        config = SETTINGS.gui_config
+
+        # Load the header from the entrypoint
+        header_entrypoint = config.get("gui", {}).get("header", "nbs-gui-header")
+        HeaderClass = self.load_header_from_entrypoint(header_entrypoint)
+
         for i in reversed(range(self.main_layout.count())):
             self.main_layout.itemAt(i).widget().setParent(None)
 
         # Add the new header
-        self.header = Header(model)
+        self.header = HeaderClass(model)
         self.main_layout.addWidget(self.header)
 
         # Add the new tabbed widget
@@ -39,6 +48,16 @@ class CustomWindow(Window):
 
         # Update the reference
         self.qt_widget = new_qt_widget
+
+    @staticmethod
+    def load_header_from_entrypoint(entrypoint_name):
+        for entry_point in pkg_resources.iter_entry_points(group="nbs_gui.widgets"):
+            if entry_point.name == entrypoint_name:
+                return entry_point.load()
+        print(
+            f"Warning: Header entrypoint '{entrypoint_name}' not found. Using default Header."
+        )
+        return Header
 
 
 class ViewerModel:

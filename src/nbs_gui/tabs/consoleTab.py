@@ -102,6 +102,7 @@ class IPythonConsoleTab(QWidget):
         Connects to the IPython kernel when the button is pressed.
         Prioritizes the file path from the QLineEdit if provided.
         """
+        print("Connecting to Kernel")
         # Use the file path from the QLineEdit if provided, otherwise use the initial kernel_file
         msg = self.REClientModel._client.config_get()
         connect_info = msg["config"]["ip_connect_info"]
@@ -123,6 +124,7 @@ class IPythonConsoleTab(QWidget):
         # Connect the console widget to the kernel
         self.console.kernel_manager = self.kernel_manager
         self.console.kernel_client = self.kernel_client
+        print("Done connecting to Kernel")
 
         # Optionally, disable the button after connecting
         # self.connectButton.setEnabled(False)
