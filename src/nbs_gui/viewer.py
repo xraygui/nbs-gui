@@ -90,7 +90,9 @@ class ViewerModel:
         config = generate_device_config(
             SETTINGS.object_config_file, SETTINGS.gui_config_file
         )
-        devices, groups, roles = loadFromConfig(config, instantiateGUIDevice)
+        devices, groups, roles = loadFromConfig(
+            config, instantiateGUIDevice, load_pass=-1
+        )
 
         self.beamline = BeamlineModel(devices, groups, roles)
         self.settings = SETTINGS
