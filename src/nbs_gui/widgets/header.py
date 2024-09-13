@@ -23,7 +23,7 @@ class Header(QWidget):
         layout.addWidget(QtReQueueControls(self.model.run_engine))
         layout.addWidget(QtReExecutionControls(self.model.run_engine))
         layout.addWidget(QtReStatusMonitor(self.model.run_engine))
-        layout.addWidget(ProposalStatus(self.model.run_engine, self.model.user_status))
+        #layout.addWidget(ProposalStatus(self.model.run_engine, self.model.user_status))
 
         running_plan = QtReRunningPlan(self.model.run_engine)
         # running_plan.setSizePolicy(Qt.QSizePolicy.Expanding, Qt.QSizePolicy.Preferred)
