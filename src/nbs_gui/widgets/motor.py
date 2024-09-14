@@ -59,6 +59,7 @@ class MotorControl(MotorMonitor):
         # self.lineEdit.returnPressed.connect(self.enter_position)
 
         self.lineEdit.setText("{:2f}".format(self.model.setpoint))
+        self.lineEdit.returnPressed.connect(self.enter_position)
         self.model.setpointChanged.connect(self.update_sp)
         self.box.insertWidget(2, self.lineEdit)
         gobutton = QPushButton("Move")
