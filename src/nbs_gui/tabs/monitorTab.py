@@ -52,7 +52,9 @@ class MonitorTab(QWidget):
         hbox.addWidget(
             StatusBox(user_status, "Selected Information", "SAMPLE_SELECTED")
         )
+        print("Added StatusBox")
         vbox.addLayout(hbox)
 
         vbox.addStretch()
         self.setLayout(vbox)
+        print("Finished Initializing MonitorTab")

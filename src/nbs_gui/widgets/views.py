@@ -41,7 +41,10 @@ def AutoControl(model, parent_model, orientation="h"):
     parent_model : object
         The full GUI model.
     """
-    Controller = model.default_controller
+    if getattr(model, "view_only", False):
+        Controller = model.default_monitor
+    else:
+        Controller = model.default_controller
     try:
         return Controller(model, parent_model, orientation=orientation)
     except Exception as e:

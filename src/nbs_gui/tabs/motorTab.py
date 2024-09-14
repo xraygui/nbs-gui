@@ -5,6 +5,8 @@ from qtpy.QtWidgets import (
 )
 
 from ..widgets.views import AutoControlBox, AutoControlCombo, AutoControl
+
+# from ..widgets.motor import BeamlineMotorBars
 import time
 
 
@@ -19,6 +21,7 @@ class MotorTab(QWidget):
         print("Initializing Motor Control Tab")
         vbox = QVBoxLayout()
         vbox.addWidget(AutoControlBox(beamline.shutters, "Shutters", model))
+        # vbox.addWidget(BeamlineMotorBars(model))
         vbox.addWidget(
             AutoControlCombo(
                 beamline.motors | beamline.manipulators | beamline.mirrors,
