@@ -70,8 +70,18 @@ class QtSampleView(QTableView):
     def __init__(self, model, parent=None):
         super().__init__(parent)
         self.model = model
+        self.user_status = model.user_status
+        try:
+            signal_name = self.model.beamline.primary_sampleholder.name
+            print(f"Got {signal_name} from beamline model sampleholder")
+        except Exception as e:
+            print(e)
+            signal_name = "MANIP"
+
         self.signal_update_widget.connect(self.update_md)
-        self.model.register_signal("SAMPLE_LIST", self.signal_update_widget)
+        self.user_status.register_signal(
+            signal_name.upper() + "_SAMPLES", self.signal_update_widget
+        )
         self.tableModel = DictTableModel({})
         self.setModel(self.tableModel)
 
