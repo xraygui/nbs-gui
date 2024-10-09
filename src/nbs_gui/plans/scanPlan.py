@@ -9,9 +9,10 @@ from .base import PlanWidget
 
 
 class TimescanWidget(PlanWidget):
+    display_name = "Time Scan (count)"
+
     def __init__(self, model, parent=None):
         print("Initializing Timescan")
-        self.display_name = "Time Scan (count)"
 
         super().__init__(
             model,
@@ -45,12 +46,20 @@ class TimescanWidget(PlanWidget):
 
 class ScanPlanWidget(PlanWidget):
     signal_update_motors = Signal(object)
+    display_name = "Step Scan"
 
-    def __init__(self, model, parent=None, plans="nbs_scan"):
+    def __init__(
+        self,
+        model,
+        parent=None,
+        plans={
+            "Scan": "nbs_scan",
+            "Relative Scan": "nbs_rel_scan",
+        },
+    ):
         # Make this into a more general base, and then add variants on top of it, i.e,
         # relscan, grid_scan, etc
         print("Initializing Scan")
-        self.display_name = "Step Scan"
         super().__init__(
             model,
             parent,

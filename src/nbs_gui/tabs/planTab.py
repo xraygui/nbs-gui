@@ -16,6 +16,7 @@ from bluesky_widgets.qt.run_engine_client import (
 )
 from ..widgets.queueControl import QtReQueueControls
 from ..plans.base import PlanWidget
+from ..settings import SETTINGS
 
 
 class PlanTabWidget(QWidget):
@@ -56,16 +57,30 @@ class PlanSubmissionWidget(QWidget):
         self.run_engine_client = model.run_engine
         self.user_status = model.user_status
         self.action_dict = {}
+        config = SETTINGS.gui_config
+
+        plans_to_include = config.get("gui", {}).get("plans", {}).get("include", [])
+        plans_to_exclude = config.get("gui", {}).get("plans", {}).get("exclude", [])
+        explicit_inclusion = len(plans_to_include) > 0
+
         plans = pkg_resources.iter_entry_points("nbs_gui.plans")
         # Need to load only desired plans from config file!
         for plan_entry_point in plans:
-            plan = plan_entry_point.load()  # Load the modifier function
-            if callable(plan):
-                # Call the modifier function with model and self (as parent) to get the QWidget
-                print(f"Initializing {plan_entry_point.name}")
-                plan_widget = plan(model, self)
-                self.action_dict[plan_widget.display_name] = plan_widget
-
+            if explicit_inclusion:
+                if plan_entry_point.name in plans_to_include:
+                    plan = plan_entry_point.load()  # Load the modifier function
+                    if callable(plan):
+                        # Call the modifier function with model and self (as parent) to get the QWidget
+                        print(f"Initializing {plan_entry_point.name}")
+                        plan_widget = plan(model, self)
+                        self.action_dict[plan_widget.display_name] = plan_widget
+            elif plan_entry_point.name not in plans_to_exclude:
+                plan = plan_entry_point.load()  # Load the modifier function
+                if callable(plan):
+                    # Call the modifier function with model and self (as parent) to get the QWidget
+                    print(f"Initializing {plan_entry_point.name}")
+                    plan_widget = plan(model, self)
+                    self.action_dict[plan_widget.display_name] = plan_widget
         print("Initialized Action Dict")
         self.action_widget = QStackedWidget(self)
 
