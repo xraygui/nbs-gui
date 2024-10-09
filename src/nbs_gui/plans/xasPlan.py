@@ -23,32 +23,37 @@ class XASPlanWidget(PlanWidget):
     signal_update_xas = Signal(object)
 
     def __init__(self, model, parent=None):
+        print("Initializing XAS")
+        self.display_name = "XAS"
         super().__init__(
             model,
             parent,
+            "dummy",
             repeat=int,
             eslit=("Exit Slit", float),
             dwell=float,
-            r=("Sample Angle", float),
+            # r=("Sample Angle", float),
             group_name=("Group Name", str),
             comment=str,
         )
-        print("Initializing XAS")
-        self.display_name = "XAS"
-        self.xas_plans = {}
+        self.signal_update_xas.connect(self.update_xas)
         self.user_status.register_signal("XAS_PLANS", self.signal_update_xas)
-        self.sample_widget = SampleSelectWidget(model, self)
+        print("XAS Initialized")
+        # Add all the XAS related methods and widgets here
+
+    def setup_widget(self):
+        super().setup_widget()
+        self.xas_plans = {}
+        self.sample_widget = SampleSelectWidget(self.model, self)
+        self.sample_widget.editingFinished.connect(self.check_plan_ready)
         self.edge_selection = QComboBox(self)
         self.edge_selection.addItem("Select Edge")
         self.edge_selection.setItemData(0, "", Qt.UserRole - 1)
         self.edge_selection.addItems(self.xas_plans.keys())
         self.edge_selection.currentIndexChanged.connect(self.check_plan_ready)
-        self.sample_widget.is_ready.connect(self.check_plan_ready)
-        self.signal_update_xas.connect(self.update_xas)
         self.basePlanLayout.addWidget(self.sample_widget)
         self.basePlanLayout.addWidget(self.edge_selection)
-        print("XAS Initialized")
-        # Add all the XAS related methods and widgets here
+        self.user_status.register_signal("XAS_PLANS", self.signal_update_xas)
 
     def check_plan_ready(self):
         """
@@ -72,8 +77,13 @@ class XASPlanWidget(PlanWidget):
 
     def submit_plan(self):
         edge = self.edge_selection.currentText()
-        samples = self.sample_widget.get_samples()
         params = self.get_params()
+        samples = self.sample_widget.get_params()
+
         for s in samples:
-            item = BPlan(self.xas_plans[edge], sample=s, **params)
+            item = BPlan(self.xas_plans[edge], **s, **params)
             self.run_engine_client.queue_item_add(item=item)
+
+    def reset(self):
+        super().reset()
+        self.sample_widget.reset()

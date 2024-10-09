@@ -62,6 +62,7 @@ class PlanSubmissionWidget(QWidget):
             plan = plan_entry_point.load()  # Load the modifier function
             if callable(plan):
                 # Call the modifier function with model and self (as parent) to get the QWidget
+                print(f"Initializing {plan_entry_point.name}")
                 plan_widget = plan(model, self)
                 self.action_dict[plan_widget.display_name] = plan_widget
 
@@ -69,18 +70,25 @@ class PlanSubmissionWidget(QWidget):
         self.action_widget = QStackedWidget(self)
 
         # Create and add the action selection combo box
-        self.action_prefix = QLabel("Perform", self)
+        self.action_label = QLabel("Plan Type Selection", self)
         self.action_selection = QComboBox(self)
-        self.action_suffix = QLabel("of", self)
+        self.submit_button = QPushButton("Add to Queue", self)
+        self.submit_button.clicked.connect(self.submit_plan)
+        self.submit_button.setEnabled(False)
+        self.reset_button = QPushButton("Reset", self)
+        self.reset_button.clicked.connect(self.reset_plan)
 
         for k, widget in self.action_dict.items():
             self.action_widget.addWidget(widget)
             self.action_selection.addItem(k)
 
-        self.layout = QHBoxLayout(self)
-        self.layout.addWidget(self.action_prefix)
-        self.layout.addWidget(self.action_selection)
-        self.layout.addWidget(self.action_suffix)
+        self.layout = QVBoxLayout(self)
+        h = QHBoxLayout()
+        h.addWidget(self.action_label)
+        h.addWidget(self.action_selection)
+        h.addWidget(self.submit_button)
+        h.addWidget(self.reset_button)
+        self.layout.addLayout(h)
         print("Actions Added")
         # Create and add the default modifier selection combo box
         self.layout.addWidget(self.action_widget)
@@ -90,14 +98,9 @@ class PlanSubmissionWidget(QWidget):
         self.action_selection.currentIndexChanged.connect(
             self.action_widget.setCurrentIndex
         )
-
         # Create and add the submit button
-        self.submit_button = QPushButton("Submit", self)
-        self.submit_button.clicked.connect(self.submit_plan)
-        self.submit_button.setEnabled(False)
         self.action_widget.currentChanged.connect(self.update_plan_ready_connection)
         self.update_plan_ready_connection(self.action_widget.currentIndex())
-        self.layout.addWidget(self.submit_button)
         print("Finished PlanSubmission")
 
     def update_plan_ready_connection(self, index):
@@ -124,3 +127,8 @@ class PlanSubmissionWidget(QWidget):
         # Get the selected action, noun, and modifier
         selected_widget = self.action_widget.currentWidget()
         selected_widget.submit_plan()
+
+    def reset_plan(self):
+        # Get the selected action, noun, and modifier
+        selected_widget = self.action_widget.currentWidget()
+        selected_widget.reset()

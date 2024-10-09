@@ -38,6 +38,7 @@ class UserStatus(QObject):
         self.REClientModel.events.status_changed.connect(self.on_status_update)
         self._signal_registry = {}
         self._uid_registry = {}
+        self._item_cache = {}
         self._thread = None
         self.updates_activated = False
         self.update_period = 1
@@ -65,9 +66,13 @@ class UserStatus(QObject):
         task_status = reply["status"]
         task_result = reply["result"]
         if task_status == "completed" and task_result.get("success", False):
+            self._item_cache[key] = task_result["return_value"]
             return task_result["return_value"]
         else:
             raise ValueError("Update unsuccessful")
+
+    def get_cached(self, key, default=None):
+        return self._item_cache.get(key, default)
 
     def _reload_status(self):
         function = BFunc("get_status")
@@ -94,11 +99,16 @@ class UserStatus(QObject):
         self._uid_registry.update(new_uids)
         time.sleep(self.update_period)
 
-    def register_signal(self, key, signal):
+    def register_signal(self, key, signal, emit_cached=True):
         if key in self._signal_registry:
-            self._signal_registry[key].append(signal)
+            if signal not in self._signal_registry[key]:
+                self._signal_registry[key].append(signal)
         else:
             self._signal_registry[key] = [signal]
+        if emit_cached:
+            value = self.get_cached(key)
+            if value is not None:
+                signal.emit(value)
 
     def on_status_update(self, event):
         is_connected = bool(event.is_connected)

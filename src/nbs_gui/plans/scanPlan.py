@@ -1,5 +1,7 @@
 from qtpy.QtWidgets import (
     QComboBox,
+    QHBoxLayout,
+    QLabel,
 )
 from qtpy.QtCore import Signal
 from bluesky_queueserver_api import BPlan
@@ -8,15 +10,18 @@ from .base import PlanWidget
 
 class TimescanWidget(PlanWidget):
     def __init__(self, model, parent=None):
+        print("Initializing Timescan")
+        self.display_name = "Time Scan (count)"
+
         super().__init__(
             model,
             parent,
+            "nbs_count",
             steps=int,
             dwell=float,
             group_name=("Group Name", str),
             comment=str,
         )
-        self.display_name = "timescan"
 
     def check_plan_ready(self):
         params = self.get_params()
@@ -29,7 +34,7 @@ class TimescanWidget(PlanWidget):
     def submit_plan(self):
         params = self.get_params()
         item = BPlan(
-            "nbs_count",
+            self.current_plan,
             params["steps"],
             dwell=params.get("dwell", None),
             comment=params.get("comment", None),
@@ -41,12 +46,15 @@ class TimescanWidget(PlanWidget):
 class ScanPlanWidget(PlanWidget):
     signal_update_motors = Signal(object)
 
-    def __init__(self, model, parent=None):
+    def __init__(self, model, parent=None, plans="nbs_scan"):
         # Make this into a more general base, and then add variants on top of it, i.e,
         # relscan, grid_scan, etc
+        print("Initializing Scan")
+        self.display_name = "Step Scan"
         super().__init__(
             model,
             parent,
+            plans,
             start=float,
             end=float,
             steps=int,
@@ -54,18 +62,20 @@ class ScanPlanWidget(PlanWidget):
             group_name=("Group Name", str),
             comment=str,
         )
-        print("Initializing Scan")
-        self.display_name = "scan"
-        self.motors = {}
-
+        self.signal_update_motors.connect(self.update_motors)
         self.user_status.register_signal(
             "MOTORS_DESCRIPTIONS", self.signal_update_motors
         )
-        self.signal_update_motors.connect(self.update_motors)
-
         # Create and add the scan related widgets here
-        self.create_scan_modifier()
         print("Scan Initialized")
+
+    def setup_widget(self):
+        super().setup_widget()
+        self.motors = {}
+        self.user_status.register_signal(
+            "MOTORS_DESCRIPTIONS", self.signal_update_motors
+        )
+        self.create_scan_modifier()
 
     def update_motors(self, plan_dict):
         inverted_dict = {}
@@ -75,13 +85,16 @@ class ScanPlanWidget(PlanWidget):
             else:
                 inverted_dict[key] = key
         self.motors = inverted_dict
-        self.noun_selection.clear()
-        self.noun_selection.addItems(self.motors.keys())
+        self.motor_selection.clear()
+        self.motor_selection.addItems(self.motors.keys())
 
     def create_scan_modifier(self):
-        self.noun_selection = QComboBox(self)
-        self.noun_selection.addItems(self.motors.keys())
-        self.basePlanLayout.insertWidget(0, self.noun_selection)
+        self.motor_selection = QComboBox(self)
+        self.motor_selection.addItems(self.motors.keys())
+        h = QHBoxLayout()
+        h.addWidget(QLabel("Motor to Scan"))
+        h.addWidget(self.motor_selection)
+        self.basePlanLayout.addLayout(h)
 
     def check_plan_ready(self):
         params = self.get_params()
@@ -94,14 +107,14 @@ class ScanPlanWidget(PlanWidget):
             self.plan_ready.emit(False)
 
     def submit_plan(self):
-        motor_text = self.noun_selection.currentText()
+        motor_text = self.motor_selection.currentText()
         motor = self.motors[motor_text]
         params = self.get_params()
         # start = float(self.modifier_input_from.text())
         # end = float(self.modifier_input_to.text())
         # steps = int(self.modifier_input_steps.text())
         item = BPlan(
-            "nbs_scan",
+            self.current_plan,
             motor,
             params["start"],
             params["end"],

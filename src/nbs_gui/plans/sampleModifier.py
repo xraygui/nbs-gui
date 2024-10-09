@@ -12,6 +12,7 @@ from qtpy.QtWidgets import (
 )
 
 from qtpy.QtCore import Signal, Qt
+from .base import BaseParam, LineEditParam
 
 
 class SampleDialog(QDialog):
@@ -43,7 +44,91 @@ class SampleDialog(QDialog):
         return checked_samples
 
 
-class SampleSelectWidget(QWidget):
+class SampleComboParam(BaseParam):
+    def __init__(self, parent=None):
+        super().__init__(parent=parent)
+        print("SampleComboParam")
+        self.samples = {}
+        self.input_widget = QComboBox()
+        self.input_widget.addItem("Select Sample")
+        self.input_widget.setItemData(0, "", Qt.UserRole - 1)
+        self.input_widget.addItems(self.samples.keys())
+        self.input_widget.currentIndexChanged.connect(self.editingFinished.emit)
+        self.layout = QVBoxLayout(self)
+        self.layout.addWidget(self.input_widget)
+        self.position_layout = QHBoxLayout(self)
+        self.position_widgets = []
+        for pos in ["x", "y", "r"]:
+            widget = LineEditParam(pos, float, "Sample " + pos)
+            self.position_layout.addWidget(widget)
+            self.position_widgets.append(widget)
+        self.layout.addLayout(self.position_layout)
+        print("SampleComboParam Done")
+
+    def update_samples(self, sample_dict):
+        self.samples = sample_dict
+        self.input_widget.clear()
+        self.input_widget.addItem("Select Sample")
+        self.input_widget.setItemData(0, "", Qt.UserRole - 1)
+        self.input_widget.addItems(
+            ["Sample {}: {}".format(k, v["name"]) for k, v in self.samples.items()]
+        )
+
+    def check_ready(self):
+        return self.input_widget.currentIndex() != 0
+
+    def get_params(self):
+        sampletext = self.input_widget.currentText()
+        sample_id = sampletext.split(":")[0][7:]
+        positions = {}
+        for widget in self.position_widgets:
+            positions.update(widget.get_params())
+        return [{"sample": sample_id, "sample_position": positions}]
+
+    def reset(self):
+        self.input_widget.setCurrentIndex(0)
+
+
+class MultiSampleParam(BaseParam):
+    def __init__(self, parent=None):
+        super().__init__(parent=parent)
+        print("MultiSampleParam")
+        self.samples = {}
+        self.checked_samples = []
+        self.dialog_accepted = False
+        self.input_widget = QPushButton("Sample Select")
+        self.input_widget.clicked.connect(self.create_sample_dialog)
+        self.layout = QVBoxLayout(self)
+        self.layout.addWidget(self.input_widget)
+        print("MultiSampleParam Done")
+
+    def update_samples(self, sample_dict):
+        self.samples = sample_dict
+
+    def create_sample_dialog(self):
+        """
+        Create a sample dialog and store the checked samples when the dialog is accepted.
+        """
+        dialog = SampleDialog(self.samples)
+        if dialog.exec():
+            self.checked_samples = dialog.get_checked_samples()
+            if self.checked_samples is not []:
+                self.dialog_accepted = True
+                self.editingFinished.emit()
+            else:
+                self.dialog_accepted = False
+
+    def check_ready(self):
+        return self.dialog_accepted
+
+    def get_params(self):
+        return [{"sample": sample} for sample in self.checked_samples]
+
+    def reset(self):
+        self.checked_samples = []
+
+
+class SampleSelectWidget(BaseParam):
     signal_update_samples = Signal(object)
     is_ready = Signal(bool)
 
@@ -53,22 +138,18 @@ class SampleSelectWidget(QWidget):
         self.layout = QHBoxLayout(self)
         self.user_status = model.user_status
         self.signal_update_samples.connect(self.update_samples)
-        self.user_status.register_signal("SAMPLE_LIST", self.signal_update_samples)
+        self.user_status.register_signal("GLOBAL_SAMPLES", self.signal_update_samples)
         self.samples = {}
-        self.checked_samples = []
 
-        self.sample_option = QComboBox(self)
-        self.sample_selection = QStackedWidget(self)
+        self.sample_label = QLabel("Move to Sample")
+        self.sample_option = QComboBox()
+        self.sample_selection = QStackedWidget()
 
-        self.no_sample = QLabel("(Stay in Place)", self)
-        self.one_sample = QComboBox(self)
-        self.one_sample.addItem("Select Sample")
-        self.one_sample.setItemData(0, "", Qt.UserRole - 1)
-        self.one_sample.addItems(self.samples.keys())
-        self.one_sample.currentIndexChanged.connect(self.emit_ready)
-        self.multi_sample = QPushButton("Sample Select", self)
-        self.multi_sample.clicked.connect(self.create_sample_dialog)
-        self.dialog_accepted = False
+        self.no_sample = QLabel("(Stay in Place)")
+        self.one_sample = SampleComboParam(self)
+        self.one_sample.editingFinished.connect(self.editingFinished.emit)
+        self.multi_sample = MultiSampleParam(self)
+        self.multi_sample.editingFinished.connect(self.editingFinished.emit)
 
         self.sample_option.addItems(["No Sample", "One Sample", "Multiple Samples"])
 
@@ -80,7 +161,8 @@ class SampleSelectWidget(QWidget):
             self.sample_selection.setCurrentIndex
         )
         self.sample_option.currentIndexChanged.connect(self.clear_sample_selection)
-        self.sample_selection.currentChanged.connect(self.emit_ready)
+        self.sample_selection.currentChanged.connect(self.editingFinished.emit)
+        self.layout.addWidget(self.sample_label)
         self.layout.addWidget(self.sample_option)
         self.layout.addWidget(self.sample_selection)
         print("Sample Select Initialized")
@@ -89,39 +171,19 @@ class SampleSelectWidget(QWidget):
         self.dialog_accepted = False
         self.checked_samples = []
 
-    def create_sample_dialog(self):
-        """
-        Create a sample dialog and store the checked samples when the dialog is accepted.
-        """
-        dialog = SampleDialog(self.samples)
-        if dialog.exec():
-            self.checked_samples = dialog.get_checked_samples()
-            if self.checked_samples is not []:
-                self.dialog_accepted = True
-            else:
-                self.dialog_accepted = False
-            self.emit_ready()
-
     def update_samples(self, sample_dict):
+        print("Got Sample Update")
         self.samples = sample_dict
-        self.one_sample.clear()
-        self.one_sample.addItem("Select Sample")
-        self.one_sample.setItemData(0, "", Qt.UserRole - 1)
-        self.one_sample.addItems(
-            ["Sample {}: {}".format(k, v["name"]) for k, v in self.samples.items()]
-        )
+        self.one_sample.update_samples(sample_dict)
+        self.multi_sample.update_samples(sample_dict)
 
-    def get_samples(self):
+    def get_params(self):
         if self.sample_option.currentText() == "No Sample":
-            return [
-                None,
-            ]
+            return [{}]
         elif self.sample_option.currentText() == "One Sample":
-            sampletext = self.one_sample.currentText()
-            sample_id = sampletext.split(":")[0][7:]
-            return [sample_id]
+            return self.one_sample.get_params()
         elif self.sample_option.currentText() == "Multiple Samples":
-            return self.checked_samples
+            return self.multi_sample.get_params()
 
     def emit_ready(self):
         ready_status = self.check_ready()
@@ -133,15 +195,13 @@ class SampleSelectWidget(QWidget):
         """
         if self.sample_option.currentText() == "No Sample":
             return True
-        elif (
-            self.sample_option.currentText() == "One Sample"
-            and self.one_sample.currentIndex() != 0
-        ):
-            return True
-        elif (
-            self.sample_option.currentText() == "Multiple Samples"
-            and self.dialog_accepted
-        ):
-            return True
+        elif self.sample_option.currentText() == "One Sample":
+            return self.one_sample.check_ready()
+        elif self.sample_option.currentText() == "Multiple Samples":
+            return self.multi_sample.check_ready()
         else:
             return False
+
+    def reset(self):
+        self.one_sample.reset()
+        self.multi_sample.reset()
