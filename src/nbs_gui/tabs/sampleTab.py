@@ -8,7 +8,7 @@ from qtpy.QtWidgets import (
     QHBoxLayout,
 )
 from qtpy.QtCore import QAbstractTableModel, Qt, Signal, Slot
-from ..plans.base import PlanWidget
+from ..plans.base import BasicPlanWidget
 from bluesky_queueserver_api import BFunc
 
 
@@ -26,7 +26,7 @@ class SampleTab(QWidget):
         self.layout.addWidget(self.sample_view)
 
 
-class NewSampleWidget(PlanWidget):
+class NewSampleWidget(BasicPlanWidget):
     def __init__(self, model, parent=None):
         super().__init__(
             model,

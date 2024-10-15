@@ -2,17 +2,21 @@ from qtpy.QtWidgets import (
     QComboBox,
     QHBoxLayout,
     QLabel,
+    QVBoxLayout,
 )
 from qtpy.QtCore import Signal
 from bluesky_queueserver_api import BPlan
-from .base import PlanWidget
+from .base import BasicPlanWidget
+from .nbsPlan import NBSPlanWidget
+from .scanModifier import ScanModifierParam
+from .sampleModifier import SampleSelectWidget
 
 
-class TimescanWidget(PlanWidget):
+class TimescanWidget(NBSPlanWidget):
     display_name = "Time Scan (count)"
 
     def __init__(self, model, parent=None):
-        print("Initializing Timescan")
+        print("Initializing NBSTimescan")
 
         super().__init__(
             model,
@@ -20,31 +24,43 @@ class TimescanWidget(PlanWidget):
             "nbs_count",
             steps=int,
             dwell=float,
-            group_name=("Group Name", str),
-            comment=str,
         )
+        # Connect signals
 
     def check_plan_ready(self):
         params = self.get_params()
+        # modifier_params = self.scan_modifier.get_params()
 
-        if "steps" in params:
+        if (
+            "steps" in params
+            and self.scan_modifier.check_ready()
+            and self.sample_select.check_ready()
+        ):
             self.plan_ready.emit(True)
         else:
             self.plan_ready.emit(False)
 
     def submit_plan(self):
         params = self.get_params()
-        item = BPlan(
-            self.current_plan,
-            params["steps"],
-            dwell=params.get("dwell", None),
-            comment=params.get("comment", None),
-            md={"scantype": "xes"},
-        )
-        self.run_engine_client.queue_item_add(item=item)
+        samples = params.pop("samples", [{}])
+
+        for sample in samples:
+            item = BPlan(
+                self.current_plan,
+                params["steps"],
+                dwell=params.get("dwell", None),
+                comment=params.get("comment", None),
+                md={"scantype": "xes"},
+                **samples,
+            )
+
+            # Add repeat functionality
+            repeat = params.get("repeat", 1)
+            for _ in range(repeat):
+                self.run_engine_client.queue_item_add(item=item)
 
 
-class ScanPlanWidget(PlanWidget):
+class ScanPlanWidget(NBSPlanWidget):
     signal_update_motors = Signal(object)
     display_name = "Step Scan"
 
@@ -67,9 +83,9 @@ class ScanPlanWidget(PlanWidget):
             start=float,
             end=float,
             steps=int,
-            dwell=float,
-            group_name=("Group Name", str),
-            comment=str,
+            # dwell=float,
+            # group_name=("Group Name", str),
+            # comment=str,
         )
         self.signal_update_motors.connect(self.update_motors)
         self.user_status.register_signal(

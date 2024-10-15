@@ -22,19 +22,24 @@ class QtViewer(QTabWidget):
         for tab_entry_point in tabs:
             # Call the modifier function with model and self (as parent) to get the QWidget
             if explicit_inclusion:
+                if tab_entry_point.name not in tabs_to_include:
+                    continue
+                print(f"Loading {tab_entry_point.name} from EntryPoint")
                 tab = tab_entry_point.load()  # Load the modifier function
                 if callable(tab):
-                    if tab_entry_point.name in tabs_to_include:
-                        print(f"Loading {tab_entry_point.name} from EntryPoint")
-                        tab_widget = tab(model)
-                        self.tab_dict[tab_entry_point.name] = tab_widget
+                    tab_widget = tab(model)
+                    self.tab_dict[tab_entry_point.name] = tab_widget
+                else:
+                    print("Tab was not callable")
             elif tab_entry_point.name not in tabs_to_exclude:
+                print(f"Loading {tab_entry_point.name} from EntryPoint")
                 tab = tab_entry_point.load()  # Load the modifier function
                 if callable(tab):
-                    print(f"Loading {tab_entry_point.name} from EntryPoint")
                     tab_widget = tab(model)
                     self.tab_dict[tab_entry_point.name] = tab_widget
                     tabs_to_include.append(tab_entry_point.name)
+                else:
+                    print("Tab was not callable")
 
         for tab_name in tabs_to_include:
             if tab_name in self.tab_dict:

@@ -15,7 +15,7 @@ from bluesky_widgets.qt.run_engine_client import (
     QtReExecutionControls,
 )
 from ..widgets.queueControl import QtReQueueControls
-from ..plans.base import PlanWidget
+from ..plans.base import PlanWidgetBase
 from ..settings import SETTINGS
 
 
@@ -68,17 +68,17 @@ class PlanSubmissionWidget(QWidget):
         for plan_entry_point in plans:
             if explicit_inclusion:
                 if plan_entry_point.name in plans_to_include:
+                    print(f"Initializing {plan_entry_point.name}")
                     plan = plan_entry_point.load()  # Load the modifier function
                     if callable(plan):
                         # Call the modifier function with model and self (as parent) to get the QWidget
-                        print(f"Initializing {plan_entry_point.name}")
                         plan_widget = plan(model, self)
                         self.action_dict[plan_widget.display_name] = plan_widget
             elif plan_entry_point.name not in plans_to_exclude:
+                print(f"Initializing {plan_entry_point.name}")
                 plan = plan_entry_point.load()  # Load the modifier function
                 if callable(plan):
                     # Call the modifier function with model and self (as parent) to get the QWidget
-                    print(f"Initializing {plan_entry_point.name}")
                     plan_widget = plan(model, self)
                     self.action_dict[plan_widget.display_name] = plan_widget
         print("Initialized Action Dict")
@@ -124,7 +124,7 @@ class PlanSubmissionWidget(QWidget):
         """
         # Disconnect the plan_ready signal of the previous widget
         if hasattr(self, "current_widget") and isinstance(
-            self.current_widget, PlanWidget
+            self.current_widget, PlanWidgetBase
         ):
             try:
                 self.current_widget.plan_ready.disconnect(self.submit_button.setEnabled)
@@ -134,7 +134,7 @@ class PlanSubmissionWidget(QWidget):
 
         # Connect the plan_ready signal of the new widget
         self.current_widget = self.action_widget.widget(index)
-        if isinstance(self.current_widget, PlanWidget):
+        if isinstance(self.current_widget, PlanWidgetBase):
             self.current_widget.plan_ready.connect(self.submit_button.setEnabled)
         self.current_widget.check_plan_ready()
 

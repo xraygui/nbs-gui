@@ -9,10 +9,12 @@ from qtpy.QtWidgets import (
     QStackedWidget,
     QListWidget,
     QListWidgetItem,
+    QGroupBox,
+    QFormLayout,
 )
 
 from qtpy.QtCore import Signal, Qt
-from .base import BaseParam, LineEditParam
+from .base import LineEditParam
 
 
 class SampleDialog(QDialog):
@@ -44,26 +46,57 @@ class SampleDialog(QDialog):
         return checked_samples
 
 
-class SampleComboParam(BaseParam):
+class NoSampleDummy(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent=parent)
-        print("SampleComboParam")
+        self.input_widget = QLabel("Stay in Place")
+        self.input_widget.setStyleSheet("QWidget { background-color: red; }")
+
+        self.layout = QVBoxLayout(self)
+        self.layout.setAlignment(Qt.AlignTop)  # Align widgets to the top
+        self.layout.setSpacing(5)
+        self.layout.setContentsMargins(5, 5, 5, 5)
+        self.layout.addWidget(self.input_widget)
+
+
+class SampleComboParam(QWidget):
+    editingFinished = Signal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent=parent)
+        print("SampleComboParam: Initializing")
         self.samples = {}
+        print("SampleComboParam: Creating QComboBox")
         self.input_widget = QComboBox()
         self.input_widget.addItem("Select Sample")
         self.input_widget.setItemData(0, "", Qt.UserRole - 1)
+        print(f"SampleComboParam: Adding {len(self.samples)} samples to QComboBox")
         self.input_widget.addItems(self.samples.keys())
+        print("SampleComboParam: Connecting currentIndexChanged signal")
         self.input_widget.currentIndexChanged.connect(self.editingFinished.emit)
+        print("SampleComboParam: Setting up layout")
         self.layout = QVBoxLayout(self)
+        self.layout.setAlignment(Qt.AlignTop)  # Align widgets to the top
+        self.layout.setSpacing(5)
+        self.layout.setContentsMargins(5, 5, 5, 5)
         self.layout.addWidget(self.input_widget)
-        self.position_layout = QHBoxLayout(self)
+        print("SampleComboParam: Creating position widgets")
+        self.position_layout = QFormLayout()
+        self.position_layout.setSpacing(5)  # Adjust spacing as needed
+        self.position_layout.setContentsMargins(5, 5, 5, 5)  # Adjust margins as needed
         self.position_widgets = []
         for pos in ["x", "y", "r"]:
+            print(f"SampleComboParam: Creating widget for {pos}")
             widget = LineEditParam(pos, float, "Sample " + pos)
-            self.position_layout.addWidget(widget)
+            label = QLabel(widget.label_text)
+            self.position_layout.addRow(label, widget)
+            widget.setStyleSheet("QWidget { background-color: red; }")
             self.position_widgets.append(widget)
         self.layout.addLayout(self.position_layout)
-        print("SampleComboParam Done")
+        print(
+            f"SampleComboParam: Created {len(self.position_widgets)} position widgets"
+        )
+        print("SampleComboParam: Initialization complete")
 
     def update_samples(self, sample_dict):
         self.samples = sample_dict
@@ -89,7 +122,9 @@ class SampleComboParam(BaseParam):
         self.input_widget.setCurrentIndex(0)
 
 
-class MultiSampleParam(BaseParam):
+class MultiSampleParam(QWidget):
+    editingFinished = Signal()
+
     def __init__(self, parent=None):
         super().__init__(parent=parent)
         print("MultiSampleParam")
@@ -99,7 +134,23 @@ class MultiSampleParam(BaseParam):
         self.input_widget = QPushButton("Sample Select")
         self.input_widget.clicked.connect(self.create_sample_dialog)
         self.layout = QVBoxLayout(self)
+        self.layout.setAlignment(Qt.AlignTop)  # Align widgets to the top
+
         self.layout.addWidget(self.input_widget)
+
+        print("SampleComboParam: Creating position widgets")
+        self.position_layout = QFormLayout()
+        self.position_layout.setSpacing(5)  # Adjust spacing as needed
+        self.position_layout.setContentsMargins(5, 5, 5, 5)  # Adjust margins as needed
+        self.position_widgets = []
+        for pos in ["x", "y", "r"]:
+            print(f"SampleComboParam: Creating widget for {pos}")
+            widget = LineEditParam(pos, float, "Sample " + pos)
+            label = QLabel(widget.label_text)
+            self.position_layout.addRow(label, widget)
+            widget.setStyleSheet("QWidget { background-color: red; }")
+            self.position_widgets.append(widget)
+        self.layout.addLayout(self.position_layout)
         print("MultiSampleParam Done")
 
     def update_samples(self, sample_dict):
@@ -122,32 +173,50 @@ class MultiSampleParam(BaseParam):
         return self.dialog_accepted
 
     def get_params(self):
-        return [{"sample": sample} for sample in self.checked_samples]
+        positions = {}
+        for widget in self.position_widgets:
+            positions.update(widget.get_params())
+        return [
+            {"sample": sample, "sample_position": positions}
+            for sample in self.checked_samples
+        ]
 
     def reset(self):
         self.checked_samples = []
 
 
-class SampleSelectWidget(BaseParam):
+class SampleSelectWidget(QGroupBox):
     signal_update_samples = Signal(object)
+    editingFinished = Signal()
     is_ready = Signal(bool)
 
     def __init__(self, model, parent=None):
-        super().__init__(parent)
+        super().__init__("Sample Selection", parent=parent)
         print("Initializing Sample Select")
-        self.layout = QHBoxLayout(self)
+
+        # Create the main layout
+        self.layout = QVBoxLayout(self)
+        self.layout.setAlignment(Qt.AlignTop)  # Align widgets to the top
+
+        self.setLayout(self.layout)
+
         self.user_status = model.user_status
         self.signal_update_samples.connect(self.update_samples)
         self.user_status.register_signal("GLOBAL_SAMPLES", self.signal_update_samples)
         self.samples = {}
 
-        self.sample_label = QLabel("Move to Sample")
-        self.sample_option = QComboBox()
-        self.sample_selection = QStackedWidget()
+        self.sample_label = QLabel("Sample Select Option")
 
-        self.no_sample = QLabel("(Stay in Place)")
+        self.sample_option = QComboBox()
+        print("Creating stacked widget")
+        self.sample_selection = QStackedWidget()
+        # self.sample_selection.setAlignment(Qt.AlignTop)
+        self.no_sample = NoSampleDummy(self)
+
+        print("Creating Single Sample Combo")
         self.one_sample = SampleComboParam(self)
         self.one_sample.editingFinished.connect(self.editingFinished.emit)
+        print("Creating Multi Sample Combo")
         self.multi_sample = MultiSampleParam(self)
         self.multi_sample.editingFinished.connect(self.editingFinished.emit)
 
@@ -162,8 +231,10 @@ class SampleSelectWidget(BaseParam):
         )
         self.sample_option.currentIndexChanged.connect(self.clear_sample_selection)
         self.sample_selection.currentChanged.connect(self.editingFinished.emit)
-        self.layout.addWidget(self.sample_label)
-        self.layout.addWidget(self.sample_option)
+        h = QHBoxLayout()
+        h.addWidget(self.sample_label)
+        h.addWidget(self.sample_option)
+        self.layout.addLayout(h)
         self.layout.addWidget(self.sample_selection)
         print("Sample Select Initialized")
 
@@ -179,11 +250,12 @@ class SampleSelectWidget(BaseParam):
 
     def get_params(self):
         if self.sample_option.currentText() == "No Sample":
-            return [{}]
+            params = [{}]
         elif self.sample_option.currentText() == "One Sample":
-            return self.one_sample.get_params()
+            params = self.one_sample.get_params()
         elif self.sample_option.currentText() == "Multiple Samples":
-            return self.multi_sample.get_params()
+            params = self.multi_sample.get_params()
+        return {"samples": params}
 
     def emit_ready(self):
         ready_status = self.check_ready()

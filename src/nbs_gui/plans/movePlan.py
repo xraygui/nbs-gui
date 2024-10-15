@@ -16,10 +16,10 @@ from qtpy.QtGui import QDoubleValidator, QIntValidator
 from qtpy.QtCore import Signal, Qt
 from bluesky_widgets.qt.run_engine_client import QtRePlanQueue
 from bluesky_queueserver_api import BPlan
-from .base import PlanWidget
+from .base import BasicPlanWidget
 
 
-class MovePlanWidget(PlanWidget):
+class MovePlanWidget(BasicPlanWidget):
     signal_update_motors = Signal(object)
     modifiersAllowed = []
 
