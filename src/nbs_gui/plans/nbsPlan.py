@@ -1,7 +1,7 @@
 from .base import PlanWidgetBase, AutoParamGroup
 from .sampleModifier import SampleSelectWidget
 from .scanModifier import ScanModifierParam, BeamlineModifierParam
-from qtpy.QtWidgets import QGridLayout, QWidget
+from qtpy.QtWidgets import QGridLayout, QWidget, QHBoxLayout, QVBoxLayout
 
 
 class NBSPlanWidget(PlanWidgetBase):
@@ -13,40 +13,48 @@ class NBSPlanWidget(PlanWidgetBase):
         sample_setup=True,
         beamline_setup=True,
         plan_setup=True,
+        layout_style=1,
         **kwargs,
     ):
         self.initial_kwargs = kwargs
+        self.sample_setup = sample_setup
+        self.beamline_setup = beamline_setup
+        self.plan_setup = plan_setup
+        self.layout_style = layout_style
         super().__init__(model, parent, plans)
 
     def setup_widget(self):
         print("NBSPlanWidget setup Widget")
         super().setup_widget()
-        print("Making gridlayout")
-        self.grid_layout = QGridLayout()
-        self.layout.addLayout(self.grid_layout)
-        print("Initialize scan widget")
         self.scan_widget = AutoParamGroup(
             self, title="Scan Parameters", **self.initial_kwargs
         )
-        print("Initialize scan modifier")
         self.scan_modifier = ScanModifierParam(self)
-        print("Initialize bl widget")
         self.bl_modifier = BeamlineModifierParam(self)
-        print("Initialize sample widget")
         self.sample_select = SampleSelectWidget(self.model, self)
-        print("Connect scanwidget")
         self.scan_widget.editingFinished.connect(self.check_plan_ready)
-        print("Connect sample widget")
         self.sample_select.editingFinished.connect(self.check_plan_ready)
         # Create placeholder widgets for the 2x2 grid
-        print("Adding widgets to grid")
-        self.grid_layout.addWidget(self.scan_widget, 0, 0)
-        self.grid_layout.addWidget(self.sample_select, 0, 1)
-        self.grid_layout.addWidget(self.bl_modifier, 1, 1)
-        self.grid_layout.addWidget(self.scan_modifier, 1, 0)
-        print("ADding widgets to params")
+
         self.params.append(self.scan_widget)
         self.params.append(self.scan_modifier)
         self.params.append(self.bl_modifier)
         self.params.append(self.sample_select)
+
+        self.widget_layout = QHBoxLayout()
+
+        if self.layout_style == 2:
+            self.layout.addWidget(self.scan_widget)
+            self.widget_layout.addWidget(self.sample_select)
+            self.widget_layout.addWidget(self.scan_modifier)
+            self.widget_layout.addWidget(self.bl_modifier)
+        else:
+            self.widget_layout.addWidget(self.scan_widget)
+            self.widget_layout.addWidget(self.sample_select)
+            vlayout = QVBoxLayout()
+            vlayout.addWidget(self.scan_modifier)
+            vlayout.addWidget(self.bl_modifier)
+            self.widget_layout.addLayout(vlayout)
+        self.layout.addLayout(self.widget_layout)
+
         print("NBSPlanWidget setup Widget finished")

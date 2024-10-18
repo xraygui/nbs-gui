@@ -19,6 +19,46 @@ from .base import DynamicComboParam
 from .nbsPlan import NBSPlanWidget
 
 
+class XASParam(DynamicComboParam):
+    signal_update_region = Signal(str)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.xas_plans = {}
+        self.input_widget.currentIndexChanged.connect(self.update_region)
+
+    def update_options(self, xas_plans):
+        current_text = self.input_widget.currentText()
+        self.xas_plans = xas_plans
+        self.input_widget.clear()
+        self.input_widget.addItem(self.dummy_text)
+
+        for key, plan_info in xas_plans.items():
+            display_label = plan_info.get("name", key)
+            self.input_widget.addItem(str(display_label), userData=key)
+
+        index = self.input_widget.findText(current_text)
+        self.input_widget.setCurrentIndex(index if index >= 0 else 0)
+
+    def update_region(self):
+        key = self.input_widget.currentData()
+        plan_info = self.xas_plans.get(key, {})
+        region = str(plan_info.get("region", ""))
+        self.signal_update_region.emit(region)
+
+    def make_region_label(self):
+        label = QLabel("")
+        self.signal_update_region.connect(label.setText)
+        return label
+
+    def get_params(self):
+        if self.input_widget.currentIndex() != 0:
+            data = self.input_widget.currentData()
+            print(f"Returning XAS {data}")
+            return {"plan": data}
+        return {}
+
+
 class XASPlanWidget(NBSPlanWidget):
     signal_update_xas = Signal(object)
 
@@ -29,6 +69,12 @@ class XASPlanWidget(NBSPlanWidget):
             model,
             parent,
             "dummy",
+            layout_style=2,
+            dwell={
+                "type": "spinbox",
+                "args": {"minimum": 0.1, "value_type": float, "default": 1},
+                "label": "Dwell Time per Step (s)",
+            },
         )
         self.signal_update_xas.connect(self.update_xas)
         self.user_status.register_signal("XAS_PLANS", self.signal_update_xas)
@@ -38,10 +84,11 @@ class XASPlanWidget(NBSPlanWidget):
     def setup_widget(self):
         super().setup_widget()
         self.xas_plans = {}
-        self.edge_selection = DynamicComboParam(
-            "edge", "Edge", "Select Edge", parent=self
+        self.edge_selection = XASParam("edge", "Edge", "Select Edge", parent=self)
+        self.scan_widget.add_param(self.edge_selection, 0)
+        self.scan_widget.add_row(
+            QLabel("Scan Region"), self.edge_selection.make_region_label(), 1
         )
-        self.scan_widget.add_param(self.edge_selection)
         self.user_status.register_signal("XAS_PLANS", self.signal_update_xas)
         self.user_status.register_signal(
             "XAS_PLANS", self.edge_selection.signal_update_options
@@ -61,18 +108,14 @@ class XASPlanWidget(NBSPlanWidget):
 
     def update_xas(self, plan_dict):
         self.xas_plans = plan_dict
-        self.edge_selection.signal_update_options.emit(self.xas_plans.keys())
+        self.edge_selection.signal_update_options.emit(self.xas_plans)
         self.widget_updated.emit()
 
     def submit_plan(self):
         params = self.get_params()
-        edge = params.pop("edge")
+        plan = params.pop("plan")
         samples = params.pop("samples")
 
         for s in samples:
-            item = BPlan(self.xas_plans[edge], **s, **params)
+            item = BPlan(plan, **s, **params)
             self.run_engine_client.queue_item_add(item=item)
-
-    def reset(self):
-        super().reset()
-        self.sample_widget.reset()

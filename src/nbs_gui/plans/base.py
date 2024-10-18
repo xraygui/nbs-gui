@@ -6,20 +6,20 @@ from qtpy.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QSpinBox,
+    QDoubleSpinBox,
     QGroupBox,
     QFormLayout,
 )
 from qtpy.QtGui import QDoubleValidator, QIntValidator
 from qtpy.QtCore import Signal, Qt
+from typing import Any
 
 
 class BaseParam(QWidget):
     editingFinished = Signal()
 
     def __init__(self, parent=None):
-        print("In BaseParam")
         super().__init__(parent)
-        print("Setting Layout")
         self.layout = QHBoxLayout(self)
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.layout.setSpacing(0)
@@ -92,24 +92,58 @@ class BooleanParam(ComboBoxParam):
 
 
 class SpinBoxParam(BaseParam):
-    def __init__(self, key, label, parent=None, minimum=None, maximum=None):
+    def __init__(
+        self,
+        key,
+        label,
+        parent=None,
+        value_type=int,
+        minimum=None,
+        maximum=None,
+        decimals=2,
+        default=None,
+    ):
+        print("Going to initialize baseParam")
         super().__init__(parent)
         self.key = key
         self.label_text = label
-        self.input_widget = QSpinBox()
+        self.value_type = value_type
+        self.default = default
+        self.no_default = default is None
+        print("Determining what kind of spinbox to make")
+        if value_type == int:
+            self.input_widget = QSpinBox(self)
+        elif value_type == float:
+            self.input_widget = QDoubleSpinBox(self)
+            self.input_widget.setDecimals(decimals)
+        else:
+            raise ValueError("value_type must be int or float")
+
         self.layout.addWidget(self.input_widget)
 
         if minimum is not None:
             self.input_widget.setMinimum(minimum)
         if maximum is not None:
             self.input_widget.setMaximum(maximum)
+
+        if self.no_default:
+            new_min = self.input_widget.minimum() - self.input_widget.singleStep()
+            self.input_widget.setMinimum(new_min)
+            self.input_widget.setSpecialValueText(" ")
+            self.input_widget.setValue(new_min)
+        elif default is not None:
+            self.input_widget.setValue(default)
+
         self.input_widget.valueChanged.connect(self.editingFinished.emit)
 
     def reset(self):
-        if self.input_widget.minimum() is not None:
+        """
+        Reset the spinbox to its initial state.
+        """
+        if self.no_default:
             self.input_widget.setValue(self.input_widget.minimum())
         else:
-            self.input_widget.setValue(0)
+            self.input_widget.setValue(self.default)
 
     def get_params(self):
         """
@@ -118,8 +152,10 @@ class SpinBoxParam(BaseParam):
         Returns
         -------
         dict
-            A dictionary containing the current value of the spinbox.
+            A dictionary containing the current value of the spinbox, or an empty dict if unset.
         """
+        if self.no_default and self.input_widget.value() == self.input_widget.minimum():
+            return {}
         return {self.key: self.input_widget.value()}
 
     def check_ready(self):
@@ -129,9 +165,11 @@ class SpinBoxParam(BaseParam):
         Returns
         -------
         bool
-            True if the spinbox value is greater than its minimum, False otherwise.
+            True if the spinbox has a valid value (not unset), False otherwise.
         """
-        return self.input_widget.value() > self.input_widget.minimum()
+        if self.no_default:
+            return self.input_widget.value() > self.input_widget.minimum()
+        return True
 
 
 def AutoParam(key, value, label, parent=None):
@@ -187,7 +225,7 @@ class ParamGroup(QGroupBox):
         self.layout.setContentsMargins(5, 5, 5, 5)  # Adjust margins as needed
         self.params = []
 
-    def add_param(self, param):
+    def add_param(self, param, position=None):
         """
         Add a parameter to the group.
 
@@ -195,19 +233,36 @@ class ParamGroup(QGroupBox):
         ----------
         param : BaseParam
             The parameter to add to the group.
+        position : int, optional
+            The position to insert the parameter. If None, append to the end.
         """
-        # print("Adding param")
-        param.setStyleSheet("QWidget { background-color: red; }")
         self.params.append(param)
         label = QLabel(param.label_text)
-        self.layout.addRow(label, param)
+        self.add_row(label, param, position)
         param.editingFinished.connect(self.editingFinished)
 
+    def add_row(self, label, widget, position=None):
+        if position is None:
+            self.layout.addRow(label, widget)
+        else:
+            self.layout.insertRow(position, label, widget)
+
     def reset(self):
+        """
+        Reset all input fields to their default values.
+        """
         for param in self.params:
             param.reset()
 
     def get_params(self):
+        """
+        Get parameters from the input widgets.
+
+        Returns
+        -------
+        dict
+            A dictionary of parameters.
+        """
         params = {}
         for param in self.params:
             params.update(param.get_params())
@@ -226,20 +281,56 @@ class ParamGroup(QGroupBox):
 
 
 class AutoParamGroup(ParamGroup):
-    def __init__(self, parent=None, title="", **kwargs):
+    def __init__(self, model, parent=None, title="", **kwargs):
         print("Setting up AutoParamGroup")
         super().__init__(parent=parent, title=title)
+        self.model = model
+        self.setup_params(**kwargs)
+        print("Done Setting up AutoParamGroup")
+
+    def setup_params(self, **kwargs):
+        print("Setup Params")
         for key, value in kwargs.items():
             if isinstance(value, (list, tuple)):
-                labelStr = value[0]
-                value = value[1]
+                label_str = value[0]
+                param_info = value[1]
+            elif isinstance(value, dict):
+                label_str = value.pop("label", key)
+                param_info = value
             else:
-                labelStr = key
-            print(f"Making AutoParam for {key}:{labelStr}")
-            input_widget = AutoParam(key, value, labelStr)
+                label_str = key
+                param_info = value
+            print(f"Making AutoParam for {key}:{label_str}")
+            input_widget = self.auto_param(key, param_info, label_str)
             self.add_param(input_widget)
-            print(f"Added AutoParam for {key}:{labelStr}")
-        print("Done Setting up AutoParamGroup")
+            print(f"Added AutoParam for {key}:{label_str}")
+
+    def auto_param(self, key: str, value: Any, label: str) -> BaseParam:
+        if isinstance(value, dict):
+            param_type = value.get("type", "default")
+            param_args = value.get("args", {})
+
+            if param_type == "motor":
+                return MotorParam(key, label, self.model.user_status, **param_args)
+            elif param_type == "spinbox":
+                print(
+                    f"SpinBoxParam arguments: key={key}, label={label}, **{param_args}"
+                )
+                return SpinBoxParam(key, label, **param_args)
+            elif param_type == "combo":
+                return ComboBoxParam(key, param_args.get("options", []), label)
+            elif param_type == "boolean":
+                return BooleanParam(key, label)
+            else:
+                return LineEditParam(key, param_args.get("value_type", str), label)
+        elif value in (int, float, str):
+            return LineEditParam(key, value, label)
+        elif isinstance(value, list):
+            return ComboBoxParam(key, value, label)
+        elif value is bool:
+            return BooleanParam(key, label)
+        else:
+            raise ValueError(f"Unsupported parameter type for key '{key}'")
 
 
 class PlanWidgetBase(QWidget):
@@ -321,9 +412,34 @@ class BasicPlanWidget(PlanWidgetBase):
     def setup_widget(self):
         print("BasicPlanWidget setup_widget")
         super().setup_widget()
-        self.planWidget = AutoParamGroup(self, **self.initial_kwargs)
+        self.planWidget = AutoParamGroup(self.model, self, **self.initial_kwargs)
         print("Updating input widgets")
         self.params.append(self.planWidget)
         print("Adding widget to layout")
         self.layout.addWidget(self.planWidget)
         print("BasicPlanWidget setup_widget finished")
+
+
+class MotorParam(DynamicComboParam):
+    def __init__(self, key, label, user_status, parent=None):
+        super().__init__(key, label, dummy_text="Select a motor", parent=parent)
+        self.user_status = user_status
+        self.user_status.register_signal(
+            "MOTORS_DESCRIPTIONS", self.signal_update_options
+        )
+        self.motors = {}
+
+    def update_options(self, plan_dict):
+        inverted_dict = {}
+        for key, value in plan_dict.items():
+            if value != "":
+                inverted_dict[value] = key
+            else:
+                inverted_dict[key] = key
+        self.motors = inverted_dict
+        super().update_options(list(self.motors.keys()))
+
+    def get_params(self):
+        selected_text = self.input_widget.currentText()
+        selected_motor = self.motors.get(selected_text, None)
+        return {self.key: selected_motor} if selected_motor else {}

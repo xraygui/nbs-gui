@@ -27,6 +27,8 @@ nbs-gui-scan = "nbs_gui.plans.scanPlan:ScanPlanWidget"
 nbs-gui-move = "nbs_gui.plans.movePlan:MovePlanWidget"
 nbs-gui-xas = "nbs_gui.plans.xasPlan:XASPlanWidget"
 nbs-gui-timescan = "nbs_gui.plans.scanPlan:TimescanWidget"
+nbs-gui-varscan = "nbs_gui.plans.variableStepPlan:VariableStepWidget"
+nbs-gui-flyscan = "nbs_gui.plans.flyscanPlan:FlyscanWidget"
 
 [project.entry-points."nbs_gui.tabs"]
 nbs-gui-plans = "nbs_gui.tabs.planTab:PlanTabWidget"
