@@ -26,7 +26,7 @@ class SampleSelectModel(QObject):
         super().__init__()
         self.run_engine = run_engine
         self.signal_update_widget.connect(self.update_samples)
-        user_status.register_signal("SAMPLE_LIST", self.signal_update_widget)
+        user_status.register_signal("GLOBAL_SAMPLES", self.signal_update_widget)
         self.samples = {}
         self.currentSample = {}
 
@@ -87,9 +87,6 @@ class SampleSelectWidget(QGroupBox):
         vbox = QVBoxLayout()
         cb = QComboBox()
         self.cb = cb
-        self.cb2 = QComboBox()
-        self.cb2.addItem("Center", "center")
-        self.cb2.addItem("Edge", "edge")
         self.button = QPushButton("Move Sample")
         self.x = QLineEdit("0")
         self.x.setValidator(QDoubleValidator())
@@ -111,7 +108,6 @@ class SampleSelectWidget(QGroupBox):
         self.button.clicked.connect(self.select_sample)
         vbox.addWidget(self.cb)
         vbox.addLayout(hbox)
-        vbox.addWidget(self.cb2)
         vbox.addWidget(self.button)
         self.setLayout(vbox)
         self.run_engine.events.status_changed.connect(self.slot_update_widgets)
@@ -138,8 +134,7 @@ class SampleSelectWidget(QGroupBox):
         y = float(self.y.text())
         r = float(self.r.text())
         print((x, y, r))
-        origin = self.cb2.currentData()
-        plan = BPlan("sample_move", x, y, r, sample, origin=origin)
+        plan = BPlan("move_sample", sample, x=x, y=y, r=r)
         self.run_engine._client.item_execute(plan)
 
     def add_current_position(self):

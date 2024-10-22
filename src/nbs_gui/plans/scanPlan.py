@@ -13,7 +13,7 @@ class TimescanWidget(NBSPlanWidget):
             model,
             parent,
             "nbs_count",
-            steps={
+            num={
                 "type": "spinbox",
                 "args": {"minimum": 1},
                 "label": "Number of points",
@@ -31,7 +31,7 @@ class TimescanWidget(NBSPlanWidget):
         # modifier_params = self.scan_modifier.get_params()
 
         if (
-            "steps" in params
+            "num" in params
             and self.scan_modifier.check_ready()
             and self.sample_select.check_ready()
         ):
@@ -84,7 +84,7 @@ class ScanPlanWidget(NBSPlanWidget):
             },
             start=float,
             end=float,
-            steps={
+            num={
                 "type": "spinbox",
                 "args": {"minimum": 1},
                 "label": "Number of points",
@@ -103,20 +103,23 @@ class ScanPlanWidget(NBSPlanWidget):
             "motor" in params,
             "start" in params,
             "end" in params,
-            "steps" in params,
+            "num" in params,
         ]
         self.plan_ready.emit(all(checks))
 
     def submit_plan(self):
         params = self.get_params()
         samples = params.pop("samples", [{}])
-        # params["motor"],
-        # params["start"],
-        # params["end"],
+        motor = params.pop("motor")
+        start = params.pop("start")
+        end = params.pop("end")
         # params["steps"]
         for sample in samples:
             item = BPlan(
                 self.current_plan,
+                motor,
+                start,
+                end,
                 **params,
                 **sample,
             )

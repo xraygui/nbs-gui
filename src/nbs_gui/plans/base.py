@@ -289,7 +289,7 @@ class AutoParamGroup(ParamGroup):
         print("Done Setting up AutoParamGroup")
 
     def setup_params(self, **kwargs):
-        print("Setup Params")
+        # print("Setup Params")
         for key, value in kwargs.items():
             if isinstance(value, (list, tuple)):
                 label_str = value[0]
@@ -300,10 +300,10 @@ class AutoParamGroup(ParamGroup):
             else:
                 label_str = key
                 param_info = value
-            print(f"Making AutoParam for {key}:{label_str}")
+            # print(f"Making AutoParam for {key}:{label_str}")
             input_widget = self.auto_param(key, param_info, label_str)
             self.add_param(input_widget)
-            print(f"Added AutoParam for {key}:{label_str}")
+            # print(f"Added AutoParam for {key}:{label_str}")
 
     def auto_param(self, key: str, value: Any, label: str) -> BaseParam:
         if isinstance(value, dict):
@@ -342,6 +342,7 @@ class PlanWidgetBase(QWidget):
         If plan is a string, it will be used as the item name for submission
         If it is a dict, it will be used to create a drop-down menu
         """
+        print("Initializing PlanWidgetBase")
         super().__init__(parent)
         self.model = model
         self.plans = plans
@@ -356,10 +357,17 @@ class PlanWidgetBase(QWidget):
 
         self.params = []
         self.setup_widget()
+        print("Done PlanWidgetBase Initialized")
 
-    def current_plan_changed(self, idx):
+    def current_plan_changed(self, idx=None):
+        print("Current Plan Changed Run")
         plan_display = self.plan_combo_list.currentText()
-        self.current_plan = self.plans[plan_display]
+        print(f"Plan display {plan_display}")
+        if plan_display in self.plans:
+            self.current_plan = self.plans[plan_display]
+        else:
+            self.current_plan = None
+        print(f"{self.current_plan}")
 
     def setup_widget(self):
         print("PlanWidgetBase setup_widget")
@@ -372,6 +380,8 @@ class PlanWidgetBase(QWidget):
             h.addWidget(QLabel("Plan Subtype"))
             h.addWidget(self.plan_combo_list)
             self.basePlanLayout.addLayout(h)
+            self.current_plan_changed()
+
         print("PlanWidgetBase setup_widget finished")
 
     def get_params(self):
@@ -383,12 +393,14 @@ class PlanWidgetBase(QWidget):
         dict
             A dictionary of parameters.
         """
+        print("Getting PlanWidgetBase Params")
         params = {}
         for widget in self.params:
             params.update(widget.get_params())
         return params
 
     def check_plan_ready(self):
+        print("Checking PlanWidgetBase ready")
         checks = [widget.check_ready() for widget in self.params]
         if all(checks):
             self.plan_ready.emit(True)

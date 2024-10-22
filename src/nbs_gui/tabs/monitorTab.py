@@ -50,7 +50,7 @@ class MonitorTab(QWidget):
         print("Added manipulator Monitor")
         hbox.addWidget(SampleSelectWidget(model))
         hbox.addWidget(
-            StatusBox(user_status, "Selected Information", "SAMPLE_SELECTED")
+            StatusBox(user_status, "Selected Information", "GLOBAL_SELECTED")
         )
         print("Added StatusBox")
         vbox.addLayout(hbox)

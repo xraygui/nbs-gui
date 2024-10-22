@@ -11,10 +11,11 @@ from qtpy.QtWidgets import (
     QListWidgetItem,
     QStackedWidget,
     QSizePolicy,
+    QFileDialog,
 )
 from qtpy.QtGui import QDoubleValidator, QIntValidator
 from qtpy.QtCore import Signal, Qt
-from bluesky_queueserver_api import BPlan
+from bluesky_queueserver_api import BPlan, BFunc
 from .base import DynamicComboParam
 from .nbsPlan import NBSPlanWidget
 
@@ -79,12 +80,19 @@ class XASPlanWidget(NBSPlanWidget):
         self.signal_update_xas.connect(self.update_xas)
         self.user_status.register_signal("XAS_PLANS", self.signal_update_xas)
         print("XAS Initialized")
-        # Add all the XAS related methods and widgets here
+
+        # Add Load XAS button
+        self.load_xas_button = QPushButton("Load XAS regions from file", self)
+        self.load_xas_button.clicked.connect(self.load_xas_file)
+        self.basePlanLayout.addWidget(self.load_xas_button)
 
     def setup_widget(self):
         super().setup_widget()
+
         self.xas_plans = {}
-        self.edge_selection = XASParam("edge", "Edge", "Select Edge", parent=self)
+        self.edge_selection = XASParam(
+            "edge", "XAS Scan", "Select XAS Plan", parent=self
+        )
         self.scan_widget.add_param(self.edge_selection, 0)
         self.scan_widget.add_row(
             QLabel("Scan Region"), self.edge_selection.make_region_label(), 1
@@ -93,6 +101,20 @@ class XASPlanWidget(NBSPlanWidget):
         self.user_status.register_signal(
             "XAS_PLANS", self.edge_selection.signal_update_options
         )
+
+    def load_xas_file(self):
+        file_dialog = QFileDialog(self)
+        file_dialog.setNameFilter("TOML files (*.toml)")
+        file_dialog.setFileMode(QFileDialog.ExistingFile)
+
+        if file_dialog.exec_():
+            selected_files = file_dialog.selectedFiles()
+            if selected_files:
+                file_path = selected_files[0]
+                # Placeholder function name, to be replaced later
+                item = BFunc("load_xas", file_path)
+                self.run_engine_client._client.function_execute(item)
+                print(f"Submitted XAS file: {file_path}")
 
     def check_plan_ready(self):
         """

@@ -73,14 +73,20 @@ class PlanSubmissionWidget(QWidget):
                     if callable(plan):
                         # Call the modifier function with model and self (as parent) to get the QWidget
                         plan_widget = plan(model, self)
-                        self.action_dict[plan_widget.display_name] = plan_widget
+                        print("Created plan_widget")
+                        self.action_dict[
+                            getattr(plan_widget, "display_name", plan_entry_point.name)
+                        ] = plan_widget
+                        print("Added Plan Widget to dict")
             elif plan_entry_point.name not in plans_to_exclude:
                 print(f"Initializing {plan_entry_point.name}")
                 plan = plan_entry_point.load()  # Load the modifier function
                 if callable(plan):
                     # Call the modifier function with model and self (as parent) to get the QWidget
                     plan_widget = plan(model, self)
-                    self.action_dict[plan_widget.display_name] = plan_widget
+                    self.action_dict[
+                        getattr(plan_widget, "display_name", plan_entry_point.name)
+                    ] = plan_widget
         print("Initialized Action Dict")
         self.action_widget = QStackedWidget(self)
 
