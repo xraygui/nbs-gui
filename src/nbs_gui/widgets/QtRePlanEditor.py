@@ -24,6 +24,10 @@ from qtpy.QtGui import QBrush, QColor
 
 from bluesky_queueserver import construct_parameters, format_text_descriptions
 
+"""
+Vendored from bluesky-widgets and modified
+"""
+
 
 class _QtRePlanEditorTable(QTableWidget):
     signal_parameters_valid = Signal(bool)

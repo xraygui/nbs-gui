@@ -30,6 +30,9 @@ nbs-gui-timescan = "nbs_gui.plans.scanPlan:TimescanWidget"
 nbs-gui-varscan = "nbs_gui.plans.variableStepPlan:VariableStepWidget"
 nbs-gui-flyscan = "nbs_gui.plans.flyscanPlan:FlyscanWidget"
 
+[project.entry-points."nbs_gui.plan_loaders"]
+nbs-gui-xas = "nbs_gui.plans.planLoaders:XASPlanLoader"
+
 [project.entry-points."nbs_gui.tabs"]
 nbs-gui-plans = "nbs_gui.tabs.planTab:PlanTabWidget"
 nbs-gui-motors = "nbs_gui.tabs.motorTab:MotorTab"
