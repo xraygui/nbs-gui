@@ -1,4 +1,5 @@
-from .base import PlanWidgetBase, AutoParamGroup
+from .base import PlanWidgetBase
+from .planParam import AutoParamGroup
 from .sampleModifier import SampleSelectWidget
 from .scanModifier import ScanModifierParam, BeamlineModifierParam
 from qtpy.QtWidgets import QGridLayout, QWidget, QHBoxLayout, QVBoxLayout

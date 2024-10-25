@@ -39,13 +39,11 @@ class TimescanWidget(NBSPlanWidget):
         else:
             self.plan_ready.emit(False)
 
-    def submit_plan(self):
+    def create_plan_items(self):
         params = self.get_params()
         samples = params.pop("samples", [{}])
+        items = []
 
-        # params["steps"],
-        # dwell=params.get("dwell", None),
-        # comment=params.get("comment", None),
         for sample in samples:
             item = BPlan(
                 self.current_plan,
@@ -53,11 +51,8 @@ class TimescanWidget(NBSPlanWidget):
                 **params,
                 **sample,
             )
-
-            # Add repeat functionality
-            repeat = params.get("repeat", 1)
-            for _ in range(repeat):
-                self.run_engine_client.queue_item_add(item=item)
+            items.append(item)
+        return items
 
 
 class ScanPlanWidget(NBSPlanWidget):
@@ -107,13 +102,14 @@ class ScanPlanWidget(NBSPlanWidget):
         ]
         self.plan_ready.emit(all(checks))
 
-    def submit_plan(self):
+    def create_plan_items(self):
         params = self.get_params()
         samples = params.pop("samples", [{}])
         motor = params.pop("motor")
         start = params.pop("start")
         end = params.pop("end")
-        # params["steps"]
+        items = []
+
         for sample in samples:
             item = BPlan(
                 self.current_plan,
@@ -123,4 +119,6 @@ class ScanPlanWidget(NBSPlanWidget):
                 **params,
                 **sample,
             )
-        self.run_engine_client.queue_item_add(item=item)
+            items.append(item)
+
+        return items

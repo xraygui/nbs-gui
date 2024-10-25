@@ -147,7 +147,7 @@ class PlanSubmissionWidget(QWidget):
     def submit_plan(self):
         # Get the selected action, noun, and modifier
         selected_widget = self.action_widget.currentWidget()
-        selected_widget.submit_plan()
+        selected_widget.submit_all_plans()
 
     def reset_plan(self):
         # Get the selected action, noun, and modifier

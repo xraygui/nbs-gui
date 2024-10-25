@@ -18,52 +18,72 @@ class RealManipulatorControl(QGroupBox):
 
     def __init__(self, manipulator, parent_model, orientation=None, **kwargs):
         super().__init__(manipulator.label + " Real Axes", **kwargs)
-        vbox = QVBoxLayout()
+        self.layout = QVBoxLayout(self)
+        self.layout.setSpacing(5)  # Adjust spacing as needed
+        self.layout.setContentsMargins(5, 5, 5, 5)  # Adjust margins as needed
         for m in manipulator.real_axes_models:
-            vbox.addWidget(MotorControl(m, parent_model))
-        self.setLayout(vbox)
+            widget = MotorControl(m, parent_model)
+            self.layout.addWidget(widget)
 
 
 class PseudoManipulatorControl(QGroupBox):
     def __init__(self, manipulator, parent_model, orientation=None, **kwargs):
-        super().__init__(manipulator.label + " Pseudoaxes",**kwargs)
-        vbox = QVBoxLayout()
+        super().__init__(manipulator.label + " Pseudoaxes", **kwargs)
+        self.layout = QVBoxLayout(self)
+        self.layout.setSpacing(5)  # Adjust spacing as needed
+        self.layout.setContentsMargins(5, 5, 5, 5)  # Adjust margins as needed
         for m in manipulator.pseudo_axes_models:
-            print(f"Adding {m.label} to PseudoManipulatorControl")
-            vbox.addWidget(MotorControl(m, parent_model))
-        self.setLayout(vbox)
+            widget = MotorControl(m, parent_model)
+            self.layout.addWidget(widget)
 
 
 class RealManipulatorMonitor(QGroupBox):
     def __init__(self, manipulator, parent_model, orientation=None, **kwargs):
         super().__init__(manipulator.label + " Real Axes", **kwargs)
-        vbox = QVBoxLayout()
+        self.layout = QVBoxLayout(self)
+        self.layout.setSpacing(5)  # Adjust spacing as needed
+        self.layout.setContentsMargins(5, 5, 5, 5)  # Adjust margins as needed
         for m in manipulator.real_axes_models:
-            vbox.addWidget(MotorMonitor(m, parent_model))
-        self.setLayout(vbox)
+            widget = MotorMonitor(m, parent_model)
+            self.layout.addWidget(widget)
 
 
 class PseudoManipulatorMonitor(QGroupBox):
     def __init__(self, manipulator, parent_model, orientation=None, **kwargs):
         super().__init__(manipulator.label + " Pseudoaxes", **kwargs)
-        vbox = QVBoxLayout()
+        self.layout = QVBoxLayout(self)
+        self.layout.setSpacing(5)  # Adjust spacing as needed
+        self.layout.setContentsMargins(5, 5, 5, 5)  # Adjust margins as needed
         for m in manipulator.pseudo_axes_models:
-            vbox.addWidget(MotorMonitor(m, parent_model))
-        self.setLayout(vbox)
+            widget = MotorMonitor(m, parent_model)
+            self.layout.addWidget(widget)
 
 
 class ManipulatorMonitor(QWidget):
-    def __init__(self, manipulator, parent_model, orientation=None, parent=None, **kwargs):
+    def __init__(
+        self, manipulator, parent_model, orientation=None, parent=None, **kwargs
+    ):
         super().__init__(parent=parent)
         hbox = QHBoxLayout()
-        hbox.addWidget(RealManipulatorMonitor(manipulator, parent_model, orientation, **kwargs))
-        hbox.addWidget(PseudoManipulatorMonitor(manipulator, parent_model, orientation, **kwargs))
+        hbox.addWidget(
+            RealManipulatorMonitor(manipulator, parent_model, orientation, **kwargs)
+        )
+        hbox.addWidget(
+            PseudoManipulatorMonitor(manipulator, parent_model, orientation, **kwargs)
+        )
         self.setLayout(hbox)
 
+
 class ManipulatorControl(QWidget):
-    def __init__(self, manipulator, parent_model, orientation=None, parent=None, **kwargs):
+    def __init__(
+        self, manipulator, parent_model, orientation=None, parent=None, **kwargs
+    ):
         super().__init__(parent=parent)
         hbox = QHBoxLayout()
-        hbox.addWidget(RealManipulatorControl(manipulator, parent_model, orientation, **kwargs))
-        hbox.addWidget(PseudoManipulatorControl(manipulator, parent_model, orientation, **kwargs))
+        hbox.addWidget(
+            RealManipulatorControl(manipulator, parent_model, orientation, **kwargs)
+        )
+        hbox.addWidget(
+            PseudoManipulatorControl(manipulator, parent_model, orientation, **kwargs)
+        )
         self.setLayout(hbox)

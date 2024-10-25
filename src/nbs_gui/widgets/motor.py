@@ -28,7 +28,8 @@ class MotorMonitor(QWidget):
             self.units = model.units
         else:
             self.units = ""
-
+        self.box.setSpacing(5)  # Adjust spacing as needed
+        self.box.setContentsMargins(0, 0, 0, 0)
         self.label = QLabel(self.model.label)
         self.box.addWidget(self.label)
         self.position = QLabel(self.model.value)

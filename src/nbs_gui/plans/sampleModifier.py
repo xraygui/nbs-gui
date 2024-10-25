@@ -14,7 +14,7 @@ from qtpy.QtWidgets import (
 )
 
 from qtpy.QtCore import Signal, Qt
-from .base import LineEditParam
+from .planParam import LineEditParam, SpinBoxParam
 
 
 class SampleDialog(QDialog):
@@ -33,10 +33,30 @@ class SampleDialog(QDialog):
         self.ok_button = QPushButton("OK")
         self.ok_button.clicked.connect(self.accept)
 
+        # Add Check All and Uncheck All buttons
+        self.check_all_button = QPushButton("Check All Samples")
+        self.uncheck_all_button = QPushButton("Uncheck All Samples")
+        self.check_all_button.clicked.connect(self.check_all_samples)
+        self.uncheck_all_button.clicked.connect(self.uncheck_all_samples)
+
+        # Layout for buttons
+        button_layout = QHBoxLayout()
+        button_layout.addWidget(self.check_all_button)
+        button_layout.addWidget(self.uncheck_all_button)
+
         layout = QVBoxLayout(self)
         layout.addWidget(self.list_widget)
+        layout.addLayout(button_layout)
         layout.addWidget(self.ok_button)
         self.setLayout(layout)
+
+    def check_all_samples(self):
+        for index in range(self.list_widget.count()):
+            self.list_widget.item(index).setCheckState(Qt.Checked)
+
+    def uncheck_all_samples(self):
+        for index in range(self.list_widget.count()):
+            self.list_widget.item(index).setCheckState(Qt.Unchecked)
 
     def get_checked_samples(self):
         checked_samples = []
@@ -46,11 +66,43 @@ class SampleDialog(QDialog):
         return checked_samples
 
 
+def create_position_widget(pos):
+    print(f"SampleComboParam: Creating widget for {pos}")
+    if pos == "x":
+        help_text = "Horizontal offset from sample center"
+        minimum = -20
+        maximum = 20
+        default = 0
+    if pos == "y":
+        help_text = "Vertical offset from sample center"
+        default = 0
+        minimum = -100
+        maximum = 100
+    if pos == "r":
+        help_text = "Sample angle with respect to beam, from 0=grazing to 90=normal"
+        default = 45
+        minimum = 0
+        maximum = 90
+    widget = SpinBoxParam(
+        pos,
+        "Sample " + pos,
+        value_type=float,
+        default=default,
+        help_text=help_text,
+        minimum=minimum,
+        maximum=maximum,
+    )
+
+    # widget = LineEditParam(pos, float, "Sample " + pos)
+    label = QLabel(widget.label_text)
+    return widget, label
+
+
 class NoSampleDummy(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent=parent)
         self.input_widget = QLabel("Stay in Place")
-        self.input_widget.setStyleSheet("QWidget { background-color: red; }")
+        # self.input_widget.setStyleSheet("QWidget { background-color: red; }")
 
         self.layout = QVBoxLayout(self)
         self.layout.setAlignment(Qt.AlignTop)  # Align widgets to the top
@@ -86,11 +138,9 @@ class SampleComboParam(QWidget):
         self.position_layout.setContentsMargins(5, 5, 5, 5)  # Adjust margins as needed
         self.position_widgets = []
         for pos in ["x", "y", "r"]:
-            print(f"SampleComboParam: Creating widget for {pos}")
-            widget = LineEditParam(pos, float, "Sample " + pos)
-            label = QLabel(widget.label_text)
+            widget, label = create_position_widget(pos)
             self.position_layout.addRow(label, widget)
-            widget.setStyleSheet("QWidget { background-color: red; }")
+            # widget.setStyleSheet("QWidget { background-color: red; }")
             self.position_widgets.append(widget)
         self.layout.addLayout(self.position_layout)
         print(
@@ -144,11 +194,9 @@ class MultiSampleParam(QWidget):
         self.position_layout.setContentsMargins(5, 5, 5, 5)  # Adjust margins as needed
         self.position_widgets = []
         for pos in ["x", "y", "r"]:
-            print(f"SampleComboParam: Creating widget for {pos}")
-            widget = LineEditParam(pos, float, "Sample " + pos)
-            label = QLabel(widget.label_text)
+            widget, label = create_position_widget(pos)
             self.position_layout.addRow(label, widget)
-            widget.setStyleSheet("QWidget { background-color: red; }")
+            # widget.setStyleSheet("QWidget { background-color: red; }")
             self.position_widgets.append(widget)
         self.layout.addLayout(self.position_layout)
         print("MultiSampleParam Done")

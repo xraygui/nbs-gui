@@ -13,10 +13,9 @@ from qtpy.QtWidgets import (
     QSizePolicy,
     QFileDialog,
 )
-from qtpy.QtGui import QDoubleValidator, QIntValidator
 from qtpy.QtCore import Signal, Qt
 from bluesky_queueserver_api import BPlan, BFunc
-from .base import DynamicComboParam
+from .planParam import DynamicComboParam
 from .nbsPlan import NBSPlanWidget
 
 
@@ -133,11 +132,12 @@ class XASPlanWidget(NBSPlanWidget):
         self.edge_selection.signal_update_options.emit(self.xas_plans)
         self.widget_updated.emit()
 
-    def submit_plan(self):
+    def create_plan_items(self):
         params = self.get_params()
         plan = params.pop("plan")
-        samples = params.pop("samples")
-
+        samples = params.pop("samples", [{}])
+        items = []
         for s in samples:
             item = BPlan(plan, **s, **params)
-            self.run_engine_client.queue_item_add(item=item)
+            items.append(item)
+        return items

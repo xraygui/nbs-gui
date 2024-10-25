@@ -1,22 +1,5 @@
-from qtpy.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
-    QComboBox,
-    QLineEdit,
-    QPushButton,
-    QHBoxLayout,
-    QLabel,
-    QDialog,
-    QListWidget,
-    QListWidgetItem,
-    QStackedWidget,
-    QSizePolicy,
-)
-from qtpy.QtGui import QDoubleValidator, QIntValidator
-from qtpy.QtCore import Signal, Qt
-from bluesky_widgets.qt.run_engine_client import QtRePlanQueue
 from bluesky_queueserver_api import BPlan
-from .base import BasicPlanWidget, MotorParam
+from .base import BasicPlanWidget
 
 
 class MovePlanWidget(BasicPlanWidget):
@@ -37,7 +20,7 @@ class MovePlanWidget(BasicPlanWidget):
         self.display_name = "Movement"
         print("Move Initialized")
 
-    def submit_plan(self):
+    def create_plan_items(self):
         params = self.get_params()
         item = BPlan(self.current_plan, params["motor"], params["position"])
-        self.run_engine_client.queue_item_add(item=item)
+        return [item]

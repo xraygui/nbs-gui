@@ -3,7 +3,7 @@ from qtpy.QtWidgets import (
     QWidget,
     QVBoxLayout,
     QPushButton,
-    QFileDialog,
+    QMessageBox,
     QLabel,
     QHBoxLayout,
 )
@@ -61,7 +61,15 @@ class NewSampleWidget(BasicPlanWidget):
             0,
             description=params.get("description", ""),
         )
-        self.run_engine_client._client.function_execute(item)
+        try:
+            self.run_engine_client._client.function_execute(item)
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                "Sample Add Error",
+                f"Failed to add new sample: {str(e)}",
+                QMessageBox.Ok,
+            )
 
 
 class QtSampleView(QTableView):

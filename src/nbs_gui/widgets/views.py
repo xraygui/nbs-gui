@@ -8,6 +8,7 @@ from qtpy.QtWidgets import (
     QLabel,
     QComboBox,
     QStackedWidget,
+    QSizePolicy,
 )
 
 
@@ -80,18 +81,22 @@ class AutoControlBox(QGroupBox):
         else:
             self.box = QVBoxLayout()
             widget_orientation = "h"
+        self.box.setContentsMargins(5, 5, 5, 5)
+        self.box.setSpacing(5)
         if isinstance(models, dict):
             for k, m in models.items():
                 widget = AutoControl(m, parent_model, widget_orientation)
                 self.widgets[k] = widget
                 self.box.addWidget(widget)
                 widget.setVisible(getattr(m, "visible", True))
+
         elif isinstance(models, list):
             for m in models:
                 widget = AutoControl(m, parent_model, widget_orientation)
                 self.widgets[m.label] = widget
                 self.box.addWidget(widget)
                 widget.setVisible(getattr(m, "visible", True))
+
         self.setLayout(self.box)
 
     def contextMenuEvent(self, event):
@@ -136,15 +141,19 @@ class AutoMonitorBox(QGroupBox):
         else:
             self.box = QVBoxLayout()
             widget_orientation = "h"
+        self.box.setContentsMargins(5, 5, 5, 5)
+        self.box.setSpacing(5)
         if isinstance(models, dict):
             for k, m in models.items():
                 widget = AutoMonitor(m, parent_model, widget_orientation)
+
                 self.widgets[k] = widget
                 self.box.addWidget(widget)
                 widget.setVisible(getattr(m, "visible", True))
         elif isinstance(models, list):
             for m in models:
                 widget = AutoMonitor(m, parent_model, widget_orientation)
+
                 self.widgets[m.label] = widget
                 self.box.addWidget(widget)
                 widget.setVisible(getattr(m, "visible", True))
@@ -204,3 +213,6 @@ class AutoControlCombo(QWidget):
         controlBox.addWidget(dropdown)
         controlBox.addWidget(widgetStack)
         self.setLayout(controlBox)
+
+        # Set size policy for widgetStack
+        widgetStack.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)

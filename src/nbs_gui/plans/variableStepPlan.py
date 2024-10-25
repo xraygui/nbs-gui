@@ -2,27 +2,33 @@ from qtpy.QtCore import Signal
 from qtpy.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QLabel
 from bluesky_queueserver_api import BPlan
 from .nbsPlan import NBSPlanWidget
-from .base import LineEditParam, BaseParam
+from .planParam import LineEditParam, ParamGroupBase
 
 
-class VariableStepParam(BaseParam):
+class VariableStepParam(ParamGroupBase, QWidget):
 
     def __init__(self, parent=None):
+        print("Initializing Variable Step Param")
         super().__init__(parent=parent)
+        print("Initialized VarStepParam Super")
         self.label_text = "Variable Step Arguments"
-        self.params = []
 
         # Layout for parameters
+        self.layout = QHBoxLayout(self)
         self.param_layout = QHBoxLayout()
         self.layout.addLayout(self.param_layout)
-        start = LineEditParam("start", float, "Start", self)
+        start = LineEditParam(
+            "start", float, "Start", "Motor Start Position", parent=self
+        )
         start.label_text = "Start"
+        super().add_param(start)
+
         param_layout = QVBoxLayout()
         label = QLabel(start.label_text)
         param_layout.addWidget(label)
         param_layout.addWidget(start)
         self.param_layout.addLayout(param_layout)
-        self.params.append(start)
+        print("Adding start")
 
         # Add initial parameters
         self.add_param_pair()
@@ -43,11 +49,26 @@ class VariableStepParam(BaseParam):
         self.minus_button.setEnabled(False)
 
     def add_param_pair(self):
+        print("Adding Param Pair")
         index = (len(self.params) + 1) // 2
-        stop = LineEditParam(f"stop_{index}", float, f"Stop {index}", self)
+        stop = LineEditParam(
+            f"stop_{index}",
+            float,
+            f"Stop {index}",
+            f"Motor endpoint {index}",
+            self,
+        )
         stop.label_text = f"Stop {index}"
-        step = LineEditParam(f"step_{index}", float, f"Start {index}", self)
+        step = LineEditParam(
+            f"step_{index}",
+            float,
+            f"Start {index}",
+            f"Motor step size to take between start and end of segment {index}",
+            self,
+        )
         step.label_text = f"Step {index}"
+        super().add_param(stop)
+        super().add_param(step)
         for param in [stop, step]:
             param_layout = QVBoxLayout()
             label = QLabel(param.label_text)
@@ -55,15 +76,14 @@ class VariableStepParam(BaseParam):
             param_layout.addWidget(param)
             self.param_layout.addLayout(param_layout)
 
-        self.params.extend([stop, step])
+        # self.params.extend([stop, step])
 
         # Enable minus button if we have more than one pair
         if len(self.params) > 3:
             self.minus_button.setEnabled(True)
 
         self.editingFinished.emit()
-        stop.editingFinished.connect(self.editingFinished)
-        step.editingFinished.connect(self.editingFinished)
+        print("Done adding param pair")
 
     def remove_param_pair(self):
         if len(self.params) > 3:
@@ -83,10 +103,6 @@ class VariableStepParam(BaseParam):
             # Disable minus button if we're down to one pair
             if len(self.params) == 3:
                 self.minus_button.setEnabled(False)
-
-    def reset(self):
-        for param in self.params:
-            param.reset()
 
     def get_params(self):
         params = {}
@@ -138,14 +154,12 @@ class VariableStepWidget(NBSPlanWidget):
         checks = ["motor" in params, self.scan_widget.check_ready()]
         self.plan_ready.emit(all(checks))
 
-    def submit_plan(self):
+    def create_plan_items(self):
         params = self.get_params()
         samples = params.pop("samples", [{}])
         args = params.pop("args")
         motor = params.pop("motor")
-        # params["start"],
-        # params["end"],
-        # params["steps"]
+        items = []
         for sample in samples:
             item = BPlan(
                 self.current_plan,
@@ -154,4 +168,5 @@ class VariableStepWidget(NBSPlanWidget):
                 **params,
                 **sample,
             )
-        self.run_engine_client.queue_item_add(item=item)
+            items.append(item)
+        return items

@@ -6,6 +6,7 @@ class FlyscanWidget(NBSPlanWidget):
     display_name = "Fly Scan"
 
     def __init__(self, model, parent=None):
+        print("Initializing FlyScan")
         super().__init__(
             model,
             parent=None,
@@ -16,11 +17,22 @@ class FlyscanWidget(NBSPlanWidget):
             },
             start=float,
             stop=float,
-            speed=float,
-            period=float,
+            speed={
+                "type": "spinbox",
+                "args": {"value_type": float},
+                "label": "Speed",
+                "help_text": "Motor speed between start and stop",
+            },
+            period={
+                "type": "spinbox",
+                "args": {"value_type": float},
+                "label": "Detector Period (s)",
+                "help_text": "Read non-flyer detectors every X seconds during flyscan",
+            },
         )
+        print("Done initializing FlyScan")
 
-    def submit_plan(self):
+    def create_plan_items(self):
         params = self.get_params()
         samples = params.pop("samples", [{}])
         motor = params.pop("motor")
@@ -28,6 +40,7 @@ class FlyscanWidget(NBSPlanWidget):
         speed = params.pop("speed", None)
         if speed is not None:
             args.append(speed)
+        items = []
         for sample in samples:
             item = BPlan(
                 self.current_plan,
@@ -36,4 +49,5 @@ class FlyscanWidget(NBSPlanWidget):
                 **params,
                 **sample,
             )
-        self.run_engine_client.queue_item_add(item=item)
+            items.append(item)
+        return items
