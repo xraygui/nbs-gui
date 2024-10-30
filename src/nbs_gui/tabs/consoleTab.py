@@ -7,21 +7,34 @@ from qtpy.QtWidgets import (
     QPushButton,
     QLabel,
 )
-from qtpy.QtCore import Signal, Slot
+from qtpy.QtCore import Signal, Slot, Qt
 from qtconsole.rich_jupyter_widget import RichJupyterWidget
 from qtconsole.manager import QtKernelManager
-from bluesky_widgets.qt.run_engine_client import (
-    QtReStatusMonitor,
-)
-import sys
-import argparse
-import subprocess
-import os
+
+# from bluesky_widgets.qt.ipython_console import QtReIPythonConsole
+
+# import sys
+# import argparse
+# import subprocess
+# import os
 
 
-def get_jupyter_runtime_dir():
-    """Get the Jupyter runtime directory."""
-    return subprocess.check_output(["jupyter", "--runtime-dir"]).decode("utf-8").strip()
+# def get_jupyter_runtime_dir():
+#     """Get the Jupyter runtime directory."""
+#     return subprocess.check_output(["jupyter", "--runtime-dir"]).decode("utf-8").strip()
+
+
+class NewIPythonConsoleTab(QWidget):
+    name = "New IPython Console"
+
+    def __init__(self, model, *args, **kwargs):
+        print("Initializing IPythonConsoleTab")
+        super().__init__(*args, **kwargs)
+        vbox = QVBoxLayout()
+        print("Creating Ipython widget")
+        self.ipython_widget = QtReIPythonConsole(model.run_engine)
+        vbox.addWidget(self.ipython_widget)
+        self.setLayout(vbox)
 
 
 class IPythonConsoleTab(QWidget):
@@ -41,10 +54,14 @@ class IPythonConsoleTab(QWidget):
     name = "IPython Console"
     signal_update_widget = Signal(object)
 
-    def __init__(self, model, kernel_file=None):
+    def __init__(self, model):
         """
-        Initializes the IPythonConsoleTab widget, setting up the IPython console,
-        kernel manager, and kernel client, and connecting them together.
+        Initialize the IPython console tab.
+
+        Parameters
+        ----------
+        model : bluesky_widgets.models.run_engine.RERunEngine
+            Run engine model that provides kernel connection status and control
         """
         super().__init__()
         self.kernel_label = QLabel("Kernel Status: Not Connected")
@@ -52,34 +69,32 @@ class IPythonConsoleTab(QWidget):
         self.REClientModel.events.status_changed.connect(self.on_update_widgets)
         self.signal_update_widget.connect(self.slot_update_widgets)
 
-        self.kernel_file = kernel_file
+        # Create main layout
+        self.vbox = QVBoxLayout(self)
+        self.vbox.addWidget(self.kernel_label)
 
-        vbox = QVBoxLayout(self)
-        vbox.addWidget(self.kernel_label)
-        # Create the IPython console widget but do not initialize it yet
-        self.console = RichJupyterWidget()
-        self.console.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.console._append_html(
+        # Create placeholder widget
+        self.placeholder = QLabel(
             "<i>Connect to Kernel by hitting the button when the kernel status is idle</i>"
         )
-        vbox.addWidget(self.console)
+        self.placeholder.setAlignment(Qt.AlignCenter)
+        self.placeholder.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
-        # Create a QLineEdit for inputting a file path
-        # self.filePathLineEdit = QLineEdit()
-        # self.filePathLineEdit.setPlaceholderText("Enter kernel connection file path")
-        # vbox.addWidget(self.filePathLineEdit)
+        # Add placeholder to layout
+        self.vbox.addWidget(self.placeholder)
 
-        # Create a button to connect to the kernel
+        # Create connect button
         self.connectButton = QPushButton("Connect to Kernel")
-        vbox.addWidget(self.connectButton)
         self.connectButton.clicked.connect(self.connect_to_kernel)
         self.connectButton.setEnabled(False)
-        vbox.addWidget(QtReStatusMonitor(self.REClientModel))
 
-        # self.runCodeButton = QPushButton("Run Hello World")
-        # self.runCodeButton.clicked.connect(self.run_hello_world)
-        # vbox.addWidget(self.runCodeButton)
-        self.setLayout(vbox)
+        self.vbox.addWidget(self.connectButton)
+        # self.vbox.addWidget(QtReStatusMonitor(self.REClientModel))
+
+        # Initialize console reference as None
+        self.console = None
+        self.kernel_manager = None
+        self.kernel_client = None
 
     def on_update_widgets(self, event):
         status = event.status
@@ -103,19 +118,32 @@ class IPythonConsoleTab(QWidget):
         Prioritizes the file path from the QLineEdit if provided.
         """
         print("Connecting to Kernel")
-        # Use the file path from the QLineEdit if provided, otherwise use the initial kernel_file
+
+        # Clean up existing console if it exists
+        if self.console is not None:
+            self.console.kernel_client.stop_channels()
+            self.console.kernel_manager = None
+            self.console.kernel_client = None
+            self.vbox.removeWidget(self.console)
+            self.console.deleteLater()
+            self.console = None
+
+        # Remove placeholder if it exists
+        if self.placeholder is not None:
+            self.vbox.removeWidget(self.placeholder)
+            self.placeholder.hide()
+
+        # Create new console widget
+        self.console = RichJupyterWidget()
+        self.console.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+        # Insert console widget after kernel label but before buttons
+        self.vbox.insertWidget(1, self.console)
+
+        # Setup kernel connection
         msg = self.REClientModel._client.config_get()
         connect_info = msg["config"]["ip_connect_info"]
-        # kernel_file = self.filePathLineEdit.text().strip() or self.kernel_file
-        """
-        if kernel_file:
-            self.kernel_manager = QtKernelManager(connection_file=kernel_file)
-            self.kernel_manager.load_connection_file()
-        else:
-            # Start a new kernel if no connection file was provided
-            self.kernel_manager = QtKernelManager()
-            self.kernel_manager.start_kernel()
-        """
+
         self.kernel_manager = QtKernelManager()
         self.kernel_manager.load_connection_info(connect_info)
         self.kernel_client = self.kernel_manager.client()
@@ -126,46 +154,11 @@ class IPythonConsoleTab(QWidget):
         self.console.kernel_client = self.kernel_client
         print("Done connecting to Kernel")
 
-        # Optionally, disable the button after connecting
-        # self.connectButton.setEnabled(False)
-
-    def run_hello_world(self):
-        """
-        Executes the code `print("hello world")` in the IPython console.
-        """
-        code = 'print("hello world")'
-        # Execute the code in the IPython kernel
-        self.console.execute(code)
-
     def is_console_connected(self):
-        if self.console.kernel_client and self.console.kernel_client.is_alive():
+        if (
+            self.console is not None
+            and self.console.kernel_client
+            and self.console.kernel_client.is_alive()
+        ):
             return True
-        else:
-            return False
-
-
-class MainApplicationWindow(QMainWindow):
-    """
-    The main application window that hosts the IPythonConsoleTab widget.
-    """
-
-    def __init__(self, kernel_file=None):
-        """
-        Initializes the main application window, setting up the central widget
-        as an instance of IPythonConsoleTab.
-        """
-        super().__init__()
-        self.setWindowTitle("IPython Console Tab")
-        self.setCentralWidget(IPythonConsoleTab(kernel_file=kernel_file))
-        self.resize(800, 600)
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="IPython Console Application")
-    parser.add_argument("--kernel", type=str, help="Path to the kernel connection file")
-    args = parser.parse_args()
-
-    app = QApplication(sys.argv)
-    mainWin = MainApplicationWindow(kernel_file=args.kernel)
-    mainWin.show()
-    sys.exit(app.exec_())
+        return False

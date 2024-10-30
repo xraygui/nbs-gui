@@ -62,10 +62,10 @@ class ReferenceComboParam(QWidget):
         self.layout.addWidget(self.input_widget)
 
         print("RefComboParam: Initialization complete")
+        self.signal_update_samples.connect(self.update_samples)
         self.user_status.register_signal(
             "REFERENCE_SAMPLES", self.signal_update_samples
         )
-        self.signal_update_samples.connect(self.update_samples)
 
     def update_samples(self, sample_dict):
         self.samples = sample_dict
@@ -73,7 +73,10 @@ class ReferenceComboParam(QWidget):
         self.input_widget.addItem("Auto (default)")
         # self.input_widget.setItemData(0, "", Qt.UserRole - 1)
         self.input_widget.addItems(
-            ["Sample {}: {}".format(k, v["name"]) for k, v in self.samples.items()]
+            [
+                "Sample {}: {}".format(k, v["name"])
+                for k, v in sorted(self.samples.items())
+            ]
         )
 
     def check_ready(self):
