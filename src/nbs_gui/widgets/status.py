@@ -43,6 +43,88 @@ class StatusBox(QGroupBox):
             i += 1
 
 
+class RedisStatusBox(QGroupBox):
+    """
+    A status box that displays metadata from a Redis dictionary.
+
+    Parameters
+    ----------
+    user_status : UserStatus
+        The user status model containing Redis configuration
+    title : str
+        Title for the group box
+    topic : str
+        Redis topic to subscribe to
+    parent : QWidget, optional
+        Parent widget
+    """
+
+    def __init__(self, user_status, title, topic="", redis_dict=None, parent=None):
+        print("RedisStatusBox init")
+        super().__init__(title, parent)
+        self.model = user_status
+
+        # Get Redis dict for metadata
+        if redis_dict is None:
+            self.redis_dict = self.model.get_redis_dict(topic)
+        else:
+            self.redis_dict = redis_dict
+        if self.redis_dict is None:
+            print(f"Warning: Redis not configured, {title} will be empty")
+            return
+
+        # Setup layout
+        self.vbox = QVBoxLayout()
+        self.setLayout(self.vbox)
+        print("Connecting RedisStatusBox redis_dict to update")
+        # Connect to Redis changes
+        self.redis_dict.changed.connect(self.update_display)
+
+        # Initial update
+        self.update_display()
+
+    def get_display_data(self):
+        """
+        Get the data to display from Redis.
+        Should be overridden by subclasses to format the data appropriately.
+
+        Returns
+        -------
+        dict
+            Dictionary of key-value pairs to display
+        """
+        try:
+            return self.redis_dict
+        except KeyError:
+            return {}
+
+    def update_display(self):
+        """Update the display with current Redis data"""
+        print("RedisStatusBox update display")
+        # Clear existing widgets and layouts
+        while self.vbox.count():
+            item = self.vbox.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+            elif item.layout():
+                # Recursively clear and delete the layout
+                while item.layout().count():
+                    child = item.layout().takeAt(0)
+                    if child.widget():
+                        child.widget().deleteLater()
+                item.layout().deleteLater()
+
+        # Get and format the data
+        display_data = self.get_display_data()
+
+        # Add to layout
+        for k, v in display_data.items():
+            hbox = QHBoxLayout()
+            hbox.addWidget(QLabel(str(k)))
+            hbox.addWidget(QLabel(str(v)))
+            self.vbox.addLayout(hbox)
+
+
 class NewProposalDialog(QDialog):
     def __init__(self, title, run_engine):
         super().__init__()
@@ -79,7 +161,7 @@ class NewProposalDialog(QDialog):
 class ProposalStatus(QWidget):
     def __init__(self, run_engine, user_status):
         super().__init__()
-        status = StatusBox(user_status, "User Metadata", "USER_MD")
+        status = RedisStatusBox(user_status, "User Metadata", "USER_MD")
         self.REClientModel = run_engine
 
         self.button = QPushButton("New Proposal")

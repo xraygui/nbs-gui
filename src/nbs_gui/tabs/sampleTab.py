@@ -7,20 +7,22 @@ from qtpy.QtWidgets import (
     QLabel,
     QHBoxLayout,
 )
-from qtpy.QtCore import QAbstractTableModel, Qt, Signal, Slot
+from qtpy.QtCore import QAbstractTableModel, Qt, Signal, Slot, QSortFilterProxyModel
 from ..plans.base import BasicPlanWidget
 from bluesky_queueserver_api import BFunc
+import redis
+from ..QtRedisJSONDict import NestedRedisTableModel
 
 
 class SampleTab(QWidget):
-    name = "Samples"
+    name = "NBS Samples"
 
     def __init__(self, model, parent=None):
         super().__init__(parent)
         self.layout = QVBoxLayout(self)
         self.model = model
 
-        self.sample_view = QtSampleView(model.user_status, parent=self)
+        self.sample_view = QtRedisSampleView(model.user_status, parent=self)
         self.new_sample = NewSampleWidget(model, parent)
         self.layout.addWidget(self.new_sample)
         self.layout.addWidget(self.sample_view)
@@ -79,23 +81,57 @@ class QtSampleView(QTableView):
         super().__init__(parent)
         self.model = model
         self.user_status = model.user_status
+        """
         try:
             signal_name = self.model.beamline.primary_sampleholder.name
             print(f"Got {signal_name} from beamline model sampleholder")
         except Exception as e:
             print(e)
             signal_name = "MANIP"
-
+        """
         self.signal_update_widget.connect(self.update_md)
-        self.user_status.register_signal(
-            signal_name.upper() + "_SAMPLES", self.signal_update_widget
-        )
+        self.user_status.register_signal("GLOBAL_SAMPLES", self.signal_update_widget)
         self.tableModel = DictTableModel({})
         self.setModel(self.tableModel)
 
     @Slot(object)
     def update_md(self, samples):
         self.tableModel.update(samples)
+
+
+class QtRedisSampleView(QTableView):
+    signal_update_widget = Signal(object)
+
+    def __init__(self, model, parent=None):
+        super().__init__(parent)
+        self.model = model
+        print("Creating Redis Sample View")
+
+        # Get Redis dict from UserStatus
+        redis_dict = self.model.get_redis_dict("GLOBAL_SAMPLES")
+        if redis_dict is None:
+            print("Warning: Redis not configured, sample view will be empty")
+            return
+
+        print("Creating NestedRedisTableModel")
+        self.source_model = NestedRedisTableModel(redis_dict)
+        print("Setting Model")
+
+        self.proxy_model = QSortFilterProxyModel(self)
+        self.proxy_model.setSourceModel(self.source_model)
+
+        # Set the proxy model on the view
+        self.setModel(self.proxy_model)
+
+        # Enable sorting
+        self.setSortingEnabled(True)
+
+        # Sort by first column (Key) in ascending order by default
+        self.sortByColumn(0, Qt.AscendingOrder)
+
+    def cleanup(self):
+        if hasattr(self, "source_model"):
+            self.source_model.cleanup()
 
 
 class DictTableModel(QAbstractTableModel):

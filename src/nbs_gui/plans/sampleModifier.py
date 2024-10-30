@@ -24,7 +24,7 @@ class SampleDialog(QDialog):
         self.list_widget = QListWidget()
         self.sample_keys = list(samples.keys())
 
-        for k, s in samples.items():
+        for k, s in sorted(samples.items()):
             item = QListWidgetItem(f"Sample {k}: {s}")
             item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
             item.setCheckState(Qt.Unchecked)
@@ -154,7 +154,10 @@ class SampleComboParam(QWidget):
         self.input_widget.addItem("Select Sample")
         self.input_widget.setItemData(0, "", Qt.UserRole - 1)
         self.input_widget.addItems(
-            ["Sample {}: {}".format(k, v["name"]) for k, v in self.samples.items()]
+            [
+                "Sample {}: {}".format(k, v["name"])
+                for k, v in sorted(self.samples.items())
+            ]
         )
 
     def check_ready(self):
@@ -181,7 +184,7 @@ class MultiSampleParam(QWidget):
         self.samples = {}
         self.checked_samples = []
         self.dialog_accepted = False
-        self.input_widget = QPushButton("Sample Select")
+        self.input_widget = QPushButton("Sample Select (0 selected)")
         self.input_widget.clicked.connect(self.create_sample_dialog)
         self.layout = QVBoxLayout(self)
         self.layout.setAlignment(Qt.AlignTop)  # Align widgets to the top
@@ -211,11 +214,18 @@ class MultiSampleParam(QWidget):
         dialog = SampleDialog(self.samples)
         if dialog.exec():
             self.checked_samples = dialog.get_checked_samples()
-            if self.checked_samples is not []:
+            if self.checked_samples:
                 self.dialog_accepted = True
+                self.update_button_text()
                 self.editingFinished.emit()
             else:
                 self.dialog_accepted = False
+                self.update_button_text()
+
+    def update_button_text(self):
+        """Update the button text to show number of selected samples"""
+        num_selected = len(self.checked_samples)
+        self.input_widget.setText(f"Sample Select ({num_selected} selected)")
 
     def check_ready(self):
         return self.dialog_accepted
@@ -231,6 +241,7 @@ class MultiSampleParam(QWidget):
 
     def reset(self):
         self.checked_samples = []
+        self.update_button_text()
 
 
 class SampleSelectWidget(QGroupBox):
@@ -249,9 +260,8 @@ class SampleSelectWidget(QGroupBox):
         self.setLayout(self.layout)
 
         self.user_status = model.user_status
-        self.signal_update_samples.connect(self.update_samples)
-        self.user_status.register_signal("GLOBAL_SAMPLES", self.signal_update_samples)
-        self.samples = {}
+        self.samples = self.user_status.get_redis_dict("GLOBAL_SAMPLES")
+        self.samples.changed.connect(self.update_samples)
 
         self.sample_label = QLabel("Sample Select Option")
 
@@ -284,17 +294,17 @@ class SampleSelectWidget(QGroupBox):
         h.addWidget(self.sample_option)
         self.layout.addLayout(h)
         self.layout.addWidget(self.sample_selection)
+        self.update_samples()
         print("Sample Select Initialized")
 
     def clear_sample_selection(self, *args):
         self.dialog_accepted = False
         self.checked_samples = []
 
-    def update_samples(self, sample_dict):
+    def update_samples(self):
         print("Got Sample Update")
-        self.samples = sample_dict
-        self.one_sample.update_samples(sample_dict)
-        self.multi_sample.update_samples(sample_dict)
+        self.one_sample.update_samples(self.samples)
+        self.multi_sample.update_samples(self.samples)
 
     def get_params(self):
         if self.sample_option.currentText() == "No Sample":

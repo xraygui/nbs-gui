@@ -7,32 +7,32 @@ from qtpy.QtWidgets import (
     QLineEdit,
     QLabel,
     QDialog,
-    QVBoxLayout,
-    QLineEdit,
     QDialogButtonBox,
 )
-from qtpy.QtCore import Signal, QObject, Slot, Qt
-from .status import StatusBox
-from .manipulator_monitor import RealManipulatorMonitor
+from qtpy.QtCore import Signal, QObject, Slot
 from qtpy.QtGui import QDoubleValidator
+
 from bluesky_queueserver_api import BPlan, BFunc
 
 
 class SampleSelectModel(QObject):
-    signal_update_widget = Signal(object)
     signal_samples_updated = Signal(object)
 
     def __init__(self, run_engine, user_status, *args, **kwargs):
         super().__init__()
         self.run_engine = run_engine
-        self.signal_update_widget.connect(self.update_samples)
-        user_status.register_signal("GLOBAL_SAMPLES", self.signal_update_widget)
-        self.samples = {}
-        self.currentSample = {}
+        self.samples = user_status.get_redis_dict("GLOBAL_SAMPLES")
+        if self.samples is None:
+            print("Warning: Redis not configured, sample selection will be empty")
+            self.samples = {}
+        else:
+            self.samples.changed.connect(self.update_samples)
+            self.update_samples()
 
-    def update_samples(self, samples):
-        self.samples = samples
-        self.signal_samples_updated.emit(samples)
+    def update_samples(self):
+        """Update samples from Redis data"""
+        print(f"SampleSelectModel got samples {self.samples}")
+        self.signal_samples_updated.emit(self.samples)
 
     def select_sample(self, sample, x, y, r, origin):
         plan = BPlan("sample_move", x, y, r, sample, origin=origin)
@@ -82,7 +82,6 @@ class SampleSelectWidget(QGroupBox):
         super().__init__("Sample Selection", parent=parent)
         self.run_engine = model.run_engine
         self.model = SampleSelectModel(model.run_engine, model.user_status)
-        self.model.signal_update_widget.connect(self.update_samples)
 
         vbox = QVBoxLayout()
         cb = QComboBox()
@@ -111,6 +110,9 @@ class SampleSelectWidget(QGroupBox):
         vbox.addWidget(self.button)
         self.setLayout(vbox)
         self.run_engine.events.status_changed.connect(self.slot_update_widgets)
+        self.model.signal_samples_updated.connect(self.update_samples)
+        self.model.update_samples()
+        print("Finish SampleSelectWidget init")
 
     @Slot(object)
     def slot_update_widgets(self, event):
@@ -123,9 +125,11 @@ class SampleSelectWidget(QGroupBox):
         enabled = is_connected and worker_exists and not bool(running_item_uid)
         self.button.setEnabled(enabled)
 
+    @Slot(object)
     def update_samples(self, samples):
+        print("SampleSelectWidget update_samples called with {samples}")
         self.cb.clear()
-        for k, v in samples.items():
+        for k, v in sorted(samples.items()):
             self.cb.addItem(f"Sample {k}: {v['name']}", k)
 
     def select_sample(self):

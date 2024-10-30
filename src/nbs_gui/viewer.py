@@ -77,7 +77,15 @@ class ViewerModel:
             http_server_uri=SETTINGS.http_server_uri,
             http_server_api_key=SETTINGS.http_server_api_key,
         )
-        self.user_status = UserStatus(self.run_engine)
+
+        # Get Redis settings from beamline config
+        redis_settings = (
+            SETTINGS.beamline_config.get("settings", {})
+            .get("redis", {})
+            .get("info", {})
+        )
+
+        self.user_status = UserStatus(self.run_engine, redis_settings=redis_settings)
 
         blModelPath = (
             SETTINGS.gui_config.get("models", {}).get("beamline", {}).get("loader", "")
@@ -91,7 +99,7 @@ class ViewerModel:
             SETTINGS.object_config_file, SETTINGS.gui_config_file
         )
         devices, groups, roles = loadFromConfig(
-            config, instantiateGUIDevice, load_pass=-1
+            config, instantiateGUIDevice, load_pass="auto"
         )
 
         self.beamline = BeamlineModel(devices, groups, roles)

@@ -32,7 +32,7 @@ def formatInt(value):
 
 
 class UserStatus(QObject):
-    def __init__(self, runEngineClient, *args, **kwargs):
+    def __init__(self, runEngineClient, redis_settings=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.REClientModel = runEngineClient
         self.REClientModel.events.status_changed.connect(self.on_status_update)
@@ -42,6 +42,50 @@ class UserStatus(QObject):
         self._thread = None
         self.updates_activated = False
         self.update_period = 1
+        self._redis_settings = redis_settings
+        self._status_dicts = {}
+        self._signals = {}
+        self._redis_client = None
+
+        if redis_settings:
+            self._init_redis_client()
+
+    def _init_redis_client(self):
+        """Initialize Redis client from settings"""
+        import redis
+
+        self._redis_client = redis.Redis(
+            host=self._redis_settings["host"],
+            port=self._redis_settings.get("port", 6379),
+            db=self._redis_settings.get("db", 0),
+        )
+        self._redis_prefix = self._redis_settings.get("prefix", "")
+
+    def get_redis_dict(self, topic=""):
+        """
+        Get a QtRedisJSONDict for a specific topic.
+
+        Parameters
+        ----------
+        topic : str
+            Topic for the Redis dictionary
+
+        Returns
+        -------
+        QtRedisJSONDict
+            A new Redis dictionary instance for the topic
+        """
+        from .QtRedisJSONDict import QtRedisJSONDict
+
+        if self._redis_client is None and self._redis_settings:
+            self._init_redis_client()
+
+        if self._redis_client is None:
+            return None
+
+        return QtRedisJSONDict(
+            self._redis_client, self._redis_prefix, topic, parent=self
+        )
 
     def _start_thread(self):
         self._thread = FunctionWorker(self._reload_status)
