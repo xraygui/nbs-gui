@@ -547,7 +547,7 @@ class PVPositionerModel(PVModel):
             return
 
         if new_sp != self._setpoint and self._moving:
-            print(self.label, new_sp, self._setpoint, type(new_sp))
+            # print(self.label, new_sp, self._setpoint, type(new_sp))
             self._setpoint = new_sp
             self.setpointChanged.emit(self._setpoint)
 

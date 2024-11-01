@@ -46,17 +46,17 @@ class PlanWidgetBase(QWidget):
         print("Done PlanWidgetBase Initialized")
 
     def current_plan_changed(self, idx=None):
-        print("Current Plan Changed Run")
+        # print("Current Plan Changed Run")
         plan_display = self.plan_combo_list.currentText()
-        print(f"Plan display {plan_display}")
+        # print(f"Plan display {plan_display}")
         if plan_display in self.plans:
             self.current_plan = self.plans[plan_display]
         else:
             self.current_plan = None
-        print(f"{self.current_plan}")
+        # print(f"{self.current_plan}")
 
     def setup_widget(self):
-        print("PlanWidgetBase setup_widget")
+        # print("PlanWidgetBase setup_widget")
         if isinstance(self.plans, dict):
             self.plan_combo_list = QComboBox()
             for display_key in self.plans.keys():
@@ -68,7 +68,7 @@ class PlanWidgetBase(QWidget):
             self.basePlanLayout.addLayout(h)
             self.current_plan_changed()
 
-        print("PlanWidgetBase setup_widget finished")
+        # print("PlanWidgetBase setup_widget finished")
 
     def get_params(self):
         """
@@ -79,14 +79,14 @@ class PlanWidgetBase(QWidget):
         dict
             A dictionary of parameters.
         """
-        print("Getting PlanWidgetBase Params")
+        # print("Getting PlanWidgetBase Params")
         params = {}
         for widget in self.params:
             params.update(widget.get_params())
         return params
 
     def check_plan_ready(self):
-        print("Checking PlanWidgetBase ready")
+        # print("Checking PlanWidgetBase ready")
         checks = [widget.check_ready() for widget in self.params]
         if all(checks):
             self.plan_ready.emit(True)
@@ -155,12 +155,12 @@ class BasicPlanWidget(PlanWidgetBase):
         super().__init__(model, parent, plans)
 
     def setup_widget(self):
-        print("BasicPlanWidget setup_widget")
+        # print("BasicPlanWidget setup_widget")
         super().setup_widget()
         self.planWidget = AutoParamGroup(self.model, self, **self.initial_kwargs)
         self.planWidget.editingFinished.connect(self.editingFinished)
-        print("Updating input widgets")
+        # print("Updating input widgets")
         self.params.append(self.planWidget)
-        print("Adding widget to layout")
+        # print("Adding widget to layout")
         self.layout.addWidget(self.planWidget)
-        print("BasicPlanWidget setup_widget finished")
+        # print("BasicPlanWidget setup_widget finished")

@@ -1,16 +1,7 @@
 from qtpy.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
-    QComboBox,
-    QLineEdit,
     QPushButton,
-    QHBoxLayout,
     QLabel,
-    QDialog,
-    QListWidget,
-    QListWidgetItem,
-    QStackedWidget,
-    QSizePolicy,
+    QMessageBox,
     QFileDialog,
 )
 from qtpy.QtCore import Signal, Qt
@@ -112,19 +103,29 @@ class XASPlanWidget(NBSPlanWidget):
                 file_path = selected_files[0]
                 # Placeholder function name, to be replaced later
                 item = BFunc("load_xas", file_path)
-                self.run_engine_client._client.function_execute(item)
-                print(f"Submitted XAS file: {file_path}")
+                # print(f"Submitted XAS file: {file_path}")
+                try:
+                    self.run_engine_client._client.function_execute(item)
+                    return True
+                except Exception as e:
+                    QMessageBox.critical(
+                        self,
+                        "XAS Load Error",
+                        f"Failed to load {file_path}: {str(e)}",
+                        QMessageBox.Ok,
+                    )
+                    return False
 
     def check_plan_ready(self):
         """
         Check if all selections have been made and emit the plan_ready signal if they have.
         """
-        print("Checking XAS Plan")
+        # print("Checking XAS Plan")
         if self.sample_select.check_ready() and self.edge_selection.check_ready():
-            print("XAS Ready to Submit")
+            # print("XAS Ready to Submit")
             self.plan_ready.emit(True)
         else:
-            print("XAS not ready")
+            # print("XAS not ready")
             self.plan_ready.emit(False)
 
     def update_xas(self, plan_dict):

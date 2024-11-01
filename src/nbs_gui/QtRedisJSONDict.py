@@ -91,12 +91,12 @@ class QtRedisJSONDict(QObject):
         return cls(redis_client, prefix, topic, parent)
 
     def __init__(self, redis_client, prefix, topic="", parent=None):
-        print("Initializing QtRedisJSONDict")
+        # print("Initializing QtRedisJSONDict")
         super().__init__()
-        print("After QtRJD super init")
+        # print("After QtRJD super init")
         self._redis = redis_client
         self._prefix = f"{prefix}{topic}"
-        print(f"Redis dict with {self._prefix}")
+        # print(f"Redis dict with {self._prefix}")
         self._cache = {}  # Local cache
         self._watcher = RedisWatcherThread(redis_client, prefix, topic)
         self._watcher.change_detected.connect(self._on_redis_change)
@@ -107,7 +107,7 @@ class QtRedisJSONDict(QObject):
     def _refresh_cache(self):
         """Load all data from Redis into the cache"""
         keys = self._redis.keys(f"{self._prefix}*")
-        print(f"Refresh, get {keys}")
+        # print(f"Refresh, get {keys}")
         pipe = self._redis.pipeline()
         for key in keys:
             pipe.get(key)
@@ -216,9 +216,9 @@ class NestedRedisTableModel(QAbstractTableModel):
             Parent Qt object
         """
         super().__init__(parent)
-        print("Initializing NestedREDISTableModel")
+        # print("Initializing NestedREDISTableModel")
         self._data = redis_dict
-        print("Initialized data")
+        # print("Initialized data")
         self._data.changed.connect(self.update)
         self.update()
 
