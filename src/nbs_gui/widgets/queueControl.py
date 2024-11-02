@@ -51,6 +51,7 @@ class QtReQueueControls(QWidget):
 
         vbox = QVBoxLayout()
         vbox.setAlignment(Qt.AlignTop)
+        vbox.setContentsMargins(5, 5, 5, 5)
         vbox.addWidget(self._group_box)
         self.setLayout(vbox)
 
@@ -159,7 +160,7 @@ class QtReStatusMonitor(QWidget):
         self._group_box = QGroupBox("RE Manager Status")
         hbox = QHBoxLayout()
         hbox.setSpacing(15)
-        # hbox.setContentsMargins(10, 5, 10, 5)
+        hbox.setContentsMargins(5, 5, 5, 5)
 
         # Environment form
         env_form = QFormLayout()
@@ -207,6 +208,8 @@ class QtReStatusMonitor(QWidget):
 
         vbox = QVBoxLayout()
         vbox.addWidget(self._group_box)
+        vbox.setAlignment(Qt.AlignTop)
+        vbox.setContentsMargins(5, 5, 5, 5)
         self.setLayout(vbox)
 
         self.model.events.status_changed.connect(self.on_update_widgets)

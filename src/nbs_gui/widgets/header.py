@@ -21,7 +21,7 @@ class Header(QWidget):
         hbox.setSpacing(1)
         vbox = QVBoxLayout()
         vbox.setContentsMargins(0, 0, 0, 0)
-        vbox.setSpacing(1)
+        vbox.setSpacing(0)
 
         hbox.addWidget(QueueServerControls(self.model.run_engine))
         hbox.addWidget(QtReQueueControls(self.model.run_engine))

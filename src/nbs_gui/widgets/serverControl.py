@@ -43,6 +43,8 @@ class QueueServerControls(QWidget):
 
         outer_vbox = QVBoxLayout()
         outer_vbox.setAlignment(Qt.AlignTop)
+        outer_vbox.setContentsMargins(5, 5, 5, 5)
+
         outer_vbox.addWidget(self._group_box)
         self.setLayout(outer_vbox)
 

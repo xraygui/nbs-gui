@@ -28,6 +28,7 @@ class QueueExecutionControls(QWidget):
 
         # Create stacked widget for primary actions
         self._stacked_widget = QStackedWidget()
+        self._stacked_widget.layout().setContentsMargins(0, 0, 0, 0)
         # Create "Running" page with Pause button
         self._running_widget = QWidget()
         self._pb_plan_pause_deferred = QPushButton("Pause")
@@ -53,7 +54,7 @@ class QueueExecutionControls(QWidget):
         self._stacked_widget.addWidget(self._paused_widget)
 
         # Create more options menu button
-        self._more_button = QPushButton("More ▼")
+        self._more_button = QPushButton("More")
         self._menu = QMenu(self)
         self._more_button.setMenu(self._menu)
 
@@ -70,9 +71,14 @@ class QueueExecutionControls(QWidget):
         vbox = QVBoxLayout()
         vbox.addWidget(self._stacked_widget)
         vbox.addWidget(self._more_button)
+        # vbox.setContentsMargins(5, 5, 5, 5)
+        vbox.setAlignment(Qt.AlignTop)
         self._group_box.setLayout(vbox)
+
         outer_vbox = QVBoxLayout()
         outer_vbox.setAlignment(Qt.AlignTop)
+        outer_vbox.setContentsMargins(5, 5, 5, 5)
+
         outer_vbox.addWidget(self._group_box)
         self.setLayout(outer_vbox)
 
