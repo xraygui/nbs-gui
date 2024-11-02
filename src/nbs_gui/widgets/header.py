@@ -1,14 +1,8 @@
-from qtpy.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QSplitter
-from qtpy.QtCore import Qt
-from bluesky_widgets.qt.run_engine_client import (
-    QtReManagerConnection,
-    QtReEnvironmentControls,
-    QtReExecutionControls,
-    QtReStatusMonitor,
-    QtReRunningPlan,
-)
-from .queueControl import QtReQueueControls
-from .status import ProposalStatus
+from qtpy.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout
+from bluesky_widgets.qt.run_engine_client import QtReRunningPlan
+from .queueControl import QtReQueueControls, QtReStatusMonitor
+from .serverControl import QueueServerControls
+from .executionControl import QueueExecutionControls
 from .motor import BeamlineMotorBars
 
 
@@ -21,26 +15,24 @@ class Header(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(1)
 
-        layout.addWidget(QtReManagerConnection(self.model.run_engine))
-        layout.addWidget(QtReEnvironmentControls(self.model.run_engine))
-        layout.addWidget(QtReQueueControls(self.model.run_engine))
-        layout.addWidget(QtReExecutionControls(self.model.run_engine))
-        # layout.addWidget(QtReStatusMonitor(self.model.run_engine))
+        # Replace separate connection and environment controls with combined widget
+        hbox = QHBoxLayout()
+        hbox.setContentsMargins(0, 0, 0, 0)
+        hbox.setSpacing(1)
+        vbox = QVBoxLayout()
+        vbox.setContentsMargins(0, 0, 0, 0)
+        vbox.setSpacing(1)
 
-        # splitter = QSplitter(Qt.Vertical)
-        # layout.addWidget(splitter, 1)  # Give the splitter more space
-        # vbox = QVBoxLayout()
-        # layout.addLayout(vbox)
+        hbox.addWidget(QueueServerControls(self.model.run_engine))
+        hbox.addWidget(QtReQueueControls(self.model.run_engine))
+        hbox.addWidget(QueueExecutionControls(self.model.run_engine))
+        vbox.addWidget(QtReStatusMonitor(self.model.run_engine))
+        vbox.addLayout(hbox)
+
+        # vbox.addLayout(hbox)
+        layout.addLayout(vbox)
+        layout.addWidget(BeamlineMotorBars(self.model))
         running_plan = QtReRunningPlan(self.model.run_engine)
-        running_motors = BeamlineMotorBars(self.model)
-        layout.addWidget(running_motors)
         layout.addWidget(running_plan)
-
-        # Set initial sizes
-        # splitter.setSizes([200, 0])  # Adjust these values as needed
-
-        # Make the splitter handle invisible
-        # splitter.handle(1).setEnabled(False)
-        # splitter.setStyleSheet("QSplitter::handle { background-color: transparent; }")
 
         self.setLayout(layout)
