@@ -101,11 +101,28 @@ class XASPlanWidget(NBSPlanWidget):
             selected_files = file_dialog.selectedFiles()
             if selected_files:
                 file_path = selected_files[0]
-                # Placeholder function name, to be replaced later
                 item = BFunc("load_xas", file_path)
-                # print(f"Submitted XAS file: {file_path}")
                 try:
+                    # Load the XAS plans
                     self.run_engine_client._client.function_execute(item)
+
+                    # Wait for function execution to complete
+                    def condition(status):
+                        return status["manager_state"] == "idle"
+
+                    try:
+                        self.run_engine_client._wait_for_completion(
+                            condition=condition, msg="load XAS plans", timeout=10
+                        )
+                        # Now update the environment
+                        self.run_engine_client.environment_update()
+                    except Exception as wait_ex:
+                        QMessageBox.warning(
+                            self,
+                            "XAS Load Warning",
+                            f"XAS plans may not be fully loaded: {str(wait_ex)}",
+                            QMessageBox.Ok,
+                        )
                     return True
                 except Exception as e:
                     QMessageBox.critical(
