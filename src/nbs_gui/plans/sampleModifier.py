@@ -83,14 +83,14 @@ def create_position_widget(pos):
         default = 45
         minimum = 0
         maximum = 90
-    widget = SpinBoxParam(
+    widget = LineEditParam(
         pos,
-        "Sample " + pos,
         value_type=float,
-        default=default,
+        label="Sample " + pos,
+        # default=default,
         help_text=help_text,
-        minimum=minimum,
-        maximum=maximum,
+        # minimum=minimum,
+        # maximum=maximum,
     )
 
     # widget = LineEditParam(pos, float, "Sample " + pos)
