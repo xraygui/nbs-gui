@@ -110,9 +110,10 @@ class MotorControl(MotorMonitor):
 
 class MotorProgressBar(QWidget):
     def __init__(self, model, parent_model, parent=None):
-
         super().__init__(parent=parent)
         self.model = model
+
+        print(f"Initializing MotorProgressBar for model: {self.model.label}")
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -120,45 +121,44 @@ class MotorProgressBar(QWidget):
 
         self.label = QLabel(self.model.label)
         self.progress_bar = QProgressBar()
-        self.progress_bar.setTextVisible(False)  # Hide default percentage text
-        self.progress_bar.setRange(0, 1000)  # Set fixed range for progress bar
+        self.progress_bar.setTextVisible(False)
+        self.progress_bar.setRange(0, 100)  # Set range to 0-100 for percentage
 
         layout.addWidget(self.label)
-        layout.addWidget(
-            self.progress_bar, 1
-        )  # The '1' gives the progress bar more space
+        layout.addWidget(self.progress_bar, 1)
 
-        # Initialize variables for normalization
         self.start_value = 0
-        self.range = 1  # To avoid division by zero
+        self.end_value = 1  # To avoid division by zero
 
-        # Initialize progress bar
         self.update_range(self.model.setpoint)
         self.update_progress(self.model.value)
 
-        # Connect to motor model signals
         self.model.valueChanged.connect(self.update_progress)
         self.model.setpointChanged.connect(self.update_range)
         self.model.movingStatusChanged.connect(self.on_moving_status_changed)
 
     def update_range(self, setpoint):
+        # print(f"Updating range for model: {self.model.label}")
         current_value = float(self.model.value)
         setpoint = float(setpoint)
-        self.start_value = min(current_value, setpoint)
-        self.range = abs(setpoint - current_value)
-        if self.range == 0:
-            self.range = 1  # To avoid division by zero
+        self.start_value = current_value
+        self.end_value = setpoint
         self.update_progress(current_value)
 
     def update_progress(self, value):
+        # print(f"Updating progress for model: {self.model.label} with value: {value}")
         value = float(value)
-
-        normalized_value = (value - self.start_value) / self.range * 1000
-        normalized_value = max(0, min(1000, normalized_value))  # Clamp to 0-100 range
-        self.progress_bar.setValue(int(normalized_value))
-        self.label.setText(f"{self.model.label}: {value:.3f}")
+        if self.end_value != self.start_value:
+            # Calculate percentage completion
+            percent_complete = (
+                (value - self.start_value) / (self.end_value - self.start_value) * 100
+            )
+            percent_complete = max(0, min(100, percent_complete))
+            self.progress_bar.setValue(int(percent_complete))
+        self.label.setText(f"{self.model.label}: {value:.3f} / {self.end_value:.3f}")
 
     def on_moving_status_changed(self, is_moving):
+        # print(f"Moving status changed for model: {self.model.label} to {is_moving}")
         if is_moving:
             self.update_range(self.model.setpoint)
         else:
@@ -201,8 +201,8 @@ class DynamicMotorBox(QGroupBox):
             The orientation of the monitor box. Can be 'h' for horizontal or 'v' for vertical. Default is 'h'.
         """
         super().__init__(title)
-        print("Initializing DynamicMotorBox")
-        self.moving_motors_count = 0
+        print(f"Initializing DynamicMotorBox with title: {title}")
+        self.moving_motors = set()  # Track moving motors
         self.layout = QVBoxLayout(self)
         self.layout.setContentsMargins(0, 0, 0, 0)
         self.layout.setSpacing(1)
@@ -224,55 +224,40 @@ class DynamicMotorBox(QGroupBox):
         if isinstance(models, dict):
             models = list(models.values())
         for m in models:
+            # print(f"Adding motor widget for model: {m.label}")
             if m.default_monitor == MotorMonitor:
                 widget = DynamicMotorBar(m, parent_model)
                 widget.setVisible(False)
                 self.motor_progress_widgets.append(widget)
                 self.content_layout.addWidget(widget)
-                # m.movingStatusChanged.connect(self.update_visibility)
+                m.movingStatusChanged.connect(self.update_moving_status)
             if hasattr(m, "real_axes_models"):
                 for motor in m.real_axes_models:
+                    # print(f"Adding real axis motor widget for model: {motor.label}")
                     widget = DynamicMotorBar(motor, parent_model)
                     widget.setVisible(False)
                     self.motor_progress_widgets.append(widget)
                     self.content_layout.addWidget(widget)
-                    # motor.movingStatusChanged.connect(self.update_visibility)
+                    motor.movingStatusChanged.connect(self.update_moving_status)
 
         self.content_layout.addStretch(1)
-        print("Initializing DynamicMotorBox Widgets Done")
 
-        # self.update_visibility(False)
-        # print("Update Visibility Done")
+        # Add emergency stop button
+        self.emergency_stop_button = QPushButton("Emergency Stop", self)
+        self.emergency_stop_button.clicked.connect(self.emergency_stop)
+        self.layout.addWidget(self.emergency_stop_button)
 
-        # # Use a timer to periodically check and update the size
-        # self.update_timer = QTimer(self)
-        # self.update_timer.timeout.connect(self.check_and_update_size)
-        # self.update_timer.start(500)
+    @Slot(bool)
+    def update_moving_status(self, is_moving):
+        sender = self.sender()
+        if is_moving:
+            self.moving_motors.add(sender)
+        else:
+            self.moving_motors.discard(sender)
 
-    # def update_visibility(self, moving):
-    #     if moving:
-    #         self.moving_motors_count += 1
-    #     else:
-    #         self.moving_motors_count = max(0, self.moving_motors_count - 1)
-
-    #     self.update_widget_visibility()
-
-    # def update_widget_visibility(self):
-    #     any_visible = self.moving_motors_count > 0
-    #     # self.setVisible(any_visible)
-    #     self.check_and_update_size()
-
-    # def check_and_update_size(self):
-    #     content_height = self.content_widget.sizeHint().height()
-    #     self.scroll_area.setFixedHeight(
-    #         min(content_height, 200)
-    #     )  # Set a maximum height
-
-    # def sizeHint(self):
-    #     return self.scroll_area.sizeHint()
-
-    # def minimumSizeHint(self):
-    #     return QSize(200, 50)  # Adjust the width as needed
+    def emergency_stop(self):
+        for motor in self.moving_motors:
+            motor.stop()
 
 
 class BeamlineMotorBars(DynamicMotorBox):
