@@ -172,6 +172,8 @@ class SpinBoxParam(BaseParam):
             self.input_widget.setMinimum(minimum)
         if maximum is not None:
             self.input_widget.setMaximum(maximum)
+        else:
+            self.input_widget.setMaximum(1000)
 
         if self.no_default:
             new_min = self.input_widget.minimum() - self.input_widget.singleStep()

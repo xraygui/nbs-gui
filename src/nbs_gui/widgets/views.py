@@ -196,7 +196,8 @@ class AutoControlCombo(QWidget):
             Arbitrary keyword arguments for QWidget.
         """
         super().__init__(*args, **kwargs)
-        controlBox = QHBoxLayout()
+        controlBox = QVBoxLayout()
+        selectBox = QHBoxLayout()
         label = QLabel(title)
         dropdown = QComboBox()
         widgetStack = QStackedWidget()
@@ -209,8 +210,9 @@ class AutoControlCombo(QWidget):
                 AutoControl(model, parent_model, orientation=orientation)
             )
         dropdown.currentIndexChanged.connect(widgetStack.setCurrentIndex)
-        controlBox.addWidget(label)
-        controlBox.addWidget(dropdown)
+        selectBox.addWidget(label)
+        selectBox.addWidget(dropdown)
+        controlBox.addLayout(selectBox)
         controlBox.addWidget(widgetStack)
         self.setLayout(controlBox)
 

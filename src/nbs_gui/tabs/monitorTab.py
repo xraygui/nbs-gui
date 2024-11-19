@@ -5,7 +5,7 @@ from ..widgets.manipulator_monitor import (
     RealManipulatorControl,
     PseudoManipulatorControl,
 )
-from ..widgets.views import AutoControlBox, AutoMonitorBox
+from ..widgets.views import AutoControlBox, AutoMonitorBox, AutoControl, AutoControlCombo
 from ..widgets.sampleSelect import SampleSelectWidget
 
 
@@ -30,30 +30,43 @@ class MonitorTab(QWidget):
         print("Beamline shutters box")
         beamBox.addWidget(AutoControlBox(beamline.shutters, "Shutters", model))
         print("Beamline shutters box added")
+        
 
-        beamBox.addWidget(PseudoManipulatorControl(beamline.energy.energy, model))
-
+        vbox1 = QVBoxLayout()
+        vbox1.addWidget(AutoMonitorBox(beamline.detectors, "Detectors", model, "h"))
+        if hasattr(beamline, "vacuum"):
+            vbox1.addWidget(AutoMonitorBox(beamline.vacuum, "Vacuum", model, "h"))
+        beamBox.addLayout(vbox1)
+        
         vbox.addLayout(beamBox)
         vbox.addWidget(HLine())
-
-        vbox.addWidget(AutoMonitorBox(beamline.detectors, "Detectors", model, "h"))
+        vbox.addWidget(AutoControl(beamline.energy, model))
+        
         print("Added detectors Monitor")
-        if hasattr(beamline, "vacuum"):
-            vbox.addWidget(AutoMonitorBox(beamline.vacuum, "Vacuum", model, "h"))
 
         hbox = QHBoxLayout()
+        hbox.addWidget(
+            AutoControlCombo(
+                beamline.motors | beamline.manipulators | beamline.mirrors,
+                "Choose a Motor",
+                model,
+            )
+        )
+        """
         hbox.addWidget(
             RealManipulatorControl(
                 beamline.primary_sampleholder, model, orientation="v"
             )
         )
         print("Added manipulator Monitor")
+        """
         hbox.addWidget(SampleSelectWidget(model))
         hbox.addWidget(
             StatusBox(user_status, "Selected Information", "GLOBAL_SELECTED")
         )
         print("Added StatusBox")
         vbox.addLayout(hbox)
+
 
         vbox.addStretch()
         self.setLayout(vbox)
