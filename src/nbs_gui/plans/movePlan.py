@@ -1,8 +1,8 @@
 from bluesky_queueserver_api import BPlan
-from .base import BasicPlanWidget
+from .base import AutoPlanWidget
 
 
-class MovePlanWidget(BasicPlanWidget):
+class MovePlanWidget(AutoPlanWidget):
     modifiersAllowed = []
 
     def __init__(self, model, parent=None):

@@ -1,11 +1,11 @@
-from .base import PlanWidgetBase
+from .base import BasicPlanWidget
 from .planParam import AutoParamGroup
 from .sampleModifier import SampleSelectWidget
 from .scanModifier import ScanModifierParam, BeamlineModifierParam
 from qtpy.QtWidgets import QGridLayout, QWidget, QHBoxLayout, QVBoxLayout
 
 
-class NBSPlanWidget(PlanWidgetBase):
+class NBSPlanWidget(BasicPlanWidget):
     def __init__(
         self,
         model,

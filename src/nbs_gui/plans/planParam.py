@@ -114,15 +114,17 @@ class TextEditParam(BaseParam):
 
 
 class ComboBoxParam(BaseParam):
-    def __init__(self, key, options, label, help_text="", parent=None):
-        # print(f"Setting up ComboBoxParam with {key}, {label}, {help_text}, {parent}")
+    def __init__(self, key, options, label, help_text="", parent=None, default=None):
         super().__init__(key, label, help_text, parent)
         self.input_widget = QComboBox()
         self.layout.addWidget(self.input_widget)
-        self.input_widget.addItem("none")
         self.input_widget.addItems(options)
         self.input_widget.currentIndexChanged.connect(self.editingFinished.emit)
-        # print("Done setting up ComboBoxParam")
+
+        if default is not None and default in options:
+            self.input_widget.setCurrentText(default)
+        else:
+            self.input_widget.setCurrentIndex(-1)
 
     def reset(self):
         self.input_widget.setCurrentIndex(-1)
@@ -132,8 +134,11 @@ class ComboBoxParam(BaseParam):
 
 
 class BooleanParam(ComboBoxParam):
-    def __init__(self, key, label, help_text="", parent=None):
-        super().__init__(key, ["True", "False"], label, help_text, parent)
+    def __init__(self, key, label, help_text="", parent=None, default=None):
+        default_str = str(default) if default is not None else None
+        super().__init__(
+            key, ["True", "False"], label, help_text, parent, default=default_str
+        )
 
     def get_params(self):
         return {self.key: self.input_widget.currentText() == "True"}
@@ -422,10 +427,19 @@ class AutoParamGroup(ParamGroup):
                 return SpinBoxParam(key, label, help_text=help_text, **param_args)
             elif param_type == "combo":
                 return ComboBoxParam(
-                    key, param_args.get("options", []), label, help_text=help_text
+                    key,
+                    value.get("options", []),
+                    label,
+                    help_text=help_text,
+                    default=value.get("default", None),
                 )
             elif param_type in ["boolean", bool]:
-                return BooleanParam(key, label, help_text=help_text)
+                return BooleanParam(
+                    key,
+                    label,
+                    help_text=help_text,
+                    default=value.get("default", None),
+                )
             elif param_type == "text":
                 return TextEditParam(key, label, help_text=help_text)
             else:
