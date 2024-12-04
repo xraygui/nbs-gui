@@ -10,8 +10,7 @@ from qtpy.QtWidgets import (
 from qtpy.QtCore import QAbstractTableModel, Qt, Signal, Slot, QSortFilterProxyModel
 from ..plans.base import BasicPlanWidget
 from bluesky_queueserver_api import BFunc
-import redis
-from ..QtRedisJSONDict import NestedRedisTableModel
+from ..models import NestedRedisTableModel
 
 
 class SampleTab(QWidget):

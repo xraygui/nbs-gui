@@ -8,9 +8,9 @@ from .planParam import LineEditParam, ParamGroupBase
 class VariableStepParam(ParamGroupBase, QWidget):
 
     def __init__(self, parent=None):
-        print("Initializing Variable Step Param")
+        # print("Initializing Variable Step Param")
         super().__init__(parent=parent)
-        print("Initialized VarStepParam Super")
+        # print("Initialized VarStepParam Super")
         self.label_text = "Variable Step Arguments"
 
         # Layout for parameters
@@ -28,7 +28,7 @@ class VariableStepParam(ParamGroupBase, QWidget):
         param_layout.addWidget(label)
         param_layout.addWidget(start)
         self.param_layout.addLayout(param_layout)
-        print("Adding start")
+        # print("Adding start")
 
         # Add initial parameters
         self.add_param_pair()
@@ -49,7 +49,7 @@ class VariableStepParam(ParamGroupBase, QWidget):
         self.minus_button.setEnabled(False)
 
     def add_param_pair(self):
-        print("Adding Param Pair")
+        # print("Adding Param Pair")
         index = (len(self.params) + 1) // 2
         stop = LineEditParam(
             f"stop_{index}",
@@ -83,7 +83,7 @@ class VariableStepParam(ParamGroupBase, QWidget):
             self.minus_button.setEnabled(True)
 
         self.editingFinished.emit()
-        print("Done adding param pair")
+        # print("Done adding param pair")
 
     def remove_param_pair(self):
         if len(self.params) > 3:
@@ -115,7 +115,7 @@ class VariableStepParam(ParamGroupBase, QWidget):
 
     def check_ready(self):
         params = self.get_params()
-        print("Checking varscan params")
+        # print("Checking varscan params")
         print(params)
         return None not in params
 
@@ -147,7 +147,7 @@ class VariableStepWidget(NBSPlanWidget):
             layout_style=2,
         )
         self.scan_widget.add_param(VariableStepParam(self))
-        print("Variable Scan Initialized")
+        # print("Variable Scan Initialized")
 
     def check_plan_ready(self):
         params = self.get_params()

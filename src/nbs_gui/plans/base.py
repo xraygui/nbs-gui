@@ -398,33 +398,33 @@ class MultiPlanWidget(PlanWidgetBase):
         bool
             True if any selected plan is ready, False otherwise
         """
-        print("[MultiPlanWidget] Getting selected widgets")
+        # print("[MultiPlanWidget] Getting selected widgets")
         selected_widgets = [
             widget
             for widget, checkbox in self.widget_checkboxes.items()
             if checkbox.isChecked()
         ]
-        print(f"[MultiPlanWidget] Found {len(selected_widgets)} selected widgets")
+        # print(f"[MultiPlanWidget] Found {len(selected_widgets)} selected widgets")
 
         if not selected_widgets:
-            print("[MultiPlanWidget] No widgets selected, returning False")
+            # print("[MultiPlanWidget] No widgets selected, returning False")
             return False
 
         ready_states = []
         for widget in selected_widgets:
             try:
-                print(
-                    f"[MultiPlanWidget] Checking ready state for {widget.display_name}"
-                )
+                # print(
+                #    f"[MultiPlanWidget] Checking ready state for {widget.display_name}"
+                # )
                 ready = widget._check_ready()  # Use the direct check method
-                print(
-                    f"[MultiPlanWidget] Widget {widget.display_name} ready state: {ready}"
-                )
+                # print(
+                #    f"[MultiPlanWidget] Widget {widget.display_name} ready state: {ready}"
+                # )
                 ready_states.append(ready)
             except Exception as e:
-                print(
-                    f"[MultiPlanWidget] Error checking widget {widget.display_name}: {str(e)}"
-                )
+                # print(
+                #    f"[MultiPlanWidget] Error checking widget {widget.display_name}: {str(e)}"
+                # )
                 ready_states.append(False)
 
         final_state = all(ready_states)

@@ -26,6 +26,7 @@ class CustomWindow(Window):
         self.main_widget.setLayout(self.main_layout)
 
         self._qt_center.layout().addWidget(self.main_widget)
+        print("Done With CustomWindow init")
 
     def update_widget(self, new_qt_widget, model):
         # Remove all widgets from the main layout
@@ -34,6 +35,7 @@ class CustomWindow(Window):
 
         # Load the header from the entrypoint
         header_entrypoint = config.get("gui", {}).get("header", "nbs-gui-header")
+        print(f"Attempting to load {header_entrypoint}")
         HeaderClass = self.load_header_from_entrypoint(header_entrypoint)
 
         for i in reversed(range(self.main_layout.count())):
@@ -53,6 +55,7 @@ class CustomWindow(Window):
     def load_header_from_entrypoint(entrypoint_name):
         for entry_point in pkg_resources.iter_entry_points(group="nbs_gui.widgets"):
             if entry_point.name == entrypoint_name:
+                print(f"Loading {entry_point.name}")
                 return entry_point.load()
         print(
             f"Warning: Header entrypoint '{entrypoint_name}' not found. Using default Header."
@@ -87,22 +90,27 @@ class ViewerModel:
 
         self.user_status = UserStatus(self.run_engine, redis_settings=redis_settings)
 
-        blModelPath = (
-            SETTINGS.gui_config.get("models", {}).get("beamline", {}).get("loader", "")
-        )
-        if blModelPath != "":
-            BeamlineModel = simpleResolver(blModelPath)
+        if SETTINGS.object_config_file is not None:
+            blModelPath = (
+                SETTINGS.gui_config.get("models", {})
+                .get("beamline", {})
+                .get("loader", "")
+            )
+            if blModelPath != "":
+                BeamlineModel = simpleResolver(blModelPath)
+            else:
+                # from .models.misc import BeamlineModel
+                raise KeyError("No BeamlineModel given")
+            config = generate_device_config(
+                SETTINGS.object_config_file, SETTINGS.gui_config_file
+            )
+            devices, groups, roles = loadFromConfig(
+                config, instantiateGUIDevice, load_pass="auto"
+            )
+            self.beamline = BeamlineModel(devices, groups, roles)
         else:
-            from .models import BeamlineModel
+            self.beamline = None
 
-        config = generate_device_config(
-            SETTINGS.object_config_file, SETTINGS.gui_config_file
-        )
-        devices, groups, roles = loadFromConfig(
-            config, instantiateGUIDevice, load_pass="auto"
-        )
-
-        self.beamline = BeamlineModel(devices, groups, roles)
         self.settings = SETTINGS
 
 
@@ -121,6 +129,7 @@ class Viewer(ViewerModel):
         print("Initializing UI")
         self._widget = QtViewer(self)
         self._window = CustomWindow(self._widget, show=show)
+        print("Updating CustomWindow")
         self._window.update_widget(self._widget, self)
 
         menu_bar = self._window._qt_window.menuBar()
@@ -147,6 +156,7 @@ class Viewer(ViewerModel):
         self._widget.model.run_engine.events.status_changed.connect(
             self.on_update_widgets
         )
+        print("Finished Initializing Viewer")
 
     def editConfig(self):
         self.config_editor = ConfigEditor(SETTINGS.config)

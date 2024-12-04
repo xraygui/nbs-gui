@@ -21,7 +21,7 @@ from pydm.widgets.pushbutton import PyDMPushButton
 from pydm.widgets.line_edit import PyDMLineEdit
 from sst_funcs.configuration import findAndLoadDevice, getObjConfig
 from .layout import FlowLayout
-from ..models import energyModelFromOphyd, gvFromOphyd, motorFromOphyd
+from ..models.misc import energyModelFromOphyd, gvFromOphyd, motorFromOphyd
 from .samplelist import QtSampleView
 from ..tabs.monitorTab import MonitorTab
 

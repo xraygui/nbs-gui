@@ -44,24 +44,24 @@ class ReferenceComboParam(QWidget):
         self.help_text = "Select a reference sample on the Multimesh sampleholder"
         self.user_status = model.user_status
 
-        print("RefComboParam: Initializing")
+        # print("RefComboParam: Initializing")
         self.samples = {}
-        print("RefComboParam: Creating QComboBox")
+        # print("RefComboParam: Creating QComboBox")
         self.input_widget = QComboBox()
         self.input_widget.addItem("Select Reference Sample")
         self.input_widget.setItemData(0, "", Qt.UserRole - 1)
-        print(f"RefComboParam: Adding {len(self.samples)} samples to QComboBox")
+        # print(f"RefComboParam: Adding {len(self.samples)} samples to QComboBox")
         self.input_widget.addItems(self.samples.keys())
-        print("RefComboParam: Connecting currentIndexChanged signal")
+        # print("RefComboParam: Connecting currentIndexChanged signal")
         self.input_widget.currentIndexChanged.connect(self.editingFinished.emit)
-        print("RefComboParam: Setting up layout")
+        # print("RefComboParam: Setting up layout")
         self.layout = QVBoxLayout(self)
         self.layout.setAlignment(Qt.AlignTop)  # Align widgets to the top
         self.layout.setSpacing(5)
         self.layout.setContentsMargins(5, 5, 5, 5)
         self.layout.addWidget(self.input_widget)
 
-        print("RefComboParam: Initialization complete")
+        # print("RefComboParam: Initialization complete")
         self.signal_update_samples.connect(self.update_samples)
         self.user_status.register_signal(
             "REFERENCE_SAMPLES", self.signal_update_samples

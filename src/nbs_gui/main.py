@@ -10,6 +10,20 @@ from .settings import SETTINGS, get_ipython_startup_dir
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description="SST Queue Monitor")
+
+    # Create mutually exclusive group for profile and minimal config
+    config_group = parser.add_mutually_exclusive_group(required=True)
+    config_group.add_argument(
+        "--profile",
+        help="Location of config file to load Ophyd objects from",
+    )
+    config_group.add_argument(
+        "--minimal-config",
+        action="store_true",
+        help="Use a minimal configuration without requiring a profile or config files.",
+    )
+
+    # Other optional arguments
     parser.add_argument(
         "--zmq-control-addr",
         default=None,
@@ -45,14 +59,25 @@ def main(argv=None):
         "Use QSERVER_HTTP_SERVER_API_KEY environment variable to pass an API key for authorization.",
     )
     parser.add_argument(
-        "--profile",
-        required=True,
-        help="Location of config file to load Opyhd objects from",
+        "--no-devices",
+        action="store_true",
+        help="Skip loading the devices configuration file",
     )
     parser.add_argument(
         "--ipython-dir",
         default=None,
         help="Location of the ipython dir, if different from the default",
+    )
+
+    parser.add_argument(
+        "--kafka-config",
+        default="/etc/bluesky/kafka.yml",
+        help="Path to Kafka configuration file. Default: /etc/bluesky/kafka.yml",
+    )
+    parser.add_argument(
+        "--beamline",
+        default="nbs",
+        help="Beamline acronym (e.g., 'nbs', 'sst'). Default: nbs",
     )
     args = parser.parse_args(argv)
 
@@ -103,25 +128,44 @@ def main(argv=None):
         SETTINGS.zmq_re_manager_control_addr = zmq_control_addr
         SETTINGS.zmq_re_manager_info_addr = zmq_info_addr
 
-    profile_dir = get_ipython_startup_dir(args.profile, args.ipython_dir)
-    SETTINGS.object_config_file = join(profile_dir, "devices.toml")
-    SETTINGS.gui_config_file = join(profile_dir, "gui_config.toml")
-    SETTINGS.beamline_config_file = join(profile_dir, "beamline.toml")
-    if exists(SETTINGS.gui_config_file):
-        with open(SETTINGS.gui_config_file, "r") as config_file:
-            SETTINGS.gui_config = toml.load(config_file)
-    else:
-        SETTINGS.gui_config = {}
-    if exists(SETTINGS.object_config_file):
-        with open(SETTINGS.object_config_file, "r") as config_file:
-            SETTINGS.object_config = toml.load(config_file)
-    else:
+    if args.minimal_config:
+        print("Using minimal configuration")
+        SETTINGS.gui_config = {
+            "gui": {
+                "header": "nbs-gui-header",
+                "tabs": {
+                    "include": ["nbs-gui-queue", "nbs-gui-console", "kafka-table-tab"]
+                },
+                "plans": {"load_plans": False},
+            },
+            "kafka": {"config_file": args.kafka_config, "bl_acronym": args.beamline},
+        }
         SETTINGS.object_config = {}
-    if exists(SETTINGS.beamline_config_file):
-        with open(SETTINGS.beamline_config_file, "r") as config_file:
-            SETTINGS.beamline_config = toml.load(config_file)
-    else:
         SETTINGS.beamline_config = {}
+    else:
+        profile_dir = get_ipython_startup_dir(args.profile, args.ipython_dir)
+        SETTINGS.object_config_file = join(profile_dir, "devices.toml")
+        SETTINGS.gui_config_file = join(profile_dir, "gui_config.toml")
+        SETTINGS.beamline_config_file = join(profile_dir, "beamline.toml")
+
+        if exists(SETTINGS.gui_config_file):
+            with open(SETTINGS.gui_config_file, "r") as config_file:
+                SETTINGS.gui_config = toml.load(config_file)
+        else:
+            SETTINGS.gui_config = {}
+
+        if not args.no_devices and exists(SETTINGS.object_config_file):
+            with open(SETTINGS.object_config_file, "r") as config_file:
+                SETTINGS.object_config = toml.load(config_file)
+        else:
+            SETTINGS.object_config = {}
+
+        if exists(SETTINGS.beamline_config_file):
+            with open(SETTINGS.beamline_config_file, "r") as config_file:
+                SETTINGS.beamline_config = toml.load(config_file)
+        else:
+            SETTINGS.beamline_config = {}
+
     with gui_qt("BlueSky Queue Monitor"):
         viewer = Viewer()  # noqa: 401
 

@@ -24,10 +24,15 @@ class QueueControlTab(QWidget):
         horizontal_splitter = QSplitter(Qt.Horizontal)
 
         pe = QtRePlanEditor(model)
-        ps = PlanSubmissionWidget(model, self)
-        pl = PlanLoadWidget(model, self)
-        pe._tab_widget.addTab(ps, "Plan Widgets")
-        pe._tab_widget.addTab(pl, "Plan Loaders")
+        if (
+            model.settings.gui_config.get("gui", {})
+            .get("plans", {})
+            .get("load_plans", True)
+        ):
+            ps = PlanSubmissionWidget(model, self)
+            pl = PlanLoadWidget(model, self)
+            pe._tab_widget.addTab(ps, "Plan Widgets")
+            pe._tab_widget.addTab(pl, "Plan Loaders")
 
         horizontal_splitter.addWidget(pe)
 

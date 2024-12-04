@@ -389,7 +389,7 @@ class ParamGroup(ParamGroupBase, QGroupBox):
 
 class AutoParamGroup(ParamGroup):
     def __init__(self, model, parent=None, title="", **kwargs):
-        print("Setting up AutoParamGroup")
+        # print("Setting up AutoParamGroup")
         super().__init__(parent=parent, title=title)
         self.model = model
         self.setup_params(**kwargs)
