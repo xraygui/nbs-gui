@@ -2,8 +2,8 @@ from qtpy.QtCore import Signal, QTimer
 from qtpy.QtWidgets import QWidget
 import numpy as np
 
-from ..widgets.monitors import PVMonitor, PVControl
-from ..widgets.enums import EnumControl, EnumMonitor
+from ..views.monitors import PVMonitor, PVControl
+from ..views.enums import EnumControl, EnumMonitor
 
 
 def formatFloat(value, precision=2):

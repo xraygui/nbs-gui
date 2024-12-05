@@ -1031,7 +1031,7 @@ class _QtReEditor(QWidget):
         self._set_allowed_item_list()
 
 
-class QtRePlanEditor(QWidget):
+class PlanEditor(QWidget):
     signal_update_widgets = Signal()
     signal_running_item_changed = Signal(object, object)
 

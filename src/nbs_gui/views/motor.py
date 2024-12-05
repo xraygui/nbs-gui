@@ -13,7 +13,7 @@ from qtpy.QtWidgets import (
 from qtpy.QtCore import Slot, Qt, QTimer
 from qtpy.QtCore import QSize
 
-from .utils import SquareByteIndicator
+from ..widgets.utils import SquareByteIndicator
 
 
 class MotorMonitor(QWidget):

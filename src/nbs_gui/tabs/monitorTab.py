@@ -1,11 +1,7 @@
 from qtpy.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout
-from ..widgets.status import StatusBox, BLController
+from ..views.status import StatusBox, BLController
 from ..widgets.utils import HLine
-from ..widgets.manipulator_monitor import (
-    RealManipulatorControl,
-    PseudoManipulatorControl,
-)
-from ..widgets.views import AutoControlBox, AutoMonitorBox, AutoControl, AutoControlCombo
+from ..views.views import AutoControlBox, AutoMonitorBox, AutoControl, AutoControlCombo
 from ..widgets.sampleSelect import SampleSelectWidget
 
 
@@ -30,18 +26,17 @@ class MonitorTab(QWidget):
         print("Beamline shutters box")
         beamBox.addWidget(AutoControlBox(beamline.shutters, "Shutters", model))
         print("Beamline shutters box added")
-        
 
         vbox1 = QVBoxLayout()
         vbox1.addWidget(AutoMonitorBox(beamline.detectors, "Detectors", model, "h"))
         if hasattr(beamline, "vacuum"):
             vbox1.addWidget(AutoMonitorBox(beamline.vacuum, "Vacuum", model, "h"))
         beamBox.addLayout(vbox1)
-        
+
         vbox.addLayout(beamBox)
         vbox.addWidget(HLine())
         vbox.addWidget(AutoControl(beamline.energy, model))
-        
+
         print("Added detectors Monitor")
 
         hbox = QHBoxLayout()
@@ -66,7 +61,6 @@ class MonitorTab(QWidget):
         )
         print("Added StatusBox")
         vbox.addLayout(hbox)
-
 
         vbox.addStretch()
         self.setLayout(vbox)

@@ -2,8 +2,8 @@ from qtpy.QtCore import Signal, QTimer
 from ophyd.signal import ConnectionTimeoutError
 from ophyd.utils.errors import DisconnectedError
 
-from ..widgets.motor import MotorControl, MotorMonitor
-from ..widgets.manipulator_monitor import RealManipulatorControl, RealManipulatorMonitor
+from ..views.motor import MotorControl, MotorMonitor
+from ..views.manipulator_monitor import RealManipulatorControl, RealManipulatorMonitor
 from .base import PVModel, BaseModel
 
 

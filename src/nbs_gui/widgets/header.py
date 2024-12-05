@@ -2,7 +2,7 @@ from qtpy.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout
 from bluesky_widgets.qt.run_engine_client import QtReRunningPlan
 from .queueControl import QtReQueueControls, QtReStatusMonitor
 from .serverControl import QueueServerControls
-from .executionControl import QueueExecutionControls
+from .planControl import PlanControls
 
 # from .motor import BeamlineMotorBars
 
@@ -26,7 +26,7 @@ class Header(QWidget):
 
         hbox.addWidget(QueueServerControls(self.model.run_engine))
         hbox.addWidget(QtReQueueControls(self.model.run_engine))
-        hbox.addWidget(QueueExecutionControls(self.model.run_engine))
+        hbox.addWidget(PlanControls(self.model.run_engine))
         vbox.addWidget(QtReStatusMonitor(self.model.run_engine))
         vbox.addLayout(hbox)
 

@@ -13,7 +13,7 @@ from qtpy.QtCore import Signal, Slot, Qt
 from bluesky_widgets.qt.run_engine_client import QtReStatusMonitor
 
 
-class QueueExecutionControls(QWidget):
+class PlanControls(QWidget):
     """
     A compact widget for controlling Queue Server plan execution.
     Provides essential controls (Pause/Resume/Abort) directly visible

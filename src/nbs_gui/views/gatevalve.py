@@ -6,7 +6,7 @@ from qtpy.QtWidgets import (
     QPushButton,
     QGroupBox,
 )
-from .utils import ByteIndicator
+from ..widgets.utils import ByteIndicator
 
 
 class GVMonitor(QWidget):

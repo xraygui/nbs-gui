@@ -4,7 +4,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
 )
 
-from ..widgets.views import AutoControlBox, AutoControlCombo, AutoControl
+from ..views.views import AutoControlBox, AutoControlCombo, AutoControl
 
 # from ..widgets.motor import BeamlineMotorBars
 import time

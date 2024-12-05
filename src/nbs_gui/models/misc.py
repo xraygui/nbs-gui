@@ -1,8 +1,8 @@
 from qtpy.QtCore import Signal, QTimer
 
-from ..widgets.gatevalve import GVControl, GVMonitor
-from ..widgets.energy import EnergyControl, EnergyMonitor
-from ..widgets.manipulator_monitor import RealManipulatorControl, RealManipulatorMonitor
+from ..views.gatevalve import GVControl, GVMonitor
+from ..views.energy import EnergyControl, EnergyMonitor
+from ..views.manipulator_monitor import RealManipulatorControl, RealManipulatorMonitor
 
 from .base import BaseModel, formatFloat, formatInt
 from .motors import PVPositionerModel, MotorModel

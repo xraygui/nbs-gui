@@ -3,7 +3,7 @@ import pkg_resources
 from .settings import SETTINGS
 
 
-class QtViewer(QTabWidget):
+class TabViewer(QTabWidget):
     def __init__(self, model, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.model = model

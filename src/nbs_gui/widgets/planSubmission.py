@@ -13,7 +13,6 @@ from qtpy.QtWidgets import (
 )
 from ..plans.planLoaders import PlanLoaderWidgetBase
 from ..plans.base import PlanWidgetBase
-from ..settings import SETTINGS
 
 
 class PlanSubmissionWidget(QWidget):
@@ -24,7 +23,7 @@ class PlanSubmissionWidget(QWidget):
         self.run_engine_client = model.run_engine
         self.user_status = model.user_status
         self.action_dict = {}
-        config = SETTINGS.gui_config
+        config = model.settings.gui_config
 
         plans_to_include = config.get("gui", {}).get("plans", {}).get("include", [])
         plans_to_exclude = config.get("gui", {}).get("plans", {}).get("exclude", [])
@@ -135,7 +134,7 @@ class PlanLoadWidget(QWidget):
         self.run_engine_client = model.run_engine
         self.user_status = model.user_status
         self.action_dict = {}
-        config = SETTINGS.gui_config
+        config = model.settings.gui_config
 
         plans_to_include = (
             config.get("gui", {}).get("plan_loaders", {}).get("include", [])

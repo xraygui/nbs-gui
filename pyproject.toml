@@ -16,7 +16,7 @@ homepage = "https://github.com/xraygui/nbs-gui"  # Replace with your project's h
 
 [project.scripts]
 nbs-gui = "nbs_gui.main:main"
-nbs-convert-config = "nbs_gui.autoconf:main"
+nbs-minimal-gui = "nbs_gui.main:minimal"
 nbs-gui-test = "nbs_gui.testScaffolding:main"
 nbs-edit-config = "nbs_gui.confEdit:main"
 
