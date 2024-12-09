@@ -12,6 +12,7 @@ version="0.0.1"
 container=$(buildah from nbs)
 buildah run $container -- dnf -y install qt5-qtbase-devel
 buildah run $container -- conda install -y pyqt
+buildah run $container -- conda install -c conda-forge qt-wayland
 buildah run $container -- pip3 install bluesky_queueserver_api qtconsole
 
 buildah copy $container $host_package_dir $container_package_dir 
