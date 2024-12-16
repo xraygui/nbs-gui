@@ -3,7 +3,8 @@ from ophyd.signal import ConnectionTimeoutError
 from ophyd.utils.errors import DisconnectedError
 
 from ..views.motor import MotorControl, MotorMonitor
-from ..views.manipulator_monitor import RealManipulatorControl, RealManipulatorMonitor
+from ..views.motor_tuple import MotorTupleControl, MotorTupleMonitor
+from ..views.switchable_motors import SwitchableMotorMonitor, SwitchableMotorControl
 from .base import PVModel, BaseModel
 
 
@@ -123,8 +124,6 @@ class PVPositionerModel(PVModel):
             QTimer.singleShot(10000, self._check_value)
 
     def _check_setpoint(self):
-        # Timeout errors self-explanatory. TypeErrors occur when a pseudopositioner times out and
-        # tries to do an inverse calculation anyway
         try:
             new_sp = self._obj_setpoint.get(connection_timeout=0.2)
             self.checkSPTimer.setInterval(1000)
@@ -134,7 +133,6 @@ class PVPositionerModel(PVModel):
             return
 
         if new_sp != self._setpoint and self._moving:
-            # print(self.label, new_sp, self._setpoint, type(new_sp))
             self._setpoint = new_sp
             self.setpointChanged.emit(self._setpoint)
 
@@ -156,33 +154,124 @@ class PVPositionerModel(PVModel):
         return self._setpoint
 
     def set(self, value):
-        # print("Setting {self.name} to {value}")
         self.obj.set(value)
 
     def stop(self):
         self.obj.stop()
 
 
-class MotorTupleModel(BaseModel):
-    default_controller = RealManipulatorControl
-    default_monitor = RealManipulatorMonitor
+class MultiMotorModel(BaseModel):
+    """
+    Base class for models that contain multiple motors.
 
-    def __init__(self, name, obj, group, long_name, **kwargs):
+    Parameters
+    ----------
+    name : str
+        Name of the model
+    obj : object
+        The device object containing motors
+    group : str
+        Group this model belongs to
+    long_name : str
+        Human readable name
+    show_real_motors_by_default : bool, optional
+        Whether to show real motors by default instead of pseudo motors
+    """
+
+    default_controller = SwitchableMotorControl
+    default_monitor = SwitchableMotorMonitor
+
+    def __init__(
+        self, name, obj, group, long_name, show_real_motors_by_default=False, **kwargs
+    ):
         super().__init__(name, obj, group, long_name, **kwargs)
-        self.real_axes_models = []
-        for attrName in obj.component_names:
-            axis = getattr(obj, attrName)
-            self.real_axes_models.append(
-                MotorModel(name=axis.name, obj=axis, group=group, long_name=axis.name)
+        self.real_motors = []
+        self.pseudo_motors = []
+        self.show_real_motors_by_default = show_real_motors_by_default
+
+
+class MotorTupleModel(MultiMotorModel):
+    """
+    Model for a tuple of real motors.
+
+    Parameters
+    ----------
+    name : str
+        Name of the model
+    obj : object
+        The device object containing motors
+    group : str
+        Group this model belongs to
+    long_name : str
+        Human readable name
+    show_real_motors_by_default : bool, optional
+        Whether to show real motors by default instead of pseudo motors
+    """
+
+    default_controller = MotorTupleControl
+    default_monitor = MotorTupleMonitor
+
+    def __init__(
+        self, name, obj, group, long_name, show_real_motors_by_default=True, **kwargs
+    ):
+        super().__init__(
+            name,
+            obj,
+            group,
+            long_name,
+            show_real_motors_by_default=show_real_motors_by_default,
+            **kwargs,
+        )
+
+        # Create models for real motors
+        self.real_motors = [
+            MotorModel(
+                name=getattr(obj, attrName).name,
+                obj=getattr(obj, attrName),
+                group=group,
+                long_name=getattr(obj, attrName).name,
             )
+            for attrName in obj.component_names
+        ]
+
+        # For compatibility with switchable views, we use real_motors as pseudo_motors
+        # since they are what we want to show by default
+        self.pseudo_motors = self.real_motors
 
 
-class PseudoPositionerModel(BaseModel):
-    # Needs to check real_axis for PVPositioner or Motor
-    def __init__(self, name, obj, group, long_name, **kwargs):
-        super().__init__(name, obj, group, long_name, **kwargs)
-        self.real_axes_models = [
-            PVPositionerModel(
+class PseudoPositionerModel(MultiMotorModel):
+    """
+    Model for pseudo positioners with both real and pseudo motors.
+
+    Parameters
+    ----------
+    name : str
+        Name of the model
+    obj : object
+        The pseudo positioner object
+    group : str
+        Group this model belongs to
+    long_name : str
+        Human readable name
+    show_real_motors_by_default : bool, optional
+        Whether to show real motors by default instead of pseudo motors
+    """
+
+    def __init__(
+        self, name, obj, group, long_name, show_real_motors_by_default=False, **kwargs
+    ):
+        super().__init__(
+            name,
+            obj,
+            group,
+            long_name,
+            show_real_motors_by_default=show_real_motors_by_default,
+            **kwargs,
+        )
+
+        # Create models for real motors
+        self.real_motors = [
+            MotorModel(
                 name=real_axis.name,
                 obj=real_axis,
                 group=group,
@@ -190,9 +279,14 @@ class PseudoPositionerModel(BaseModel):
             )
             for real_axis in obj.real_positioners
         ]
-        self.pseudo_axes_models = [
+
+        # Create models for pseudo motors
+        self.pseudo_motors = [
             PVPositionerModel(
-                name=ps_axis.name, obj=ps_axis, group=group, long_name=ps_axis.name
+                name=ps_axis.name,
+                obj=ps_axis,
+                group=group,
+                long_name=ps_axis.name,
             )
             for ps_axis in obj.pseudo_positioners
         ]
