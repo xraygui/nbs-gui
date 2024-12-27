@@ -81,7 +81,6 @@ class IPythonConsoleTab(QWidget):
         self.placeholder.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
         # Add placeholder to layout
-        self.vbox.addWidget(self.placeholder)
 
         # Create connect button
         self.connectButton = QPushButton("Connect to Kernel")
@@ -90,6 +89,7 @@ class IPythonConsoleTab(QWidget):
 
         self.vbox.addWidget(self.connectButton)
         # self.vbox.addWidget(QtReStatusMonitor(self.REClientModel))
+        self.vbox.addWidget(self.placeholder)
 
         # Initialize console reference as None
         self.console = None
@@ -138,7 +138,7 @@ class IPythonConsoleTab(QWidget):
         self.console.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
         # Insert console widget after kernel label but before buttons
-        self.vbox.insertWidget(1, self.console)
+        self.vbox.addWidget(self.console)
 
         # Setup kernel connection
         msg = self.REClientModel._client.config_get()
