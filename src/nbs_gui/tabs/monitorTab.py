@@ -28,17 +28,22 @@ class MonitorTab(QWidget):
         print("Beamline shutters box added")
 
         vbox1 = QVBoxLayout()
+        print("Beamline detectors box")
         vbox1.addWidget(AutoMonitorBox(beamline.detectors, "Detectors", model, "h"))
+        print("Beamline detectors box added")
         if hasattr(beamline, "vacuum"):
+            print("Beamline vacuum box")
             vbox1.addWidget(AutoMonitorBox(beamline.vacuum, "Vacuum", model, "h"))
+            print("Beamline vacuum box added")
         beamBox.addLayout(vbox1)
 
         vbox.addLayout(beamBox)
         vbox.addWidget(HLine())
+        print("Beamline energy box")
         vbox.addWidget(AutoControl(beamline.energy, model))
+        print("Beamline energy box added")
 
-        print("Added detectors Monitor")
-
+        print("Beamline motors box")
         hbox = QHBoxLayout()
         hbox.addWidget(
             AutoControlCombo(
@@ -47,6 +52,7 @@ class MonitorTab(QWidget):
                 model,
             )
         )
+        print("Beamline motors box added")
         """
         hbox.addWidget(
             RealManipulatorControl(
@@ -55,11 +61,14 @@ class MonitorTab(QWidget):
         )
         print("Added manipulator Monitor")
         """
+        print("Beamline sample select box")
         hbox.addWidget(SampleSelectWidget(model))
+        print("Beamline sample select box added")
+        print("Beamline status box")
         hbox.addWidget(
             StatusBox(user_status, "Selected Information", "GLOBAL_SELECTED")
         )
-        print("Added StatusBox")
+        print("Beamline status box added")
         vbox.addLayout(hbox)
 
         vbox.addStretch()
