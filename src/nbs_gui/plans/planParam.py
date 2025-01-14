@@ -118,11 +118,17 @@ class ComboBoxParam(BaseParam):
         super().__init__(key, label, help_text, parent)
         self.input_widget = QComboBox()
         self.layout.addWidget(self.input_widget)
-        self.input_widget.addItems(options)
+
+        # Store original values and their string representations
+        self.options = options
+        self.options_map = {str(val): val for val in options}
+
+        # Add string representations to combo box
+        self.input_widget.addItems([opt for opt in self.options_map.keys()])
         self.input_widget.currentIndexChanged.connect(self.editingFinished.emit)
 
         if default is not None and default in options:
-            self.input_widget.setCurrentText(default)
+            self.input_widget.setCurrentText(str(default))
         else:
             self.input_widget.setCurrentIndex(-1)
 
@@ -130,7 +136,11 @@ class ComboBoxParam(BaseParam):
         self.input_widget.setCurrentIndex(-1)
 
     def get_params(self):
-        return {self.key: self.input_widget.currentText()}
+        current_text = self.input_widget.currentText()
+        if not current_text:
+            return {}
+        # Return the original value type using our mapping
+        return {self.key: self.options_map[current_text]}
 
 
 class BooleanParam(ComboBoxParam):

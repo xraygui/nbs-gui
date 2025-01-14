@@ -39,10 +39,17 @@ def instantiateGUIDevice(device_key, info, cls=None, namespace=None):
     device_info.pop("prefix", "")
 
     obj_info = SETTINGS.object_config[device_key]
-    obj = instantiateOphyd(device_key, obj_info)
-
+    try:
+        obj = instantiateOphyd(device_key, obj_info)
+    except Exception as e:
+        print(f"Error instantiating Ophyd for {device_key}: {e}")
+        return None
     group = device_info.pop("group", None)
     long_name = device_info.pop("long_name", name)
-    device = cls(name, obj, group, long_name, **device_info)
+    try:
+        device = cls(name, obj, group, long_name, **device_info)
+    except Exception as e:
+        print(f"Error instantiating GUI {cls.__name__} for {device_key}: {e}")
+        return None
 
     return device

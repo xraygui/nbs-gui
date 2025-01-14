@@ -1,9 +1,9 @@
-from qtpy.QtWidgets import QVBoxLayout, QGroupBox, QMenu, QAction
+from qtpy.QtWidgets import QVBoxLayout, QGroupBox, QMenu, QAction, QWidget
 from qtpy.QtCore import Qt
 from .motor import MotorMonitor, MotorControl
 
 
-class SwitchableMotorBox(QGroupBox):
+class SwitchableMotorBox(QWidget):
     """
     Base class for a switchable view between two sets of motors.
 
@@ -18,7 +18,7 @@ class SwitchableMotorBox(QGroupBox):
     real_title : str, optional
         Title for real motors box, defaults to "Real Motors"
     title : str, optional
-        Title for the group box, defaults to model.label
+        Base title for the boxes, defaults to model.label
     """
 
     def __init__(
@@ -31,25 +31,26 @@ class SwitchableMotorBox(QGroupBox):
         orientation=None,
         **kwargs,
     ):
-        title = title if title is not None else model.label
-        super().__init__(title, **kwargs)
+        super().__init__(**kwargs)
         self.model = model
         self.parent_model = parent_model
+        base_title = title if title is not None else model.label
 
         # Initialize showing_real_motors based on model's preference
         self.showing_real_motors = getattr(model, "show_real_motors_by_default", False)
 
         # Create main layout
         self.layout = QVBoxLayout()
+        self.layout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(self.layout)
 
-        # Create pseudo motors box
-        self.pseudo_box = QGroupBox(pseudo_title)
+        # Create pseudo motors box with combined title
+        self.pseudo_box = QGroupBox(f"{base_title} - {pseudo_title}")
         self.pseudo_layout = QVBoxLayout()
         self.pseudo_box.setLayout(self.pseudo_layout)
 
-        # Create real motors box
-        self.real_box = QGroupBox(real_title)
+        # Create real motors box with combined title
+        self.real_box = QGroupBox(f"{base_title} - {real_title}")
         self.real_layout = QVBoxLayout()
         self.real_box.setLayout(self.real_layout)
 

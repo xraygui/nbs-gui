@@ -1,10 +1,13 @@
 from qtpy.QtCore import Signal, QTimer
-from ophyd.signal import ConnectionTimeoutError
-from ophyd.utils.errors import DisconnectedError
+from ophyd.signal import ReadTimeoutError
+from ophyd.utils.errors import DisconnectedError, StatusTimeoutError
 
 from ..views.motor import MotorControl, MotorMonitor
 from ..views.motor_tuple import MotorTupleControl, MotorTupleMonitor
-from ..views.switchable_motors import SwitchableMotorMonitor, SwitchableMotorControl
+from ..views.switchable_motors import (
+    SwitchableMotorMonitor,
+    SwitchableMotorControl,
+)
 from .base import PVModel, BaseModel
 
 
@@ -40,26 +43,45 @@ class EPICSMotorModel(PVModel):
         else:
             self.units = None
         print(f"{name} has units {self.units}")
+
+        # Initialize state
         self._setpoint = 0
-        self.checkSelfTimer = QTimer(self)
-        self.checkSelfTimer.setInterval(500)
-        self.checkSelfTimer.timeout.connect(self._check_self)
-        self.checkSelfTimer.start()
+        self._moving = False
+
+        # Set up timer for checking setpoint
+        self.checkValueTimer = QTimer(self)
+        self.checkValueTimer.setInterval(500)
+        self.checkValueTimer.timeout.connect(self._check_value)
+        self.checkValueTimer.start()
 
     def _update_moving_status(self, value, **kwargs):
-        self.movingStatusChanged.emit(value)
-
-    def _check_self(self):
         try:
+            self.movingStatusChanged.emit(value)
+            self._handle_reconnection()
+        except Exception as e:
+            self._handle_connection_error(e, "updating moving status")
+
+    def _check_value(self):
+        """
+        Override base class to handle readback value checking for EPICS motors.
+        For EPICS motors, we want to check both position and setpoint.
+        """
+        try:
+            # Get current position
+            value = self.position
+            self._value_changed(value)
+
+            # Check setpoint
             new_sp = self._obj_setpoint.get(connection_timeout=0.2)
-            self.checkSelfTimer.setInterval(500)
-        except (ConnectionTimeoutError, DisconnectedError) as e:
-            print(f"{e} in {self.label}")
-            self.checkSelfTimer.setInterval(8000)
-            return
-        if new_sp != self._setpoint:
-            self._setpoint = new_sp
-            self.setpointChanged.emit(self._setpoint)
+            if new_sp != self._setpoint:
+                self._setpoint = new_sp
+                self.setpointChanged.emit(self._setpoint)
+
+            self._handle_reconnection()
+            self.checkValueTimer.setInterval(500)
+        except (ReadTimeoutError, DisconnectedError, StatusTimeoutError) as e:
+            self._handle_connection_error(e, "checking value")
+            self.checkValueTimer.setInterval(8000)
 
     @property
     def setpoint(self):
@@ -68,15 +90,27 @@ class EPICSMotorModel(PVModel):
     @property
     def position(self):
         try:
-            return self.obj.position
-        except:
+            pos = self.obj.position
+            self._handle_reconnection()
+            return pos
+        except (ReadTimeoutError, DisconnectedError, StatusTimeoutError) as e:
+            self._handle_connection_error(e, "getting position")
             return 0
 
     def set(self, value):
-        self._obj_setpoint.set(value).wait()
+        try:
+            print(f"[{self.name}] Requesting move to {value}")
+            self._obj_setpoint.set(value).wait()
+            self._handle_reconnection()
+        except (ReadTimeoutError, DisconnectedError, StatusTimeoutError) as e:
+            self._handle_connection_error(e, "setting position")
 
     def stop(self):
-        self.obj.stop()
+        try:
+            self.obj.stop()
+            self._handle_reconnection()
+        except (ReadTimeoutError, DisconnectedError, StatusTimeoutError) as e:
+            self._handle_connection_error(e, "stopping motor")
 
 
 class PVPositionerModel(PVModel):
@@ -85,9 +119,25 @@ class PVPositionerModel(PVModel):
     movingStatusChanged = Signal(bool)
     setpointChanged = Signal(object)
 
+    @property
+    def position(self):
+        """Get the current position of the motor."""
+        try:
+            pos = self.obj.position
+            self._handle_reconnection()
+            return pos
+        except (ReadTimeoutError, DisconnectedError, StatusTimeoutError) as e:
+            self._handle_connection_error(e, "getting position")
+            return 0
+
+    @property
+    def setpoint(self):
+        """Get the current setpoint."""
+        return self._setpoint
+
     def __init__(self, name, obj, group, long_name, **kwargs):
         super().__init__(name, obj, group, long_name, **kwargs)
-        print("Initializing PVPositionerModel")
+        print(f"Initializing PVPositionerModel for {name}")
         if hasattr(self.obj, "user_setpoint"):
             self._obj_setpoint = self.obj.user_setpoint
         elif hasattr(self.obj, "setpoint"):
@@ -100,48 +150,84 @@ class PVPositionerModel(PVModel):
         else:
             self.units = None
         print(f"{name} has units {self.units}")
+
+        # Initialize state
         self._setpoint = 0
+        self._target = 0
         self._moving = False
+
+        # Set up timers
         self.checkSPTimer = QTimer(self)
         self.checkSPTimer.setInterval(1000)
         self.checkSPTimer.timeout.connect(self._check_setpoint)
         self.checkMovingTimer = QTimer(self)
         self.checkMovingTimer.setInterval(500)
         self.checkMovingTimer.timeout.connect(self._check_moving)
-        # Start the timer
+
+        # Start the timers
         self.checkSPTimer.start()
         self.checkMovingTimer.start()
-        print("Done Initializing")
+
+        # Try to get initial position
+        try:
+            initial_pos = self.position
+            print(f"Got initial position for {name}: {initial_pos}")
+            self._setpoint = initial_pos
+            self._target = initial_pos
+        except Exception as e:
+            print(f"Error getting initial position for {name}: {e}, using 0")
 
     def _check_value(self):
+        """
+        Override base class to handle readback value checking for positioners.
+        For positioners, we want the actual position value.
+        """
         try:
-            value = self.obj.readback.get(connection_timeout=0.2, timeout=0.2)
-            new_sp = self._obj_setpoint.get(connection_timeout=0.2)
+            # Get the current position directly
+            value = self.position
             self._value_changed(value)
-            self.setpointChanged.emit(new_sp)
+            self._handle_reconnection()
             QTimer.singleShot(100000, self._check_value)
-        except:
+        except (ReadTimeoutError, DisconnectedError, StatusTimeoutError) as e:
+            self._handle_connection_error(e, "checking value")
             QTimer.singleShot(10000, self._check_value)
 
     def _check_setpoint(self):
+        """
+        For pseudo-motors, we track both the target (where we want to go)
+        and the setpoint (where we actually end up).
+        """
         try:
-            new_sp = self._obj_setpoint.get(connection_timeout=0.2)
-            self.checkSPTimer.setInterval(1000)
-        except (ConnectionTimeoutError, TypeError, DisconnectedError) as e:
-            print(f"{e} in {self.label}")
-            self.checkSPTimer.setInterval(8000)
-            return
+            if self._moving:
+                # During motion, show where we're trying to go
+                if self._setpoint != self._target:
+                    self._setpoint = self._target
+                    self.setpointChanged.emit(self._setpoint)
+            else:
+                # After motion completes, update to actual position if different
+                achieved_pos = self.position
+                if achieved_pos != self._target:
+                    print(
+                        f"[{self.name}] Move completed: target={self._target}, "
+                        f"achieved={achieved_pos}"
+                    )
+                    self._setpoint = achieved_pos
+                    self._target = achieved_pos
+                    self.setpointChanged.emit(self._setpoint)
 
-        if new_sp != self._setpoint and self._moving:
-            self._setpoint = new_sp
-            self.setpointChanged.emit(self._setpoint)
+            self._handle_reconnection()
+            self.checkSPTimer.setInterval(1000)
+        except (ReadTimeoutError, DisconnectedError, StatusTimeoutError) as e:
+            self._handle_connection_error(e, "checking setpoint")
+            self.checkSPTimer.setInterval(8000)
 
     def _check_moving(self):
         try:
             moving = self.obj.moving
+            self._handle_reconnection()
             self.checkMovingTimer.setInterval(500)
-        except (ConnectionTimeoutError, DisconnectedError) as e:
-            print(f"{e} in {self.label} moving")
+        except (ReadTimeoutError, DisconnectedError, StatusTimeoutError) as e:
+            self._handle_connection_error(e, "checking moving status")
             self.checkMovingTimer.setInterval(8000)
             return
 
@@ -149,15 +235,27 @@ class PVPositionerModel(PVModel):
             self.movingStatusChanged.emit(moving)
             self._moving = moving
 
-    @property
-    def setpoint(self):
-        return self._setpoint
-
     def set(self, value):
-        self.obj.set(value)
+        """
+        Request a move to a new position.
+        Update the target and setpoint immediately to show where we're going.
+        """
+        try:
+            print(f"[{self.name}] Requesting move to {value}")
+            self._target = value
+            self._setpoint = value
+            self.setpointChanged.emit(self._setpoint)
+            self.obj.set(value)
+            self._handle_reconnection()
+        except (ReadTimeoutError, DisconnectedError, StatusTimeoutError) as e:
+            self._handle_connection_error(e, "setting position")
 
     def stop(self):
-        self.obj.stop()
+        try:
+            self.obj.stop()
+            self._handle_reconnection()
+        except (ReadTimeoutError, DisconnectedError, StatusTimeoutError) as e:
+            self._handle_connection_error(e, "stopping motor")
 
 
 class MultiMotorModel(BaseModel):

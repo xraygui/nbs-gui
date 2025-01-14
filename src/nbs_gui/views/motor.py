@@ -9,6 +9,7 @@ from qtpy.QtWidgets import (
     QSizePolicy,
     QScrollArea,
     QProgressBar,
+    QMessageBox,
 )
 from qtpy.QtCore import Slot, Qt, QTimer
 from qtpy.QtCore import QSize
@@ -57,9 +58,10 @@ class MotorControl(MotorMonitor):
     def __init__(self, model, *args, **kwargs):
         super().__init__(model, *args, **kwargs)
         self.lineEdit = QLineEdit()
-        # self.lineEdit.returnPressed.connect(self.enter_position)
 
-        self.lineEdit.setText("{:2f}".format(self.model.setpoint))
+        initial_sp = self.model.setpoint
+        print(f"[{self.model.label}] Initial setpoint: {initial_sp}")
+        self.lineEdit.setText("{:2f}".format(initial_sp))
         self.lineEdit.returnPressed.connect(self.enter_position)
         self.model.setpointChanged.connect(self.update_sp)
         self.box.insertWidget(2, self.lineEdit)
@@ -79,27 +81,93 @@ class MotorControl(MotorMonitor):
         self.box.insertWidget(7, rbutton)
         self.box.insertWidget(8, stopButton)
 
+    def check_limits(self, value):
+        """
+        Check if value is within motor limits.
+
+        Parameters
+        ----------
+        value : float
+            Value to check
+
+        Returns
+        -------
+        bool
+            True if within limits, False otherwise
+        """
+        if hasattr(self.model.obj, "limits"):
+            low, high = self.model.obj.limits
+            if low == high:
+                # If the limits are the same, they are probably not really set
+                return True
+            if low is not None and value < low:
+                self.show_limit_error(value, f"below lower limit of {low}")
+                return False
+            if high is not None and value > high:
+                self.show_limit_error(value, f"above upper limit of {high}")
+                return False
+        return True
+
+    def show_limit_error(self, value, limit_desc):
+        """Show error message for limit violation."""
+        QMessageBox.warning(
+            self,
+            "Limit Error",
+            f"Cannot move {self.model.label} to {value}:\n" f"Value is {limit_desc}",
+        )
+
     def enter_position(self):
-        newpos = float(self.lineEdit.text())
-        self.model.set(newpos)
+        """Handle direct position entry."""
+        try:
+            newpos = float(self.lineEdit.text())
+            print(f"[{self.model.label}] Direct entry: setting to {newpos}")
+            if self.check_limits(newpos):
+                self.model.set(newpos)
+        except ValueError:
+            QMessageBox.warning(
+                self,
+                "Input Error",
+                f"Invalid input for {self.model.label}:\n"
+                f"Please enter a valid number",
+            )
 
     def tweak_left(self):
-        current_sp = self.model.setpoint
-        step = float(self.tweakEdit.text())
-        new_sp = current_sp - step
-        self.model.set(new_sp)
-        self.update_sp(new_sp)
-        # self.lineEdit.setText(str(new_sp))
+        """Decrement position by step size."""
+        try:
+            current_sp = self.model.setpoint
+            step = float(self.tweakEdit.text())
+            new_sp = current_sp - step
+            print(f"[{self.model.label}] Tweak left: {current_sp} - {step} = {new_sp}")
+            if self.check_limits(new_sp):
+                self.model.set(new_sp)
+        except ValueError:
+            QMessageBox.warning(
+                self,
+                "Input Error",
+                f"Invalid step size for {self.model.label}:\n"
+                f"Please enter a valid number in the step size field",
+            )
 
     def tweak_right(self):
-        current_sp = self.model.setpoint
-        step = float(self.tweakEdit.text())
-        new_sp = current_sp + step
-        self.model.set(new_sp)
-        self.update_sp(new_sp)
-        # self.lineEdit.setText(str(new_sp))
+        """Increment position by step size."""
+        try:
+            current_sp = self.model.setpoint
+            step = float(self.tweakEdit.text())
+            new_sp = current_sp + step
+            print(f"[{self.model.label}] Tweak right: {current_sp} + {step} = {new_sp}")
+            if self.check_limits(new_sp):
+                self.model.set(new_sp)
+        except ValueError:
+            QMessageBox.warning(
+                self,
+                "Input Error",
+                f"Invalid step size for {self.model.label}:\n"
+                f"Please enter a valid number in the step size field",
+            )
 
     def update_sp(self, value):
+        """Update displayed setpoint when it changes."""
+        print(f"[{self.model.label}] Setpoint changed to: {value}")
         if isinstance(value, (int, float)):
             self.lineEdit.setText("{:2f}".format(value))
         elif isinstance(value, str):

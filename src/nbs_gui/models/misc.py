@@ -1,4 +1,5 @@
 from qtpy.QtCore import Signal, QTimer
+import numpy as np
 
 from ..views.gatevalve import GVControl, GVMonitor
 from ..views.energy import EnergyControl, EnergyMonitor
@@ -82,42 +83,60 @@ class ScalarModel(BaseModel):
             print(f"{name} has no metadata")
 
         self.value_type = None
+        self._value = "Disconnected"
         self.sub_key = self.obj.target.subscribe(self._value_changed, run=True)
-        timer = QTimer.singleShot(5000, self._check_value)
+        QTimer.singleShot(5000, self._check_value)
 
     def _cleanup(self):
-        print(f"Cleaning up {self.name}")
         self.obj.target.unsubscribe(self.sub_key)
 
     def _check_value(self):
         try:
-            value = self.obj.get(connection_timeout=0.2, timeout=0.2)
+            value = self.obj.target.get(connection_timeout=0.2, timeout=0.2)
             self._value_changed(value)
+            self._handle_reconnection()
             QTimer.singleShot(100000, self._check_value)
-        except:
+        except Exception as e:
+            self._handle_connection_error(e, "checking value")
             QTimer.singleShot(10000, self._check_value)
 
     def _value_changed(self, value, **kwargs):
-        if self.value_type is None:
-            if isinstance(value, float):
-                self.value_type = float
-            elif isinstance(value, int):
-                self.value_type = int
-            elif isinstance(value, str):
-                self.value_type = str
-            else:
-                self.value_type = type(value)
+        """Handle value changes, with better type handling."""
         try:
+            # Extract value from named tuple if needed
+            if hasattr(value, "_fields"):
+                if hasattr(value, "user_readback"):
+                    value = value.user_readback
+                elif hasattr(value, "value"):
+                    value = value.value
+
+            # Determine the type if not yet set
+            if self.value_type is None:
+                if isinstance(value, (float, np.floating)):
+                    self.value_type = float
+                elif isinstance(value, (int, np.integer)):
+                    self.value_type = int
+                else:
+                    self.value_type = str
+
+            # Format based on type
             if self.value_type is float:
-                value = formatFloat(value)
+                formatted_value = formatFloat(value)
             elif self.value_type is int:
-                value = formatInt(value)
+                formatted_value = formatInt(value)
             else:
-                value = str(value)
-        except ValueError:
-            self.value_type = None
-            return
-        self.valueChanged.emit(value)
+                formatted_value = str(value)
+
+            self._value = formatted_value
+            self.valueChanged.emit(formatted_value)
+        except Exception as e:
+            print(f"Error in _value_changed for {self.name}: {e}")
+            self._value = str(value)
+            self.valueChanged.emit(str(value))
+
+    @property
+    def value(self):
+        return self._value
 
 
 class ControlModel(BaseModel):
