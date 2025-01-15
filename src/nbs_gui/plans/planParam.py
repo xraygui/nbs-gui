@@ -20,7 +20,7 @@ class BaseParam(QWidget):
     editingFinished = Signal()
 
     def __init__(self, key, label, help_text="", parent=None):
-        print(f"Setting up BaseParam with {key}, {label}, {help_text}, {parent}")
+        # print(f"Setting up BaseParam with {key}, {label}, {help_text}, {parent}")
         super().__init__(parent=parent)
         self.key = key
         self.label_text = label
@@ -34,7 +34,7 @@ class BaseParam(QWidget):
 
         # Set the tooltip to display help_text
         self.setToolTip(self.help_text)
-        print("Done setting up BaseParam")
+        # print("Done setting up BaseParam")
 
     def reset(self):
         raise NotImplementedError

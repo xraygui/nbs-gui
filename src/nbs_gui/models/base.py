@@ -6,9 +6,8 @@ from ..views.monitors import PVMonitor, PVControl
 from ..views.enums import EnumControl, EnumMonitor
 
 
-def formatFloat(value, precision=2):
-    """
-    Format a float value with appropriate precision.
+def formatFloat(value, precision=2, width=None):
+    """Format a float value with appropriate precision and width.
 
     Parameters
     ----------
@@ -16,6 +15,9 @@ def formatFloat(value, precision=2):
         Value to format, will attempt to convert to float
     precision : int, optional
         Number of decimal places to show
+    width : int, optional
+        Total width of the formatted string. If None, width is calculated
+        to accommodate sign, precision, and scientific notation
 
     Returns
     -------
@@ -23,17 +25,21 @@ def formatFloat(value, precision=2):
         Formatted string representation of the value
     """
     try:
-        # Convert to float first, before any numerical operations
         float_val = float(value)
 
-        # Now use the converted value for abs
         if abs(float_val) >= 10 ** (1 - precision):
             fmtstr = f"{{:.{precision}f}}"
+            min_width = precision + 3  # +3 for sign, units digit, decimal
         elif float_val == 0:
             fmtstr = f"{{:.{precision}f}}"
+            min_width = precision + 3  # +3 for sign, units digit, decimal
         else:
             fmtstr = f"{{:.{precision}e}}"
-        return fmtstr.format(float_val)
+            min_width = precision + 7  # +7 for sign, decimal, e+xx
+
+        result = fmtstr.format(float_val)
+        final_width = width if width is not None else min_width
+        return f"{result:>{final_width}}"
     except (ValueError, TypeError) as e:
         print(f"Could not convert value {value} to float: {e}")
         return str(value)  # Return as string if conversion fails

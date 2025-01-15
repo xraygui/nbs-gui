@@ -6,13 +6,13 @@ from qtpy.QtWidgets import (
     QLineEdit,
     QVBoxLayout,
     QGroupBox,
-    QSizePolicy,
+    QFrame,
     QScrollArea,
     QProgressBar,
     QMessageBox,
 )
-from qtpy.QtCore import Slot, Qt, QTimer
-from qtpy.QtCore import QSize
+from qtpy.QtCore import Slot, Qt
+from qtpy.QtGui import QColor
 
 from ..widgets.utils import SquareByteIndicator
 
@@ -29,15 +29,29 @@ class MotorMonitor(QWidget):
             self.units = model.units
         else:
             self.units = ""
-        self.box.setSpacing(5)  # Adjust spacing as needed
-        self.box.setContentsMargins(0, 0, 0, 0)
+        self.box.setSpacing(2)
+        self.box.setContentsMargins(2, 1, 2, 1)
+
+        # Label with expanding space after it
         self.label = QLabel(self.model.label)
+        self.label.setFixedHeight(20)
         self.box.addWidget(self.label)
+        self.box.addStretch()
+
+        # Right-aligned position display with sunken frame
         self.position = QLabel(self.model.value)
+        self.position.setFrameStyle(QFrame.Panel | QFrame.Sunken)
+        self.position.setFixedWidth(100)
+        self.position.setFixedHeight(20)
+        self.position.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         print(self.model.label, self.model.value)
         self.box.addWidget(self.position)
+
+        # Status indicator
         self.indicator = SquareByteIndicator()
+        self.indicator.setFixedSize(18, 18)
         self.box.addWidget(self.indicator)
+
         if orientation == "h":
             self.box.setAlignment(Qt.AlignVCenter)
         self.model.valueChanged.connect(self.update_position)
@@ -57,29 +71,55 @@ class MotorMonitor(QWidget):
 class MotorControl(MotorMonitor):
     def __init__(self, model, *args, **kwargs):
         super().__init__(model, *args, **kwargs)
+
+        # Fixed-width input field
         self.lineEdit = QLineEdit()
+        self.lineEdit.setFixedWidth(100)
+        self.lineEdit.setFixedHeight(20)
+        self.lineEdit.setAlignment(Qt.AlignRight)
 
         initial_sp = self.model.setpoint
         print(f"[{self.model.label}] Initial setpoint: {initial_sp}")
         self.lineEdit.setText("{:2f}".format(initial_sp))
         self.lineEdit.returnPressed.connect(self.enter_position)
         self.model.setpointChanged.connect(self.update_sp)
-        self.box.insertWidget(2, self.lineEdit)
+
+        # Insert widgets in order: label, stretch, position, input, move, tweak, stop
+        self.box.insertWidget(3, self.lineEdit)  # After position display
+
+        # Control buttons with consistent sizes
         gobutton = QPushButton("Move")
+        gobutton.setFixedWidth(60)
+        gobutton.setFixedHeight(20)
         gobutton.clicked.connect(self.enter_position)
+
         lbutton = QPushButton("<")
+        lbutton.setFixedWidth(30)
+        lbutton.setFixedHeight(20)
         lbutton.clicked.connect(self.tweak_left)
+
         self.tweakEdit = QLineEdit()
+        self.tweakEdit.setFixedWidth(50)
+        self.tweakEdit.setFixedHeight(20)
+        self.tweakEdit.setAlignment(Qt.AlignRight)
         self.tweakEdit.setText("1")
+
         rbutton = QPushButton(">")
+        rbutton.setFixedWidth(30)
+        rbutton.setFixedHeight(20)
         rbutton.clicked.connect(self.tweak_right)
+
         stopButton = QPushButton("Stop!")
+        stopButton.setFixedWidth(60)
+        stopButton.setFixedHeight(20)
         stopButton.clicked.connect(self.model.stop)
-        self.box.insertWidget(4, gobutton)
-        self.box.insertWidget(5, lbutton)
-        self.box.insertWidget(6, self.tweakEdit)
-        self.box.insertWidget(7, rbutton)
-        self.box.insertWidget(8, stopButton)
+
+        # Add remaining widgets in sequence
+        self.box.addWidget(gobutton)
+        self.box.addWidget(lbutton)
+        self.box.addWidget(self.tweakEdit)
+        self.box.addWidget(rbutton)
+        self.box.addWidget(stopButton)
 
     def check_limits(self, value):
         """
