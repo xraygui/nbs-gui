@@ -52,10 +52,11 @@ class XASParam(DynamicComboParam):
 
 class XASPlanWidget(NBSPlanWidget):
     signal_update_xas = Signal(object)
-
+    display_name = "XAS"
+    
     def __init__(self, model, parent=None):
         print("Initializing XAS")
-        self.display_name = "XAS"
+
         super().__init__(
             model,
             parent,
