@@ -40,7 +40,7 @@ class MotorMonitor(QWidget):
 
         # Right-aligned position display with sunken frame
         self.position = QLabel(self.model.value)
-        self.position.setFrameStyle(QFrame.Panel | QFrame.Sunken)
+        self.position.setFrameStyle(QFrame.Box)
         self.position.setFixedWidth(100)
         self.position.setFixedHeight(20)
         self.position.setAlignment(Qt.AlignRight | Qt.AlignVCenter)

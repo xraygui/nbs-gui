@@ -1,6 +1,7 @@
 from qtpy.QtWidgets import QVBoxLayout, QGroupBox, QMenu, QAction, QWidget
 from qtpy.QtCore import Qt
 from .motor import MotorMonitor, MotorControl
+from .views import AutoControl, AutoMonitor
 
 
 class SwitchableMotorBox(QWidget):
@@ -111,11 +112,11 @@ class SwitchableMotorMonitor(SwitchableMotorBox):
 
         # Add pseudo motor monitors
         for motor in model.pseudo_motors:
-            self.pseudo_layout.addWidget(MotorMonitor(motor, parent_model))
+            self.pseudo_layout.addWidget(AutoMonitor(motor, parent_model))
 
         # Add real motor monitors
         for motor in model.real_motors:
-            self.real_layout.addWidget(MotorMonitor(motor, parent_model))
+            self.real_layout.addWidget(AutoMonitor(motor, parent_model))
 
 
 class SwitchableMotorControl(SwitchableMotorBox):
@@ -142,8 +143,8 @@ class SwitchableMotorControl(SwitchableMotorBox):
         print("Adding pseudo motors")
         # Add pseudo motor controls
         for motor in model.pseudo_motors:
-            self.pseudo_layout.addWidget(MotorControl(motor, parent_model))
+            self.pseudo_layout.addWidget(AutoControl(motor, parent_model))
         print("Adding real motors")
         # Add real motor controls
         for motor in model.real_motors:
-            self.real_layout.addWidget(MotorControl(motor, parent_model))
+            self.real_layout.addWidget(AutoControl(motor, parent_model))

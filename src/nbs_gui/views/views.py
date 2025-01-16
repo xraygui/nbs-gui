@@ -10,6 +10,7 @@ from qtpy.QtWidgets import (
     QStackedWidget,
     QSizePolicy,
 )
+from .mixins import ModeManagedWidget
 
 
 def AutoMonitor(model, parent_model, orientation="h"):
@@ -32,22 +33,32 @@ def AutoMonitor(model, parent_model, orientation="h"):
 
 
 def AutoControl(model, parent_model, orientation="h"):
-    """
-    Takes a model, and automatically creates and returns a widget to control the model.
+    """Create an appropriate widget to control the model.
 
     Parameters
     ----------
-    model : object
-        Any model class that wraps a device.
-    parent_model : object
-        The full GUI model.
+    model : BaseModel
+        Model containing device information and state
+    parent_model : GUIBeamlineModel
+        Parent model containing beamline configuration
+    orientation : str
+        Layout orientation ('h' or 'v')
+
+    Returns
+    -------
+    QWidget
+        Either a DynamicControlWidget or a simple monitor/controller
     """
-    if getattr(model, "view_only", False):
-        Controller = model.default_monitor
-    else:
-        Controller = model.default_controller
     try:
-        return Controller(model, parent_model, orientation=orientation)
+        if hasattr(model, "availability_changed"):
+            widget = DynamicControlWidget(model, parent_model, orientation)
+        elif getattr(model, "view_only", False):
+            widget = model.default_monitor(model, parent_model, orientation=orientation)
+        else:
+            widget = model.default_controller(
+                model, parent_model, orientation=orientation
+            )
+        return widget
     except Exception as e:
         print(f"Exception {e} in AutoControl for {model.name}")
         raise e
@@ -218,3 +229,53 @@ class AutoControlCombo(QWidget):
 
         # Set size policy for widgetStack
         widgetStack.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+
+
+class DynamicControlWidget(QStackedWidget):
+    """Widget that switches between monitor and control views based on availability.
+
+    Parameters
+    ----------
+    model : BaseModel
+        Model containing device information and state
+    parent_model : GUIBeamlineModel
+        Parent model containing beamline configuration
+    orientation : str
+        Layout orientation ('h' or 'v')
+    """
+
+    def __init__(self, model, parent_model, orientation="h"):
+        super().__init__()
+        self.model = model
+
+        # Create both views
+        self.monitor = model.default_monitor(
+            model, parent_model, orientation=orientation
+        )
+        if not getattr(model, "view_only", False):
+            self.controller = model.default_controller(
+                model, parent_model, orientation=orientation
+            )
+        else:
+            self.controller = None
+
+        # Add views to stack
+        self.addWidget(self.monitor)
+        if self.controller:
+            self.addWidget(self.controller)
+
+        # Connect to availability changes if model supports it
+        if hasattr(model, "availability_changed"):
+            model.availability_changed.connect(self._handle_availability)
+            # Set initial state
+            self._handle_availability(model.is_available)
+        elif self.controller:
+            # No mode management, default to controller if available
+            self.setCurrentWidget(self.controller)
+
+    def _handle_availability(self, available):
+        """Switch between monitor and controller based on availability."""
+        if available and self.controller:
+            self.setCurrentWidget(self.controller)
+        else:
+            self.setCurrentWidget(self.monitor)

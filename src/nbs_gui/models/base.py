@@ -4,6 +4,7 @@ import numpy as np
 
 from ..views.monitors import PVMonitor, PVControl
 from ..views.enums import EnumControl, EnumMonitor
+from .mixins import ModeManagedModel
 
 
 def formatFloat(value, precision=2, width=None):
@@ -53,7 +54,7 @@ def formatInt(value):
         return str(value)  # Return as string if conversion fails
 
 
-class BaseModel(QWidget):
+class BaseModel(QWidget, ModeManagedModel):
     default_controller = None
     default_monitor = PVMonitor
     connectionStatusChanged = Signal(bool)

@@ -1,22 +1,22 @@
+"""Main model for the GUI application."""
+
 from bluesky_widgets.models.run_engine_client import RunEngineClient
 from .models import UserStatus
-from .load import instantiateGUIDevice
-from nbs_core.autoload import loadFromConfig, simpleResolver
 from nbs_core.autoconf import generate_device_config
+from nbs_core.autoload import simpleResolver
 
 from .settings import SETTINGS
 
 
 class ViewerModel:
-    """
-    This encapsulates on the models in the application.
-    """
+    """This encapsulates all the models in the application."""
 
     def __init__(self):
         print("Initializing ViewerModel")
         self.init_beamline()
 
     def init_beamline(self):
+        """Initialize beamline model and connections."""
         print("Initializing Beamline")
         self.run_engine = RunEngineClient(
             zmq_control_addr=SETTINGS.zmq_re_manager_control_addr,
@@ -35,23 +35,24 @@ class ViewerModel:
         self.user_status = UserStatus(self.run_engine, redis_settings=redis_settings)
 
         if SETTINGS.object_config_file is not None:
-            blModelPath = (
+            # Get beamline model class
+            bl_model_path = (
                 SETTINGS.gui_config.get("models", {})
                 .get("beamline", {})
                 .get("loader", "")
             )
-            if blModelPath != "":
-                BeamlineModel = simpleResolver(blModelPath)
+            if bl_model_path:
+                BeamlineModel = simpleResolver(bl_model_path)
             else:
-                # from .models.misc import BeamlineModel
-                raise KeyError("No BeamlineModel given")
+                raise KeyError("No BeamlineModel specified in config")
+
+            # Generate device config
             config = generate_device_config(
                 SETTINGS.object_config_file, SETTINGS.gui_config_file
             )
-            devices, groups, roles = loadFromConfig(
-                config, instantiateGUIDevice, load_pass="auto"
-            )
-            self.beamline = BeamlineModel(devices, groups, roles)
+
+            # Create beamline model with config
+            self.beamline = BeamlineModel(config)
         else:
             self.beamline = None
 
