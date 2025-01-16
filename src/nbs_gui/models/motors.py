@@ -79,7 +79,7 @@ class EPICSMotorModel(PVModel):
 
             self._handle_reconnection()
             self.checkValueTimer.setInterval(500)
-        except (ReadTimeoutError, DisconnectedError, StatusTimeoutError) as e:
+        except Exception as e:
             self._handle_connection_error(e, "checking value")
             self.checkValueTimer.setInterval(8000)
 
@@ -93,7 +93,7 @@ class EPICSMotorModel(PVModel):
             pos = self.obj.position
             self._handle_reconnection()
             return pos
-        except (ReadTimeoutError, DisconnectedError, StatusTimeoutError) as e:
+        except Exception as e:
             self._handle_connection_error(e, "getting position")
             return 0
 
@@ -102,14 +102,14 @@ class EPICSMotorModel(PVModel):
             print(f"[{self.name}] Requesting move to {value}")
             self._obj_setpoint.set(value).wait()
             self._handle_reconnection()
-        except (ReadTimeoutError, DisconnectedError, StatusTimeoutError) as e:
+        except Exception as e:
             self._handle_connection_error(e, "setting position")
 
     def stop(self):
         try:
             self.obj.stop()
             self._handle_reconnection()
-        except (ReadTimeoutError, DisconnectedError, StatusTimeoutError) as e:
+        except Exception as e:
             self._handle_connection_error(e, "stopping motor")
 
 
@@ -126,7 +126,7 @@ class PVPositionerModel(PVModel):
             pos = self.obj.position
             self._handle_reconnection()
             return pos
-        except (ReadTimeoutError, DisconnectedError, StatusTimeoutError) as e:
+        except Exception as e:
             self._handle_connection_error(e, "getting position")
             return 0
 
@@ -206,7 +206,7 @@ class PVPositionerModel(PVModel):
             else:
                 # After motion completes, update to actual position if different
                 achieved_pos = self.position
-                if achieved_pos != self._target:
+                if abs(achieved_pos - self._target) > abs(self._target * 0.001):
                     print(
                         f"[{self.name}] Move completed: target={self._target}, "
                         f"achieved={achieved_pos}"
