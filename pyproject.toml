@@ -39,7 +39,6 @@ nbs-gui-motors = "nbs_gui.tabs.motorTab:MotorTab"
 nbs-gui-queue = "nbs_gui.tabs.queueControlTab:QueueControlTab"
 nbs-gui-console = "nbs_gui.tabs.consoleTab:IPythonConsoleTab"
 nbs-gui-samples = "nbs_gui.tabs.sampleTab:SampleTab"
-sst-gui-samples = "nbs_gui.widgets.samplelist:SampleTab"
 nbs-gui-monitor = "nbs_gui.tabs.monitorTab:MonitorTab"
 
 [project.entry-points."nbs_gui.widgets"]
