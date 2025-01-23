@@ -109,7 +109,7 @@ class SwitchableMotorMonitor(SwitchableMotorBox):
 
     def __init__(self, model, parent_model, *args, **kwargs):
         super().__init__(model, parent_model, *args, **kwargs)
-
+        print(f"Setting up switchable motor monitor for model: {model.label}")
         # Add pseudo motor monitors
         for motor in model.pseudo_motors:
             self.pseudo_layout.addWidget(AutoMonitor(motor, parent_model))
@@ -138,7 +138,7 @@ class SwitchableMotorControl(SwitchableMotorBox):
     """
 
     def __init__(self, model, parent_model, *args, **kwargs):
-        print("Setting up switchable motor control")
+        print(f"Setting up switchable motor control for model: {model.label}")
         super().__init__(model, parent_model, *args, **kwargs)
         print("Adding pseudo motors")
         # Add pseudo motor controls

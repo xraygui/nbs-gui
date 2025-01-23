@@ -16,6 +16,7 @@ class GVMonitor(QWidget):
 
     def __init__(self, model, parent_model, *args, orientation=None, **kwargs):
         super().__init__(*args, **kwargs)
+        print(f"Initializing GVMonitor for model: {model.label}")
         self.model = model
         self.vbox = QVBoxLayout()
         self.vbox.addWidget(QLabel(model.label))
@@ -36,6 +37,7 @@ class GVControl(GVMonitor):
 
     def __init__(self, model, *args, **kwargs):
         super().__init__(model, *args, **kwargs)
+        print(f"Initializing GVControl for model: {model.label}")
         self.opn = QPushButton("Open")
         self.opn.clicked.connect(self.model.open)
         self.close = QPushButton("Close")

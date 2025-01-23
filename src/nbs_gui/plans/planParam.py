@@ -75,6 +75,18 @@ class LineEditParam(BaseParam):
             value = self.value_type(value)
         return {self.key: value}
 
+    def check_ready(self):
+        """
+        Check if the widget has a valid value.
+
+        Returns
+        -------
+        bool
+            True if the input widget has a non-empty value, False otherwise.
+        """
+        value = self.input_widget.text()
+        return bool(value and value.strip())
+
 
 class TextEditParam(BaseParam):
     def __init__(self, key, label, help_text="", parent=None):
@@ -371,8 +383,8 @@ class ParamGroup(ParamGroupBase, QGroupBox):
         # print("Setting up ParamGroup")
         super().__init__(title, parent)
         self.layout = QFormLayout(self)
-        self.layout.setSpacing(5)  # Adjust spacing as needed
-        self.layout.setContentsMargins(5, 5, 5, 5)  # Adjust margins as needed
+        self.layout.setSpacing(2)  # Reduced from 5
+        self.layout.setContentsMargins(2, 2, 2, 2)  # Reduced from 5,5,5,5
         # print("Done setting up ParamGroup")
 
     def add_param(self, param, position=None):

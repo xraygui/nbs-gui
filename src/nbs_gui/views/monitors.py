@@ -1,14 +1,24 @@
-from qtpy.QtWidgets import QVBoxLayout, QWidget, QLabel, QHBoxLayout, QLineEdit, QPushButton
+from qtpy.QtWidgets import (
+    QVBoxLayout,
+    QWidget,
+    QLabel,
+    QHBoxLayout,
+    QLineEdit,
+    QPushButton,
+)
 
 
 class PVControl(QWidget):
     def __init__(self, model, parent_model=None, orientation="v", **kwargs):
         super().__init__(**kwargs)
+        print(f"Initializing PVControl for model: {model.label}")
         self.model = model
         if orientation == "v":
             box = QVBoxLayout()
         else:
             box = QHBoxLayout()
+        box.setContentsMargins(1, 1, 1, 1)
+        box.setSpacing(2)
         self.label = model.label
         self.value = QLabel("")
         self.edit = QLineEdit("")
@@ -32,6 +42,7 @@ class PVControl(QWidget):
     def setText(self, val):
         self.value.setText(f"{val} {self.units}")
 
+
 class PVMonitor(QWidget):
     """
     Monitor a generic PV
@@ -39,11 +50,14 @@ class PVMonitor(QWidget):
 
     def __init__(self, model, parent_model=None, orientation="v", **kwargs):
         super().__init__(**kwargs)
+        print(f"Initializing PVMonitor for model: {model.label}")
         self.model = model
         if orientation == "v":
             box = QVBoxLayout()
         else:
             box = QHBoxLayout()
+        box.setContentsMargins(1, 1, 1, 1)
+        box.setSpacing(2)
         self.label = model.label
         self.value = QLabel("")
         if model.units is not None:

@@ -10,7 +10,6 @@ from qtpy.QtWidgets import (
     QStackedWidget,
     QSizePolicy,
 )
-from .mixins import ModeManagedWidget
 
 
 def AutoMonitor(model, parent_model, orientation="h"):
@@ -24,6 +23,7 @@ def AutoMonitor(model, parent_model, orientation="h"):
     parent_model : object
         The full GUI model.
     """
+    print(f"Initializing AutoMonitor for model: {model.label}")
     Monitor = model.default_monitor
     try:
         return Monitor(model, parent_model, orientation=orientation)
@@ -49,6 +49,7 @@ def AutoControl(model, parent_model, orientation="h"):
     QWidget
         Either a DynamicControlWidget or a simple monitor/controller
     """
+    print(f"Initializing AutoControl for model: {model.label}")
     try:
         if hasattr(model, "availability_changed"):
             widget = DynamicControlWidget(model, parent_model, orientation)
@@ -85,6 +86,7 @@ class AutoControlBox(QGroupBox):
             The orientation of the control interface box. Can be 'h' for horizontal or 'v' for vertical. Default is 'h'.
         """
         super().__init__(title)
+        print(f"Initializing AutoControlBox {title}")
         self.widgets = {}
         if orientation == "h":
             self.box = QHBoxLayout()
@@ -145,6 +147,7 @@ class AutoMonitorBox(QGroupBox):
             The orientation of the monitor box. Can be 'h' for horizontal or 'v' for vertical. Default is 'h'.
         """
         super().__init__(title)
+        print(f"Initializing AutoMonitorBox {title}")
         self.widgets = {}
         if orientation == "h":
             self.box = QHBoxLayout()
@@ -207,6 +210,7 @@ class AutoControlCombo(QWidget):
             Arbitrary keyword arguments for QWidget.
         """
         super().__init__(*args, **kwargs)
+        print(f"Initializing AutoControlCombo {title}")
         controlBox = QVBoxLayout()
         selectBox = QHBoxLayout()
         label = QLabel(title)
@@ -215,8 +219,10 @@ class AutoControlCombo(QWidget):
         keys = sorted(modelDict.keys())
 
         for key in keys:
+            print(f"Adding {key} to dropdown")
             model = modelDict[key]
             dropdown.addItem(key)
+            print(f"Adding model {model.label} to widgetStack")
             widgetStack.addWidget(
                 AutoControl(model, parent_model, orientation=orientation)
             )

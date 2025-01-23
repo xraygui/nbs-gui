@@ -12,12 +12,14 @@ from qtpy.QtWidgets import (
 class EnumControl(QWidget):
     def __init__(self, model, parent_model=None, orientation="v", **kwargs):
         super().__init__(**kwargs)
+        print(f"Initializing EnumControl for model: {model.label}")
         self.model = model
         if orientation == "v":
             box = QVBoxLayout()
         else:
             box = QHBoxLayout()
-
+        box.setContentsMargins(1, 1, 1, 1)
+        box.setSpacing(2)
         self.label = QLabel(model.label)
         self.value = QLabel("")
         self.combo = QComboBox()
@@ -51,12 +53,14 @@ class EnumControl(QWidget):
 class EnumMonitor(QWidget):
     def __init__(self, model, parent_model=None, orientation="v", **kwargs):
         super().__init__(**kwargs)
+        print(f"Initializing EnumMonitor for model: {model.label}")
         self.model = model
         if orientation == "v":
             box = QVBoxLayout()
         else:
             box = QHBoxLayout()
-
+        box.setContentsMargins(1, 1, 1, 1)
+        box.setSpacing(2)
         self.label = QLabel(model.label)
         self.value = QLabel("")
 

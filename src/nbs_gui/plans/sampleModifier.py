@@ -129,13 +129,13 @@ class SampleComboParam(QWidget):
         # print("SampleComboParam: Setting up layout")
         self.layout = QVBoxLayout(self)
         self.layout.setAlignment(Qt.AlignTop)  # Align widgets to the top
-        self.layout.setSpacing(5)
-        self.layout.setContentsMargins(5, 5, 5, 5)
+        self.layout.setSpacing(2)
+        self.layout.setContentsMargins(2, 2, 2, 2)
         self.layout.addWidget(self.input_widget)
         # print("SampleComboParam: Creating position widgets")
         self.position_layout = QFormLayout()
-        self.position_layout.setSpacing(5)  # Adjust spacing as needed
-        self.position_layout.setContentsMargins(5, 5, 5, 5)  # Adjust margins as needed
+        self.position_layout.setSpacing(2)  # Adjust spacing as needed
+        self.position_layout.setContentsMargins(2, 2, 2, 2)  # Adjust margins as needed
         self.position_widgets = []
         for pos in ["x", "y", "r"]:
             widget, label = create_position_widget(pos)
@@ -188,13 +188,14 @@ class MultiSampleParam(QWidget):
         self.input_widget.clicked.connect(self.create_sample_dialog)
         self.layout = QVBoxLayout(self)
         self.layout.setAlignment(Qt.AlignTop)  # Align widgets to the top
-
+        self.layout.setSpacing(2)
+        self.layout.setContentsMargins(2, 2, 2, 2)
         self.layout.addWidget(self.input_widget)
 
         # print("SampleComboParam: Creating position widgets")
         self.position_layout = QFormLayout()
-        self.position_layout.setSpacing(5)  # Adjust spacing as needed
-        self.position_layout.setContentsMargins(5, 5, 5, 5)  # Adjust margins as needed
+        self.position_layout.setSpacing(2)  # Adjust spacing as needed
+        self.position_layout.setContentsMargins(2, 2, 2, 2)  # Adjust margins as needed
         self.position_widgets = []
         for pos in ["x", "y", "r"]:
             widget, label = create_position_widget(pos)

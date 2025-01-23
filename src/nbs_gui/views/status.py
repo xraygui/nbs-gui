@@ -18,6 +18,7 @@ class StatusBox(QGroupBox):
 
     def __init__(self, status_model, title, key, parent=None):
         super().__init__(title, parent)
+        print(f"Initializing StatusBox {title}")
         self.model = status_model
         self.signal_update_widget.connect(self.update_md)
         self.model.register_signal(key, self.signal_update_widget)
@@ -60,7 +61,7 @@ class RedisStatusBox(QGroupBox):
     """
 
     def __init__(self, user_status, title, topic="", redis_dict=None, parent=None):
-        print("RedisStatusBox init")
+        print(f"Initializing RedisStatusBox {title}")
         super().__init__(title, parent)
         self.model = user_status
 
