@@ -205,8 +205,10 @@ class PVPositionerModel(PVModel):
                     self.setpointChanged.emit(self._setpoint)
             else:
                 # After motion completes, update to actual position if different
-                achieved_pos = self.position
-                if abs(achieved_pos - self._target) > abs(self._target * 0.001):
+                achieved_pos = float(self.position)
+                if abs(achieved_pos - float(self._target)) > abs(
+                    float(self._target) * 0.001
+                ):
                     print(
                         f"[{self.name}] Move completed: target={self._target}, "
                         f"achieved={achieved_pos}"
