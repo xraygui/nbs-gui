@@ -1,0 +1,26 @@
+site_name: NBS-GUI Documentation
+site_description: Documentation for the NSLS-II Beamline GUI Framework
+repo_url: https://github.com/xraygui/nbs-gui
+theme:
+  name: material
+  palette:
+    primary: blue
+    accent: light blue
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.expand
+    - toc.follow
+
+nav:
+  - Home: index.md
+  - Features:
+    - Mode Management: mode_management.md
+
+markdown_extensions:
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - admonition
+  - toc:
+      permalink: true 
