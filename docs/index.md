@@ -18,7 +18,6 @@ pip install -e .
 
 ## Features
 
-- [Mode Management](mode_management.md) - Guide to using the beamline mode management system
 
 ## Development
 
