@@ -1,15 +1,23 @@
 [build-system]
-requires = ["setuptools", "wheel"]
+requires = ["setuptools", "wheel", "setuptools_scm"]
 
 [project]
 name = "nbs-gui"
-version = "0.1.0"
 description = "NBS GUI Module"
 authors = [
-    { email = "ctitus@bnl.gov" },
+    { name = "Charles Titus",email = "ctitus@bnl.gov" },
 ]
+dynamic = ["version"]
+readme = "README.md"
+keywords = ["bluesky", "nsls-ii", "gui"]
 requires-python = ">=3.8"
 dependencies = ["bluesky_widgets", "bluesky_queueserver_api", "qtpy", "ophyd", "toml", "nbs_core"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: Public Domain",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Science/Research"
+]
 
 [project.urls]
 homepage = "https://github.com/xraygui/nbs-gui"  # Replace with your project's homepage
@@ -43,3 +51,5 @@ nbs-gui-monitor = "nbs_gui.tabs.monitorTab:MonitorTab"
 
 [project.entry-points."nbs_gui.widgets"]
 nbs-gui-header = "nbs_gui.widgets.header:Header"
+
+[tool.setuptools_scm]
