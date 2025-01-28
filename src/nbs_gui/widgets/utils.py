@@ -1,7 +1,65 @@
-from qtpy.QtWidgets import QFrame
+from qtpy.QtWidgets import QFrame, QMessageBox
 from qtpy.QtWidgets import QWidget, QSizePolicy
 from qtpy.QtGui import QPainter, QColor
 from qtpy.QtCore import QSize
+
+
+def submit_plan(parent, item):
+    """
+    Submit a plan item to the run engine client.
+
+    Parameters
+    ----------
+    parent : QWidget
+        The parent widget, with run_engine_client attribute
+    item : BPlan
+        The plan item to be submitted
+
+    Returns
+    -------
+    bool
+        True if submission was successful, False otherwise
+    """
+    try:
+        parent.run_engine_client.queue_item_add(item=item)
+        return True
+    except Exception as e:
+        QMessageBox.critical(
+            parent,
+            "Plan Submission Error",
+            f"Failed to submit plan: {str(e)}",
+            QMessageBox.Ok,
+        )
+        return False
+
+
+def execute_plan(parent, run_engine_client, item):
+    """
+    Execute a plan item immediately in the run engine client.
+
+    Parameters
+    ----------
+    parent : QWidget
+        The parent widget, with run_engine_client attribute
+    item : BPlan
+        The plan item to be executed
+
+    Returns
+    -------
+    bool
+        True if submission was successful, False otherwise
+    """
+    try:
+        run_engine_client._client.item_execute(item=item)
+        return True
+    except Exception as e:
+        QMessageBox.critical(
+            parent,
+            "Plan Execution Error",
+            f"Failed to execute plan: {str(e)}",
+            QMessageBox.Ok,
+        )
+        return False
 
 
 class HLine(QFrame):

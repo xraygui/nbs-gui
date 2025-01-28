@@ -127,7 +127,19 @@ class PVModelRO(BaseModel):
             self.units = None
             print(f"{name} has no metadata")
 
-        self.value_type = None
+        try:
+            _value_type = self.obj.describe().get("dtype", None)
+            if _value_type == "integer":
+                self.value_type = int
+            elif _value_type == "number":
+                self.value_type = float
+            elif _value_type == "string":
+                self.value_type = str
+            else:
+                self.value_type = None
+        except:
+            self.value_type = None
+
         self._value = "Disconnected"
         self.sub_key = self.obj.subscribe(self._value_changed, run=True)
         QTimer.singleShot(5000, self._check_value)
@@ -186,10 +198,30 @@ class PVModelRO(BaseModel):
 
 class PVModel(PVModelRO):
     default_controller = PVControl
-    # Need to make this more robust!
 
     def set(self, val):
-        self.obj.set(val).wait()
+        """Set the value of the PV, with type validation.
+
+        Parameters
+        ----------
+        val : any
+            Value to set. Must be compatible with the model's value_type.
+
+        Raises
+        ------
+        ValueError
+            If the value cannot be converted to the model's value_type.
+        """
+        if self.value_type is not None:
+            try:
+                converted_val = self.value_type(val)
+            except (ValueError, TypeError) as e:
+                type_name = self.value_type.__name__
+                msg = f"Value {val} cannot be converted to type {type_name}"
+                raise ValueError(msg) from e
+            self.obj.set(converted_val).wait()
+        else:
+            self.obj.set(val).wait()
 
 
 class EnumModel(PVModel):
