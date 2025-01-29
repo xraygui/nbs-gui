@@ -54,6 +54,13 @@ class EPICSMotorModel(PVModel):
         self.checkValueTimer.timeout.connect(self._check_value)
         self.checkValueTimer.start()
 
+        try:
+            initial_pos = self.position
+            print(f"Got initial position for {name}: {initial_pos}")
+            self._setpoint = initial_pos
+        except Exception as e:
+            print(f"Error getting initial position for {name}: {e}, using 0")
+
     def _update_moving_status(self, value, **kwargs):
         try:
             self.movingStatusChanged.emit(value)
