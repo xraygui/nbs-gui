@@ -42,10 +42,6 @@ class EnumControl(QWidget):
         self.combo.setFixedWidth(100)
         self.combo.setFixedHeight(20)
 
-        self.model.valueChanged.connect(self.setText)
-        self.model.enumChanged.connect(self.updateCombo)
-        self.combo.currentTextChanged.connect(self.setValue)
-
         box.addWidget(self.value)
         box.addWidget(self.combo)
 
@@ -56,6 +52,9 @@ class EnumControl(QWidget):
 
         # Initialize the combo box
         self.updateCombo(model.enum_strs)
+        self.model.valueChanged.connect(self.setText)
+        self.model.enumChanged.connect(self.updateCombo)
+        self.combo.currentTextChanged.connect(self.setValue)
 
     def setText(self, val):
         """Update the displayed value and combo box selection.
