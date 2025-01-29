@@ -14,6 +14,7 @@ from qtpy.QtWidgets import (
 from qtpy.QtGui import QDoubleValidator, QIntValidator
 from qtpy.QtCore import Signal, Qt
 from typing import Any
+from collections import defaultdict
 
 
 class BaseParam(QWidget):
@@ -298,29 +299,95 @@ class DynamicComboParam(ComboBoxParam):
 
 class MotorParam(DynamicComboParam):
     def __init__(self, key, label, user_status, parent=None):
-        # print("Setting up MotorParam")
-        super().__init__(key, label, dummy_text="Select a motor", parent=parent)
+        super().__init__(key, label, dummy_text="Select a group", parent=parent)
         self.user_status = user_status
         self.user_status.register_signal(
             "MOTORS_DESCRIPTIONS", self.signal_update_options
         )
         self.motors = {}
-        # print("Done setting up MotorParam")
+        self.groups = defaultdict(list)
+
+        # Main group selector
+        self.group_combo = self.input_widget
+        self.group_combo.currentTextChanged.connect(self.update_submotor_list)
+
+        # Sub-motor selector
+        self.submotor_combo = QComboBox()
+        self.submotor_combo.setEnabled(False)
+
+        self.layout.addWidget(self.submotor_combo)
+
+    def _group_motors(self, motor_dict):
+        """Group motors based on prefix before underscore."""
+        groups = defaultdict(list)
+        standalone = []
+
+        for display_name, motor_name in motor_dict.items():
+            if "." in motor_name:
+                prefix, suffix = motor_name.split(".", 1)
+                groups[prefix].append((display_name, motor_name))
+            else:
+                standalone.append((display_name, motor_name))
+
+        # Add standalone motors as their own "group"
+        for display_name, motor_name in standalone:
+            groups[motor_name] = [(display_name, motor_name)]
+
+        return groups
 
     def update_options(self, plan_dict):
+        """Update the available motor options and organize them hierarchically."""
+        # Create inverted dictionary (display name -> motor name)
         inverted_dict = {}
         for key, value in plan_dict.items():
             if value != "":
                 inverted_dict[value] = key
             else:
                 inverted_dict[key] = key
+
         self.motors = inverted_dict
-        super().update_options(list(self.motors.keys()))
+        self.groups = self._group_motors(inverted_dict)
+
+        # Update group combo box
+        self.group_combo.clear()
+        self.group_combo.addItem("Select a motor")
+        self.group_combo.addItems(sorted(self.groups.keys()))
+
+    def update_submotor_list(self, group_name):
+        """Update the submotor combo box based on selected group."""
+        self.submotor_combo.clear()
+        print(f"Updating submotor list for group: {group_name}")
+        if group_name and group_name != "Select a motor":
+            motors = self.groups.get(group_name, [])
+            print(f"Motors in group: {motors}")
+            if len(motors) > 1:
+                # Multiple motors in group - enable submotor selection
+                self.submotor_combo.setEnabled(True)
+                self.submotor_combo.addItem("Select a component")
+                for display_name, _ in sorted(motors):
+                    self.submotor_combo.addItem(display_name)
+            else:
+                # Single motor - disable submotor selection
+                self.submotor_combo.setEnabled(False)
 
     def get_params(self):
-        selected_text = self.input_widget.currentText()
-        selected_motor = self.motors.get(selected_text, None)
-        return {self.key: selected_motor} if selected_motor else {}
+        """Get the selected motor parameter."""
+        group = self.group_combo.currentText()
+        if group == "Select a motor":
+            return {}
+
+        motors = self.groups.get(group, [])
+        if len(motors) == 1:
+            # Return the single motor in this group
+            return {self.key: motors[0][1]}
+        else:
+            # Get selection from submotor combo
+            selected = self.submotor_combo.currentText()
+            if selected and selected != "Select a component":
+                for display_name, motor_name in motors:
+                    if display_name == selected:
+                        return {self.key: motor_name}
+        return {}
 
 
 class ParamGroupBase:
