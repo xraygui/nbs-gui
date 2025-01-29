@@ -76,10 +76,9 @@ class NewSampleWidget(BasicPlanWidget):
 class QtSampleView(QTableView):
     signal_update_widget = Signal(object)
 
-    def __init__(self, model, parent=None):
+    def __init__(self, status_model, parent=None):
         super().__init__(parent)
-        self.model = model
-        self.user_status = model.user_status
+        self.user_status = status_model
         """
         try:
             signal_name = self.model.beamline.primary_sampleholder.name
@@ -103,11 +102,11 @@ class QtRedisSampleView(QTableView):
 
     def __init__(self, model, parent=None):
         super().__init__(parent)
-        self.model = model
+        self.status_model = model
         print("Creating Redis Sample View")
 
         # Get Redis dict from UserStatus
-        redis_dict = self.model.get_redis_dict("GLOBAL_SAMPLES")
+        redis_dict = self.status_model.get_redis_dict("GLOBAL_SAMPLES")
         if redis_dict is None:
             print("Warning: Redis not configured, sample view will be empty")
             return
