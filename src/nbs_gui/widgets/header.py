@@ -1,4 +1,4 @@
-from qtpy.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout
+from qtpy.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QSizePolicy
 from bluesky_widgets.qt.run_engine_client import QtReRunningPlan
 from .queueControl import QtReQueueControls, QtReStatusMonitor
 from .serverControl import QueueServerControls
@@ -11,6 +11,7 @@ class Header(QWidget):
         super().__init__(*args, **kwargs)
         self.model = model
 
+        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(1)

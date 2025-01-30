@@ -8,6 +8,7 @@ from qtpy.QtWidgets import (
     QStackedWidget,
     QMenu,
     QMessageBox,
+    QSizePolicy,
 )
 from qtpy.QtCore import Signal, Slot, Qt
 from bluesky_widgets.qt.run_engine_client import QtReStatusMonitor
@@ -26,27 +27,37 @@ class PlanControls(QWidget):
         super().__init__(parent)
         self.model = model
 
+        # Set size policy to prevent vertical expansion
+        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+
         # Create stacked widget for primary actions
         self._stacked_widget = QStackedWidget()
+        self._stacked_widget.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
         self._stacked_widget.layout().setContentsMargins(0, 0, 0, 0)
+
         # Create "Running" page with Pause button
         self._running_widget = QWidget()
+        self._running_widget.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
         self._pb_plan_pause_deferred = QPushButton("Pause")
+        self._pb_plan_pause_deferred.setFixedHeight(25)
         running_layout = QVBoxLayout()
         running_layout.addWidget(self._pb_plan_pause_deferred)
         running_layout.setSpacing(1)
-        running_layout.setContentsMargins(0, 0, 0, 0)
+        running_layout.setContentsMargins(2, 2, 2, 2)
         self._running_widget.setLayout(running_layout)
 
         # Create "Paused" page with Resume and Abort
         self._paused_widget = QWidget()
+        self._paused_widget.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
         self._pb_plan_resume = QPushButton("Resume")
         self._pb_plan_abort = QPushButton("Abort")
+        self._pb_plan_resume.setFixedHeight(25)
+        self._pb_plan_abort.setFixedHeight(25)
         paused_layout = QHBoxLayout()
         paused_layout.addWidget(self._pb_plan_resume)
         paused_layout.addWidget(self._pb_plan_abort)
         paused_layout.setSpacing(1)
-        paused_layout.setContentsMargins(0, 0, 0, 0)
+        paused_layout.setContentsMargins(2, 2, 2, 2)
         self._paused_widget.setLayout(paused_layout)
 
         # Add pages to stacked widget
@@ -55,6 +66,7 @@ class PlanControls(QWidget):
 
         # Create more options menu button
         self._more_button = QPushButton("More")
+        self._more_button.setFixedHeight(25)
         self._menu = QMenu(self)
         self._more_button.setMenu(self._menu)
 
@@ -68,17 +80,17 @@ class PlanControls(QWidget):
 
         # Layout
         self._group_box = QGroupBox("Plan Control")
+        self._group_box.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
         vbox = QVBoxLayout()
         vbox.addWidget(self._stacked_widget)
         vbox.addWidget(self._more_button)
-        # vbox.setContentsMargins(5, 5, 5, 5)
+
         vbox.setAlignment(Qt.AlignTop)
         self._group_box.setLayout(vbox)
 
         outer_vbox = QVBoxLayout()
         outer_vbox.setAlignment(Qt.AlignTop)
         outer_vbox.setContentsMargins(5, 5, 5, 5)
-
         outer_vbox.addWidget(self._group_box)
         self.setLayout(outer_vbox)
 
