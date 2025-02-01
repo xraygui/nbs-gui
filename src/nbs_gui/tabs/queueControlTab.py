@@ -1,12 +1,12 @@
 from bluesky_widgets.qt.run_engine_client import (
     QtRePlanQueue,
     QtRePlanHistory,
-    QtReConsoleMonitor,
 )
 from qtpy.QtWidgets import QWidget, QVBoxLayout, QTabWidget, QSplitter
 from qtpy.QtCore import Qt
 from ..widgets.planSubmission import PlanSubmissionWidget, PlanLoadWidget
 from ..widgets.planEditor import PlanEditor
+from ..widgets.simpleConsoleMonitor import QtReConsoleMonitor
 
 # from ..widgets.plan_creator import QtRePlanEditor
 
