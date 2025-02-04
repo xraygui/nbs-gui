@@ -80,8 +80,13 @@ class MotorControl(MotorMonitor):
         self.lineEdit.setAlignment(Qt.AlignRight)
 
         initial_sp = self.model.setpoint
-        print(f"[{self.model.label}] Initial setpoint: {initial_sp}")
-        self.lineEdit.setText("{:2f}".format(initial_sp))
+        if initial_sp is not None:
+            print(f"[{self.model.label}] Initial setpoint: {initial_sp}")
+            self.lineEdit.setText("{:2f}".format(initial_sp))
+        else:
+            self.lineEdit.setText("DISCONNECTED")
+            self.lineEdit.setEnabled(False)
+
         self.lineEdit.returnPressed.connect(self.enter_position)
         self.model.setpointChanged.connect(self.update_sp)
 
@@ -89,15 +94,15 @@ class MotorControl(MotorMonitor):
         self.box.insertWidget(3, self.lineEdit)  # After position display
 
         # Control buttons with consistent sizes
-        gobutton = QPushButton("Move")
-        gobutton.setFixedWidth(60)
-        gobutton.setFixedHeight(20)
-        gobutton.clicked.connect(self.enter_position)
+        self.gobutton = QPushButton("Move")
+        self.gobutton.setFixedWidth(60)
+        self.gobutton.setFixedHeight(20)
+        self.gobutton.clicked.connect(self.enter_position)
 
-        lbutton = QPushButton("<")
-        lbutton.setFixedWidth(30)
-        lbutton.setFixedHeight(20)
-        lbutton.clicked.connect(self.tweak_left)
+        self.lbutton = QPushButton("<")
+        self.lbutton.setFixedWidth(30)
+        self.lbutton.setFixedHeight(20)
+        self.lbutton.clicked.connect(self.tweak_left)
 
         self.tweakEdit = QLineEdit()
         self.tweakEdit.setFixedWidth(50)
@@ -105,22 +110,45 @@ class MotorControl(MotorMonitor):
         self.tweakEdit.setAlignment(Qt.AlignRight)
         self.tweakEdit.setText("1")
 
-        rbutton = QPushButton(">")
-        rbutton.setFixedWidth(30)
-        rbutton.setFixedHeight(20)
-        rbutton.clicked.connect(self.tweak_right)
+        self.rbutton = QPushButton(">")
+        self.rbutton.setFixedWidth(30)
+        self.rbutton.setFixedHeight(20)
+        self.rbutton.clicked.connect(self.tweak_right)
 
-        stopButton = QPushButton("Stop!")
-        stopButton.setFixedWidth(60)
-        stopButton.setFixedHeight(20)
-        stopButton.clicked.connect(self.model.stop)
+        self.stopButton = QPushButton("Stop!")
+        self.stopButton.setFixedWidth(60)
+        self.stopButton.setFixedHeight(20)
+        self.stopButton.clicked.connect(self.model.stop)
 
         # Add remaining widgets in sequence
-        self.box.addWidget(gobutton)
-        self.box.addWidget(lbutton)
+        self.box.addWidget(self.gobutton)
+        self.box.addWidget(self.lbutton)
         self.box.addWidget(self.tweakEdit)
-        self.box.addWidget(rbutton)
-        self.box.addWidget(stopButton)
+        self.box.addWidget(self.rbutton)
+        self.box.addWidget(self.stopButton)
+
+        # Update initial state
+        self.update_widget_states(self.model.value)
+        self.model.valueChanged.connect(self.update_widget_states)
+
+    def update_widget_states(self, value):
+        """Update widget states based on connection status."""
+        is_connected = value is not None
+        self.lineEdit.setEnabled(is_connected)
+        self.gobutton.setEnabled(is_connected)
+        self.lbutton.setEnabled(is_connected)
+        self.rbutton.setEnabled(is_connected)
+        self.tweakEdit.setEnabled(is_connected)
+        self.stopButton.setEnabled(is_connected)
+
+        if not is_connected:
+            self.position.setText("DISCONNECTED")
+            self.lineEdit.setText("DISCONNECTED")
+            self.indicator.setColor("red")
+        else:
+            self.update_position(value)
+            if self.model.setpoint is not None:
+                self.lineEdit.setText("{:2f}".format(self.model.setpoint))
 
     def check_limits(self, value):
         """
@@ -208,7 +236,13 @@ class MotorControl(MotorMonitor):
 
     def update_sp(self, value):
         """Update displayed setpoint when it changes."""
-        print(f"[{self.model.label}] Setpoint changed to: {value}")
+        # print(f"[{self.model.label}] Setpoint changed to: {value}")
+        if value is None:
+            self.lineEdit.setText("DISCONNECTED")
+            self.lineEdit.setEnabled(False)
+            return
+
+        self.lineEdit.setEnabled(True)
         if isinstance(value, (int, float)):
             self.lineEdit.setText("{:2f}".format(value))
         elif isinstance(value, str):
@@ -239,15 +273,23 @@ class MotorProgressBar(QWidget):
         self.start_value = 0
         self.end_value = 1  # To avoid division by zero
 
+        # Initialize with current values
         self.update_range(self.model.setpoint)
         self.update_progress(self.model.value)
 
+        # Connect signals
         self.model.valueChanged.connect(self.update_progress)
         self.model.setpointChanged.connect(self.update_range)
         self.model.movingStatusChanged.connect(self.on_moving_status_changed)
 
     def update_range(self, setpoint):
-        # print(f"Updating range for model: {self.model.label}")
+        """Update the progress bar range with new setpoint."""
+        if setpoint is None or self.model.value is None:
+            self.progress_bar.setEnabled(False)
+            self.label.setText(f"{self.model.label}: DISCONNECTED")
+            return
+
+        self.progress_bar.setEnabled(True)
         current_value = float(self.model.value)
         setpoint = float(setpoint)
         self.start_value = current_value
@@ -255,7 +297,13 @@ class MotorProgressBar(QWidget):
         self.update_progress(current_value)
 
     def update_progress(self, value):
-        # print(f"Updating progress for model: {self.model.label} with value: {value}")
+        """Update progress bar with new value."""
+        if value is None or self.model.setpoint is None:
+            self.progress_bar.setEnabled(False)
+            self.label.setText(f"{self.model.label}: DISCONNECTED")
+            return
+
+        self.progress_bar.setEnabled(True)
         value = float(value)
         if self.end_value != self.start_value:
             # Calculate percentage completion
@@ -267,7 +315,12 @@ class MotorProgressBar(QWidget):
         self.label.setText(f"{self.model.label}: {value:.3f} / {self.end_value:.3f}")
 
     def on_moving_status_changed(self, is_moving):
-        # print(f"Moving status changed for model: {self.model.label} to {is_moving}")
+        """Handle changes in motor movement status."""
+        if self.model.value is None or self.model.setpoint is None:
+            self.progress_bar.setEnabled(False)
+            return
+
+        self.progress_bar.setEnabled(True)
         if is_moving:
             self.update_range(self.model.setpoint)
         else:
