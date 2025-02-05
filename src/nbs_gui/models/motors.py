@@ -205,6 +205,14 @@ class PVPositionerModel(PVModel):
         and the setpoint (where we actually end up).
         """
         try:
+            if not all(
+                isinstance(x, (int, float))
+                for x in [self._setpoint, self._target, self.position]
+            ):
+                return
+        except (TypeError, ValueError):
+            return
+        try:
             if self._moving:
                 # During motion, show where we're trying to go
                 if self._setpoint != self._target:
@@ -213,9 +221,8 @@ class PVPositionerModel(PVModel):
             else:
                 # After motion completes, update to actual position if different
                 achieved_pos = float(self.position)
-                if abs(achieved_pos - float(self._target)) > abs(
-                    float(self._target) * 0.01
-                ):
+                target = float(self._target)
+                if abs(achieved_pos - target) > abs(float(target) * 0.01):
                     # print(
                     #     f"[{self.name}] Move completed: target={self._target}, "
                     #     f"achieved={achieved_pos}"

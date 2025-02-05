@@ -36,12 +36,14 @@ class TabViewer(QTabWidget):
                 tab = tab_entry_point.load()  # Load the modifier function
                 if callable(tab):
                     tab_widget = tab(model)
+                    print(f"Tab {tab_entry_point.name} loaded")
                     self.tab_dict[tab_entry_point.name] = tab_widget
                     tabs_to_include.append(tab_entry_point.name)
                 else:
                     print("Tab was not callable")
-
+        print("All Tabs Loaded")
         for tab_name in tabs_to_include:
             if tab_name in self.tab_dict:
                 tab_widget = self.tab_dict[tab_name]
                 self.addTab(tab_widget, tab_widget.name)
+        print("All Tabs Added")

@@ -69,7 +69,7 @@ def minimal(argv=None):
 
     parser.add_argument(
         "--kafka-config",
-        default=None,
+        default="/etc/bluesky/kafka.yml",
         help="Path to Kafka configuration file. Default: /etc/bluesky/kafka.yml",
     )
     parser.add_argument(

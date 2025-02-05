@@ -275,7 +275,7 @@ class MotorProgressBar(QWidget):
 
         # Initialize with current values
         self.update_range(self.model.setpoint)
-        self.update_progress(self.model.value)
+        self.update_progress(self.model.position)
 
         # Connect signals
         self.model.valueChanged.connect(self.update_progress)
@@ -284,13 +284,13 @@ class MotorProgressBar(QWidget):
 
     def update_range(self, setpoint):
         """Update the progress bar range with new setpoint."""
-        if setpoint is None or self.model.value is None:
+        if setpoint is None or self.model.position is None:
             self.progress_bar.setEnabled(False)
             self.label.setText(f"{self.model.label}: DISCONNECTED")
             return
 
         self.progress_bar.setEnabled(True)
-        current_value = float(self.model.value)
+        current_value = float(self.model.position)
         setpoint = float(setpoint)
         self.start_value = current_value
         self.end_value = setpoint
@@ -298,7 +298,7 @@ class MotorProgressBar(QWidget):
 
     def update_progress(self, value):
         """Update progress bar with new value."""
-        if value is None or self.model.setpoint is None:
+        if value is None or self.model.setpoint is None or value == "None":
             self.progress_bar.setEnabled(False)
             self.label.setText(f"{self.model.label}: DISCONNECTED")
             return
@@ -316,7 +316,7 @@ class MotorProgressBar(QWidget):
 
     def on_moving_status_changed(self, is_moving):
         """Handle changes in motor movement status."""
-        if self.model.value is None or self.model.setpoint is None:
+        if self.model.position is None or self.model.setpoint is None:
             self.progress_bar.setEnabled(False)
             return
 
