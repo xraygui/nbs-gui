@@ -22,12 +22,14 @@ class SampleDialog(QDialog):
         super().__init__(parent)
 
         self.list_widget = QListWidget()
-        self.sample_keys = list(samples.keys())
+        self.sample_keys = sorted(list(samples.keys()))
 
-        for k, s in sorted(samples.items()):
-            item = QListWidgetItem(f"Sample {k}: {s}")
+        for k in self.sample_keys:
+            s = samples[k]
+            item = QListWidgetItem(f"Sample {k}: {s.get('name', '')}")
             item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
             item.setCheckState(Qt.Unchecked)
+            item.setData(Qt.UserRole, k)
             self.list_widget.addItem(item)
 
         self.ok_button = QPushButton("OK")
@@ -61,8 +63,9 @@ class SampleDialog(QDialog):
     def get_checked_samples(self):
         checked_samples = []
         for index in range(self.list_widget.count()):
-            if self.list_widget.item(index).checkState() == Qt.Checked:
-                checked_samples.append(self.sample_keys[index])
+            item = self.list_widget.item(index)
+            if item.checkState() == Qt.Checked:
+                checked_samples.append(item.data(Qt.UserRole))
         return checked_samples
 
 
