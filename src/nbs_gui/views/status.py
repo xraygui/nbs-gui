@@ -16,10 +16,25 @@ from bluesky_queueserver_api import BFunc
 class StatusBox(QGroupBox):
     signal_update_widget = Signal(object)
 
-    def __init__(self, status_model, title, key, parent=None):
+    def __init__(self, status_model, title, key, display_keys=None, parent=None):
+        """
+        Parameters
+        ----------
+        status_model : object
+            Model containing status information
+        title : str
+            Title for the group box
+        key : str
+            Key to register signal with model
+        display_keys : list, optional
+            List of keys to display. If None, displays all keys
+        parent : QWidget, optional
+            Parent widget
+        """
         super().__init__(title, parent)
         print(f"Initializing StatusBox {title}")
         self.model = status_model
+        self.display_keys = display_keys
         self.signal_update_widget.connect(self.update_md)
         self.model.register_signal(key, self.signal_update_widget)
         self.vbox = QVBoxLayout()
@@ -29,7 +44,18 @@ class StatusBox(QGroupBox):
     def update_md(self, user_md):
         items_in_layout = self.vbox.count()
         i = 0
-        for k, v in user_md.items():
+
+        # Filter keys if display_keys is specified
+        if self.display_keys is not None:
+            # Create ordered dict based on display_keys order
+            display_items = {}
+            for k in self.display_keys:
+                if k in user_md:
+                    display_items[k] = user_md[k]
+        else:
+            display_items = user_md
+
+        for k, v in display_items.items():
             if i + 1 > items_in_layout:
                 hbox = QHBoxLayout()
                 hbox.addWidget(QLabel(str(k)))
@@ -42,6 +68,41 @@ class StatusBox(QGroupBox):
                 key.setText(str(k))
                 val.setText(str(v))
             i += 1
+
+        # Remove any extra widgets
+        while i < items_in_layout:
+            item = self.vbox.takeAt(i)
+            if item.layout():
+                while item.layout().count():
+                    child = item.layout().takeAt(0)
+                    if child.widget():
+                        child.widget().deleteLater()
+                item.layout().deleteLater()
+            items_in_layout -= 1
+
+
+class SampleStatusBox(StatusBox):
+    """
+    Status box specifically for displaying sample information.
+
+    Parameters
+    ----------
+    status_model : object
+        Model containing status information
+    title : str
+        Title for the group box
+    key : str
+        Key to register signal with model
+    parent : QWidget, optional
+        Parent widget
+    """
+
+    DEFAULT_KEYS = ["name", "sample_id", "description", "position"]
+
+    def __init__(self, status_model, title, key="GLOBAL_SELECTED", parent=None):
+        super().__init__(
+            status_model, title, key, display_keys=self.DEFAULT_KEYS, parent=parent
+        )
 
 
 class RedisStatusBox(QGroupBox):

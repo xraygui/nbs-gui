@@ -15,6 +15,7 @@ from qtpy.QtGui import QDoubleValidator, QIntValidator
 from qtpy.QtCore import Signal, Qt
 from typing import Any
 from collections import defaultdict
+from ..widgets.qt_custom import ScrollingComboBox
 
 
 class BaseParam(QWidget):
@@ -129,7 +130,7 @@ class TextEditParam(BaseParam):
 class ComboBoxParam(BaseParam):
     def __init__(self, key, options, label, help_text="", parent=None, default=None):
         super().__init__(key, label, help_text, parent)
-        self.input_widget = QComboBox()
+        self.input_widget = ScrollingComboBox(max_visible_items=10)
         self.layout.addWidget(self.input_widget)
 
         # Store original values and their string representations

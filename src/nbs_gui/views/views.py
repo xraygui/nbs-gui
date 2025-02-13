@@ -6,10 +6,10 @@ from qtpy.QtWidgets import (
     QAction,
     QWidget,
     QLabel,
-    QComboBox,
     QStackedWidget,
     QSizePolicy,
 )
+from ..widgets.qt_custom import ScrollingComboBox
 
 
 def AutoMonitor(model, parent_model, orientation="h"):
@@ -197,7 +197,8 @@ class AutoControlCombo(QWidget):
         Parameters
         ----------
         modelDict : dict
-            A dictionary mapping model names to model instances. These models are used to populate the dropdown and the stacked widget.
+            A dictionary mapping model names to model instances. These models are used to populate
+            the dropdown and the stacked widget.
         title : str
             The title label for the combo box.
         parent_model : object
@@ -205,7 +206,8 @@ class AutoControlCombo(QWidget):
         *args
             Variable length argument list for QWidget.
         orientation : str, optional
-            The orientation for the AutoControl widgets. Can be 'h' for horizontal or 'v' for vertical. Defaults to 'h'.
+            The orientation for the AutoControl widgets. Can be 'h' for horizontal or 'v' for
+            vertical. Defaults to 'h'.
         **kwargs
             Arbitrary keyword arguments for QWidget.
         """
@@ -214,7 +216,8 @@ class AutoControlCombo(QWidget):
         controlBox = QVBoxLayout()
         selectBox = QHBoxLayout()
         label = QLabel(title)
-        dropdown = QComboBox()
+        dropdown = ScrollingComboBox(max_visible_items=10)
+
         widgetStack = QStackedWidget()
         keys = sorted(modelDict.keys())
 

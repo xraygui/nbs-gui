@@ -32,7 +32,7 @@ class Header(QWidget):
 
         # vbox.addLayout(hbox)
         layout.addLayout(vbox)
-        # layout.addWidget(BeamlineMotorBars(self.model))
+        layout.addWidget(BeamlineMotorBars(self.model))
         running_plan = QtReRunningPlan(self.model.run_engine)
         layout.addWidget(running_plan)
 

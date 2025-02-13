@@ -1,5 +1,5 @@
 from qtpy.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout
-from ..views.status import StatusBox
+from ..views.status import StatusBox, SampleStatusBox
 from ..widgets.utils import HLine
 from ..views.views import (
     AutoControlBox,
@@ -121,9 +121,7 @@ class MonitorTab(QWidget):
         if has_sampleholder:
             print("Adding sample selection widgets...")
             hbox.addWidget(SampleSelectWidget(self.model))
-            hbox.addWidget(
-                StatusBox(self.user_status, "Selected Information", "GLOBAL_SELECTED")
-            )
+            hbox.addWidget(SampleStatusBox(self.user_status, "Selected Sample"))
             print("Sample selection widgets added")
 
         if hbox.count() > 0:

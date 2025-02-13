@@ -393,8 +393,8 @@ class DynamicMotorBox(QGroupBox):
                 self.motor_progress_widgets.append(widget)
                 self.content_layout.addWidget(widget)
                 m.movingStatusChanged.connect(self.update_moving_status)
-            if hasattr(m, "real_axes_models"):
-                for motor in m.real_axes_models:
+            if hasattr(m, "real_motors"):
+                for motor in m.real_motors:
                     # print(f"Adding real axis motor widget for model: {motor.label}")
                     widget = DynamicMotorBar(motor, parent_model)
                     widget.setVisible(False)

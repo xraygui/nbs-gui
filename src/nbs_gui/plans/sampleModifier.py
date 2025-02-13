@@ -15,6 +15,7 @@ from qtpy.QtWidgets import (
 
 from qtpy.QtCore import Signal, Qt
 from .planParam import LineEditParam, SpinBoxParam
+from ..widgets.qt_custom import ScrollingComboBox
 
 
 class SampleDialog(QDialog):
@@ -119,10 +120,9 @@ class SampleComboParam(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent=parent)
-        # print("SampleComboParam: Initializing")
         self.samples = {}
-        # print("SampleComboParam: Creating QComboBox")
-        self.input_widget = QComboBox()
+        # Use ScrollingComboBox instead of QComboBox
+        self.input_widget = ScrollingComboBox(max_visible_items=10)
         self.input_widget.addItem("Select Sample")
         self.input_widget.setItemData(0, "", Qt.UserRole - 1)
         # print(f"SampleComboParam: Adding {len(self.samples)} samples to QComboBox")

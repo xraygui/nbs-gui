@@ -105,19 +105,20 @@ class QtReConsoleMonitor(QWidget):
         """
         time, msg = result
 
+        msg = msg.rstrip()
+
         # Handle None or empty messages
         if msg is None or not msg:
             return
 
         # Strip any trailing newlines to prevent doubles
-        msg = msg.rstrip("\n")
 
-        # Add the newline explicitly only if we're not at the start
+        # Add newline only if there's existing text and the message doesn't end with one
         if self._text_edit.document().isEmpty():
             self._text_edit.insertPlainText(msg)
         else:
             self._text_edit.insertPlainText("\n" + msg)
-
+            # self._text_edit.insertPlainText(msg)
         if self._autoscroll_enabled and not self._is_slider_pressed:
             self._text_edit.moveCursor(QTextCursor.End)
 
