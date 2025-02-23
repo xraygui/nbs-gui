@@ -148,8 +148,6 @@ class MotorControl(MotorMonitor):
             self.indicator.setColor("red")
         else:
             self.update_position(value)
-            if self.model.setpoint is not None:
-                self.lineEdit.setText("{:2f}".format(self.model.setpoint))
 
     def check_limits(self, value):
         """
@@ -239,7 +237,10 @@ class MotorControl(MotorMonitor):
         """Update displayed setpoint when it changes."""
         # Don't update if user is editing
         if self.lineEdit.hasFocus():
+            print(f"{self.model.label} has focus")
             return
+        else:
+            print(f"{self.model.label} sp update to {value}")
 
         if value is None:
             self.lineEdit.setText("DISCONNECTED")
