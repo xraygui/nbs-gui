@@ -13,6 +13,7 @@ from qtpy.QtWidgets import (
 )
 from qtpy.QtCore import Slot, Qt
 from qtpy.QtGui import QColor
+import numpy as np
 
 from ..widgets.utils import SquareByteIndicator
 
@@ -236,7 +237,10 @@ class MotorControl(MotorMonitor):
 
     def update_sp(self, value):
         """Update displayed setpoint when it changes."""
-        # print(f"[{self.model.label}] Setpoint changed to: {value}")
+        # Don't update if user is editing
+        if self.lineEdit.hasFocus():
+            return
+
         if value is None:
             self.lineEdit.setText("DISCONNECTED")
             self.lineEdit.setEnabled(False)
