@@ -90,7 +90,7 @@ def create_position_widget(pos):
     widget = LineEditParam(
         pos,
         value_type=float,
-        label="Sample " + pos,
+        label="Sample " + pos + " Offset",
         # default=default,
         help_text=help_text,
         # minimum=minimum,

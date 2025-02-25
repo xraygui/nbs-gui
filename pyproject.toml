@@ -37,6 +37,7 @@ nbs-gui-xas = "nbs_gui.plans.xasPlan:XASPlanWidget"
 nbs-gui-timescan = "nbs_gui.plans.scanPlan:TimescanWidget"
 nbs-gui-varscan = "nbs_gui.plans.variableStepPlan:VariableStepWidget"
 nbs-gui-flyscan = "nbs_gui.plans.flyscanPlan:FlyscanWidget"
+nbs-gui-samplemove = "nbs_gui.plans.sampleMovePlan:SampleMovePlan"
 
 [project.entry-points."nbs_gui.plan_loaders"]
 nbs-gui-xas = "nbs_gui.plans.planLoaders:XASPlanLoader"

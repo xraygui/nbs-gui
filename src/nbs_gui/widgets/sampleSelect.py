@@ -8,6 +8,9 @@ from qtpy.QtWidgets import (
     QLabel,
     QDialog,
     QDialogButtonBox,
+    QMessageBox,
+    QWidget,
+    QGridLayout,
 )
 from qtpy.QtCore import Signal, QObject, Slot
 from qtpy.QtGui import QDoubleValidator
@@ -75,6 +78,104 @@ class SampleDialog(QDialog):
         self.buttons.rejected.connect(self.reject)
 
 
+class SamplePositionWidget(QWidget):
+    """
+    Reusable widget for sample position selection.
+
+    Parameters
+    ----------
+    parent : QWidget, optional
+        Parent widget
+    include_origin : bool, optional
+        Whether to include origin selection dropdown
+    """
+
+    def __init__(self, parent=None, include_origin=False):
+        super().__init__(parent)
+        vbox = QVBoxLayout()
+
+        # Sample selection combo box
+        self.cb = QComboBox()
+        vbox.addWidget(QLabel("Select Sample:"))
+        vbox.addWidget(self.cb)
+
+        # Position inputs
+        pos_grid = QGridLayout()
+        self.x = QLineEdit("0")
+        self.x.setValidator(QDoubleValidator())
+        self.y = QLineEdit("0")
+        self.y.setValidator(QDoubleValidator())
+        self.r = QLineEdit("45")
+        self.r.setValidator(QDoubleValidator())
+
+        pos_grid.addWidget(QLabel("x:"), 0, 0)
+        pos_grid.addWidget(self.x, 0, 1)
+        pos_grid.addWidget(QLabel("y:"), 1, 0)
+        pos_grid.addWidget(self.y, 1, 1)
+        pos_grid.addWidget(QLabel("r:"), 2, 0)
+        pos_grid.addWidget(self.r, 2, 1)
+        vbox.addLayout(pos_grid)
+
+        if include_origin:
+            self.origin_cb = QComboBox()
+            self.origin_cb.addItem("Center", "center")
+            self.origin_cb.addItem("Edge", "edge")
+            vbox.addWidget(QLabel("Origin:"))
+            vbox.addWidget(self.origin_cb)
+        else:
+            self.origin_cb = None
+
+        self.setLayout(vbox)
+
+    def get_values(self):
+        """
+        Get the current position values.
+
+        Returns
+        -------
+        dict
+            Dictionary containing x, y, r, sample, and optionally origin values
+        """
+        values = {
+            "sample": self.cb.currentData(),
+            "x": float(self.x.text()),
+            "y": float(self.y.text()),
+            "r": float(self.r.text()),
+        }
+        if self.origin_cb is not None:
+            values["origin"] = self.origin_cb.currentData()
+        return values
+
+    def check_ready(self):
+        """
+        Check if all required values are set.
+
+        Returns
+        -------
+        bool
+            True if all required values are set
+        """
+        return (
+            self.cb.currentData() is not None
+            and self.x.text()
+            and self.y.text()
+            and self.r.text()
+        )
+
+    def update_samples(self, samples):
+        """
+        Update the sample selection dropdown.
+
+        Parameters
+        ----------
+        samples : dict
+            Dictionary of sample information
+        """
+        self.cb.clear()
+        for k, v in sorted(samples.items()):
+            self.cb.addItem(f"Sample {k}: {v['name']}", k)
+
+
 class SampleSelectWidget(QGroupBox):
     signal_update_widget = Signal(bool, object)
 
@@ -84,35 +185,22 @@ class SampleSelectWidget(QGroupBox):
         self.model = SampleSelectModel(model.run_engine, model.user_status)
 
         vbox = QVBoxLayout()
-        cb = QComboBox()
-        self.cb = cb
-        self.button = QPushButton("Move Sample")
-        self.x = QLineEdit("0")
-        self.x.setValidator(QDoubleValidator())
-        self.y = QLineEdit("0")
-        self.y.setValidator(QDoubleValidator())
-        self.r = QLineEdit("45")
-        self.r.setValidator(QDoubleValidator())
+
         self.add_button = QPushButton("Add Current Position as New Sample")
         vbox.addWidget(self.add_button)
         self.add_button.clicked.connect(self.add_current_position)
 
-        hbox = QHBoxLayout()
-        hbox.addWidget(QLabel("x"))
-        hbox.addWidget(self.x)
-        hbox.addWidget(QLabel("y"))
-        hbox.addWidget(self.y)
-        hbox.addWidget(QLabel("r"))
-        hbox.addWidget(self.r)
+        self.position_widget = SamplePositionWidget(self)
+        vbox.addWidget(self.position_widget)
+
+        self.button = QPushButton("Move Sample")
         self.button.clicked.connect(self.select_sample)
-        vbox.addWidget(self.cb)
-        vbox.addLayout(hbox)
         vbox.addWidget(self.button)
+
         self.setLayout(vbox)
         self.run_engine.events.status_changed.connect(self.slot_update_widgets)
-        self.model.signal_samples_updated.connect(self.update_samples)
+        self.model.signal_samples_updated.connect(self.position_widget.update_samples)
         self.model.update_samples()
-        print("Finish SampleSelectWidget init")
 
     @Slot(object)
     def slot_update_widgets(self, event):
@@ -125,21 +213,24 @@ class SampleSelectWidget(QGroupBox):
         enabled = is_connected and worker_exists and not bool(running_item_uid)
         self.button.setEnabled(enabled)
 
-    @Slot(object)
-    def update_samples(self, samples):
-        print("SampleSelectWidget update_samples called with {samples}")
-        self.cb.clear()
-        for k, v in sorted(samples.items()):
-            self.cb.addItem(f"Sample {k}: {v['name']}", k)
-
     def select_sample(self):
-        sample = self.cb.currentData()
-        x = float(self.x.text())
-        y = float(self.y.text())
-        r = float(self.r.text())
-        print((x, y, r))
-        plan = BPlan("move_sample", sample, x=x, y=y, r=r)
-        self.run_engine._client.item_execute(plan)
+        try:
+            values = self.position_widget.get_values()
+            plan = BPlan(
+                "move_sample",
+                values["sample"],
+                x=values["x"],
+                y=values["y"],
+                r=values["r"],
+            )
+            self.run_engine._client.item_execute(plan)
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                "Sample Move Error",
+                f"Failed to move sample: {str(e)}",
+                QMessageBox.Ok,
+            )
 
     def add_current_position(self):
         dialog = SampleDialog(self)
@@ -150,4 +241,12 @@ class SampleSelectWidget(QGroupBox):
             plan = BFunc(
                 "add_current_position_as_sample", sample_name, sample_id, description
             )
-            self.run_engine._client.function_execute(plan)
+            try:
+                self.run_engine._client.function_execute(plan)
+            except Exception as e:
+                QMessageBox.critical(
+                    self,
+                    "Sample Addition Error",
+                    f"Failed to add sample position: {str(e)}",
+                    QMessageBox.Ok,
+                )
