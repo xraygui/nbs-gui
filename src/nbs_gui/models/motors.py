@@ -189,6 +189,7 @@ class PVPositionerModel(PVModel):
         Override base class to handle readback value checking for positioners.
         For positioners, we want the actual position value.
         """
+        #print(f"[{self.name}] Done getting value")
         try:
             # Get the current position directly
             value = self.position
@@ -199,11 +200,14 @@ class PVPositionerModel(PVModel):
             self._handle_connection_error(e, "checking value")
             QTimer.singleShot(10000, self._check_value)
 
+        #print(f"[{self.name}] Done getting value")
+        
     def _check_setpoint(self):
         """
         For pseudo-motors, we track both the target (where we want to go)
         and the setpoint (where we actually end up).
         """
+
         try:
             if not all(
                 isinstance(x, (int, float))
@@ -212,6 +216,7 @@ class PVPositionerModel(PVModel):
                 return
         except (TypeError, ValueError):
             return
+        #print(f"[{self.name}] getting sp")
         try:
             if self._moving:
                 # During motion, show where we're trying to go
@@ -236,12 +241,15 @@ class PVPositionerModel(PVModel):
         except (ReadTimeoutError, DisconnectedError, StatusTimeoutError) as e:
             self._handle_connection_error(e, "checking setpoint")
             self.checkSPTimer.setInterval(8000)
+        #print(f"[{self.name}] done getting sp")
+
 
     def _check_moving(self):
+        #print(f"[{self.name}] getting move status")
         try:
             moving = self.obj.moving
             self._handle_reconnection()
-            self.checkMovingTimer.setInterval(500)
+            self.checkMovingTimer.setInterval(1000)
         except (ReadTimeoutError, DisconnectedError, StatusTimeoutError) as e:
             self._handle_connection_error(e, "checking moving status")
             self.checkMovingTimer.setInterval(8000)
@@ -250,7 +258,8 @@ class PVPositionerModel(PVModel):
         if moving != self._moving:
             self.movingStatusChanged.emit(moving)
             self._moving = moving
-
+        #print(f"[{self.name}] Done getting move status")
+        
     def set(self, value):
         """
         Request a move to a new position.
@@ -262,9 +271,11 @@ class PVPositionerModel(PVModel):
             self._setpoint = value
             self.setpointChanged.emit(self._setpoint)
             self.obj.set(value)
+            print(f"[{self.name}] After set to {value}")
             self._handle_reconnection()
         except (ReadTimeoutError, DisconnectedError, StatusTimeoutError) as e:
             self._handle_connection_error(e, "setting position")
+        print(f"[{self.name}] Done requesting move")
 
     def stop(self):
         try:
