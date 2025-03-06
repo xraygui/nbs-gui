@@ -14,6 +14,8 @@ from qtpy.QtWidgets import (
 )
 from qtpy.QtCore import Signal, QObject, Slot
 from qtpy.QtGui import QDoubleValidator
+from .qt_custom import ScrollingComboBox
+
 
 from bluesky_queueserver_api import BPlan, BFunc
 
@@ -95,7 +97,7 @@ class SamplePositionWidget(QWidget):
         vbox = QVBoxLayout()
 
         # Sample selection combo box
-        self.cb = QComboBox()
+        self.cb = ScrollingComboBox(max_visible_items=10)
         vbox.addWidget(QLabel("Select Sample:"))
         vbox.addWidget(self.cb)
 

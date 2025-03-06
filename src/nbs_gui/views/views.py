@@ -222,13 +222,16 @@ class AutoControlCombo(QWidget):
         keys = sorted(modelDict.keys())
 
         for key in keys:
-            print(f"Adding {key} to dropdown")
-            model = modelDict[key]
-            dropdown.addItem(key)
-            print(f"Adding model {model.label} to widgetStack")
-            widgetStack.addWidget(
-                AutoControl(model, parent_model, orientation=orientation)
-            )
+            print(f"Adding {key} to AutoControlCombo")
+            model = modelDict.get(key, None)
+            if model:
+                dropdown.addItem(key)
+                print(f"Adding model {model.label} to widgetStack")
+                widgetStack.addWidget(
+                    AutoControl(model, parent_model, orientation=orientation)
+                )
+            else:
+                print(f"Model with key {key} is not loaded!")
         dropdown.currentIndexChanged.connect(widgetStack.setCurrentIndex)
         selectBox.addWidget(label)
         selectBox.addWidget(dropdown)

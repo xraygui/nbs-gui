@@ -85,13 +85,13 @@ def minimal(argv=None):
     print("Using minimal configuration")
     SETTINGS.gui_config = {
         "gui": {
-            "header": "nbs-gui-header",
+            "header": "nbs-gui-minimal-header",
             "tabs": {
-                "include": ["nbs-gui-queue", "nbs-gui-console", "kafka-table-tab"]
+                "include": ["nbs-gui-queue", "nbs-gui-console"]  # , "kafka-table-tab"]
             },
             "plans": {"load_plans": False},
         },
-        "kafka": {"config_file": args.kafka_config, "bl_acronym": args.beamline},
+        # "kafka": {"config_file": args.kafka_config, "bl_acronym": args.beamline},
     }
     SETTINGS.object_config = {}
     SETTINGS.beamline_config = {}

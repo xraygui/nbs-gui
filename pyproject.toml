@@ -52,5 +52,5 @@ nbs-gui-monitor = "nbs_gui.tabs.monitorTab:MonitorTab"
 
 [project.entry-points."nbs_gui.widgets"]
 nbs-gui-header = "nbs_gui.widgets.header:Header"
-
+nbs-gui-minimal-header = "nbs_gui.widgets.header:MinimalHeader"
 [tool.setuptools_scm]
