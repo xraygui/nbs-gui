@@ -23,8 +23,9 @@ class XASParam(DynamicComboParam):
         self.xas_plans = xas_plans
         self.input_widget.clear()
         self.input_widget.addItem(self.dummy_text)
-
-        for key, plan_info in xas_plans.items():
+        sorted_keys = sorted(xas_plans, key=lambda x: xas_plans[x]["name"])
+        for key in sorted_keys:
+            plan_info = xas_plans[key]
             display_label = plan_info.get("name", key)
             self.input_widget.addItem(str(display_label), userData=key)
 
@@ -53,7 +54,7 @@ class XASParam(DynamicComboParam):
 class XASPlanWidget(NBSPlanWidget):
     signal_update_xas = Signal(object)
     display_name = "XAS"
-    
+
     def __init__(self, model, parent=None):
         print("Initializing XAS")
 
