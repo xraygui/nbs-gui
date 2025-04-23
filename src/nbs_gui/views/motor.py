@@ -21,7 +21,7 @@ from ..widgets.utils import SquareByteIndicator
 class MotorMonitor(QWidget):
     def __init__(self, model, parent_model, orientation="h", *args, **kwargs):
         super().__init__(*args, **kwargs)
-        print(f"Initializing MotorMonitor for model: {model.label}")
+        print(f"[{model.label}] Initializing MotorMonitor")
         self.model = model
         if orientation == "h":
             self.box = QHBoxLayout()
@@ -46,7 +46,7 @@ class MotorMonitor(QWidget):
         self.position.setFixedWidth(100)
         self.position.setFixedHeight(20)
         self.position.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        print(self.model.label, self.model.value)
+        print(f"[{self.model.label}] Position: {self.model.value}")
         self.box.addWidget(self.position)
 
         # Status indicator
@@ -72,8 +72,8 @@ class MotorMonitor(QWidget):
 
 class MotorControl(MotorMonitor):
     def __init__(self, model, *args, **kwargs):
+        print(f"[{model.label}] Initializing MotorControl")
         super().__init__(model, *args, **kwargs)
-        print(f"Initializing MotorControl for model: {model.label}")
         # Fixed-width input field
         self.lineEdit = QLineEdit()
         self.lineEdit.setFixedWidth(100)

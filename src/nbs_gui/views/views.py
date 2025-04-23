@@ -241,6 +241,7 @@ class AutoControlCombo(QWidget):
 
         # Set size policy for widgetStack
         widgetStack.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Minimum)
+        print(f"AutoControlCombo {title} initialized")
 
 
 class DynamicControlWidget(QStackedWidget):

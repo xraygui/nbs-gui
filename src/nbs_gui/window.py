@@ -67,6 +67,7 @@ class MainWindow(Window):
         """Update the main widget with a new widget and header"""
         config = SETTINGS.gui_config
         header_entrypoint = config.get("gui", {}).get("header", "nbs-gui-header")
+        print(f"Loading header from {header_entrypoint}")
         HeaderClass = self.load_header_from_entrypoint(header_entrypoint)
 
         # Clear existing widgets
