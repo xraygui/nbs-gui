@@ -163,8 +163,9 @@ class MotorControl(MotorMonitor):
         bool
             True if within limits, False otherwise
         """
-        if hasattr(self.model.obj, "limits"):
-            low, high = self.model.obj.limits
+        if hasattr(self.model, "limits"):
+            low, high = self.model.limits
+
             if low == high:
                 # If the limits are the same, they are probably not really set
                 return True
@@ -388,10 +389,14 @@ class DynamicMotorBox(QGroupBox):
         self.layout.addWidget(self.scroll_area)
 
         self.motor_progress_widgets = []
+        print("Models: ", models)
         if isinstance(models, dict):
             models = list(models.values())
         for m in models:
-            # print(f"Adding motor widget for model: {m.label}")
+            if m is None:
+                print("Model is None")
+                continue
+            print(f"Adding motor widget for model: {m.label}")
             if m.default_monitor == MotorMonitor:
                 widget = DynamicMotorBar(m, parent_model)
                 widget.setVisible(False)

@@ -1,5 +1,5 @@
 from qtpy.QtCore import Signal, QTimer
-from ophyd.signal import ReadTimeoutError
+from ophyd.signal import ReadTimeoutError, ConnectionTimeoutError
 from ophyd.utils.errors import DisconnectedError, StatusTimeoutError
 
 from ..views.motor import MotorControl, MotorMonitor
@@ -10,11 +10,22 @@ from ..views.switchable_motors import (
 )
 from .base import PVModel, BaseModel
 
+CONNECTION_ERRORS = (
+    ReadTimeoutError,
+    DisconnectedError,
+    ConnectionTimeoutError,
+    StatusTimeoutError,
+)
+
 
 def MotorModel(name, obj, group, long_name, **kwargs):
-    if hasattr(obj, "motor_is_moving"):
+    # print(f"Checking which MotorModel to create for {name}")
+    # Disconnected motors will sometimes throw errors when checking for attributes...
+    if "motor_is_moving" in obj.__dir__():
+        # print(f"Creating EPICSMotorModel for {name}")
         return EPICSMotorModel(name, obj, group, long_name, **kwargs)
-    elif hasattr(obj, "moving"):
+    elif "moving" in obj.__dir__():
+        # print(f"Creating PVPositionerModel for {name}")
         return PVPositionerModel(name, obj, group, long_name, **kwargs)
     else:
         raise AttributeError(
@@ -58,14 +69,14 @@ class EPICSMotorModel(PVModel):
             initial_pos = self.position
             print(f"Got initial position for {name}: {initial_pos}")
             self._setpoint = initial_pos
-        except Exception as e:
+        except CONNECTION_ERRORS as e:
             print(f"Error getting initial position for {name}: {e}, using 0")
 
     def _update_moving_status(self, value, **kwargs):
         try:
             self.movingStatusChanged.emit(value)
             self._handle_reconnection()
-        except Exception as e:
+        except CONNECTION_ERRORS as e:
             self._handle_connection_error(e, "updating moving status")
 
     def _check_value(self):
@@ -86,7 +97,7 @@ class EPICSMotorModel(PVModel):
 
             self._handle_reconnection()
             self.checkValueTimer.setInterval(500)
-        except Exception as e:
+        except CONNECTION_ERRORS + (TypeError, ValueError) as e:
             self._handle_connection_error(e, "checking value")
             self.checkValueTimer.setInterval(8000)
 
@@ -100,23 +111,34 @@ class EPICSMotorModel(PVModel):
             pos = self.obj.position
             self._handle_reconnection()
             return pos
-        except Exception as e:
+        except CONNECTION_ERRORS + (TypeError, ValueError) as e:
             self._handle_connection_error(e, "getting position")
             return 0
+
+    @property
+    def limits(self):
+        try:
+            if hasattr(self.obj, "limits"):
+                return self.obj.limits
+            else:
+                return (None, None)
+        except CONNECTION_ERRORS as e:
+            self._handle_connection_error(e, "getting limits")
+            return (None, None)
 
     def set(self, value):
         try:
             print(f"[{self.name}] Requesting move to {value}")
             self._obj_setpoint.set(value).wait()
             self._handle_reconnection()
-        except Exception as e:
+        except CONNECTION_ERRORS + (TypeError, ValueError) as e:
             self._handle_connection_error(e, "setting position")
 
     def stop(self):
         try:
             self.obj.stop()
             self._handle_reconnection()
-        except Exception as e:
+        except CONNECTION_ERRORS as e:
             self._handle_connection_error(e, "stopping motor")
 
 
@@ -133,7 +155,7 @@ class PVPositionerModel(PVModel):
             pos = self.obj.position
             self._handle_reconnection()
             return pos
-        except Exception as e:
+        except CONNECTION_ERRORS as e:
             self._handle_connection_error(e, "getting position")
             return 0
 
@@ -189,19 +211,19 @@ class PVPositionerModel(PVModel):
         Override base class to handle readback value checking for positioners.
         For positioners, we want the actual position value.
         """
-        #print(f"[{self.name}] Done getting value")
+        # print(f"[{self.name}] Done getting value")
         try:
             # Get the current position directly
             value = self.position
             self._value_changed(value)
             self._handle_reconnection()
             QTimer.singleShot(100000, self._check_value)
-        except (ReadTimeoutError, DisconnectedError, StatusTimeoutError) as e:
+        except CONNECTION_ERRORS + (TypeError, ValueError) as e:
             self._handle_connection_error(e, "checking value")
             QTimer.singleShot(10000, self._check_value)
 
-        #print(f"[{self.name}] Done getting value")
-        
+        # print(f"[{self.name}] Done getting value")
+
     def _check_setpoint(self):
         """
         For pseudo-motors, we track both the target (where we want to go)
@@ -216,7 +238,7 @@ class PVPositionerModel(PVModel):
                 return
         except (TypeError, ValueError):
             return
-        #print(f"[{self.name}] getting sp")
+        # print(f"[{self.name}] getting sp")
         try:
             if self._moving:
                 # During motion, show where we're trying to go
@@ -238,19 +260,29 @@ class PVPositionerModel(PVModel):
 
             self._handle_reconnection()
             self.checkSPTimer.setInterval(1000)
-        except (ReadTimeoutError, DisconnectedError, StatusTimeoutError) as e:
+        except CONNECTION_ERRORS + (TypeError, ValueError) as e:
             self._handle_connection_error(e, "checking setpoint")
             self.checkSPTimer.setInterval(8000)
-        #print(f"[{self.name}] done getting sp")
+        # print(f"[{self.name}] done getting sp")
 
+    @property
+    def limits(self):
+        try:
+            if hasattr(self.obj, "limits"):
+                return self.obj.limits
+            else:
+                return (None, None)
+        except CONNECTION_ERRORS as e:
+            self._handle_connection_error(e, "getting limits")
+            return (None, None)
 
     def _check_moving(self):
-        #print(f"[{self.name}] getting move status")
+        # print(f"[{self.name}] getting move status")
         try:
             moving = self.obj.moving
             self._handle_reconnection()
             self.checkMovingTimer.setInterval(1000)
-        except (ReadTimeoutError, DisconnectedError, StatusTimeoutError) as e:
+        except CONNECTION_ERRORS as e:
             self._handle_connection_error(e, "checking moving status")
             self.checkMovingTimer.setInterval(8000)
             return
@@ -258,8 +290,8 @@ class PVPositionerModel(PVModel):
         if moving != self._moving:
             self.movingStatusChanged.emit(moving)
             self._moving = moving
-        #print(f"[{self.name}] Done getting move status")
-        
+        # print(f"[{self.name}] Done getting move status")
+
     def set(self, value):
         """
         Request a move to a new position.
@@ -273,7 +305,7 @@ class PVPositionerModel(PVModel):
             self.obj.set(value)
             print(f"[{self.name}] After set to {value}")
             self._handle_reconnection()
-        except (ReadTimeoutError, DisconnectedError, StatusTimeoutError) as e:
+        except CONNECTION_ERRORS as e:
             self._handle_connection_error(e, "setting position")
         print(f"[{self.name}] Done requesting move")
 
@@ -281,7 +313,7 @@ class PVPositionerModel(PVModel):
         try:
             self.obj.stop()
             self._handle_reconnection()
-        except (ReadTimeoutError, DisconnectedError, StatusTimeoutError) as e:
+        except CONNECTION_ERRORS as e:
             self._handle_connection_error(e, "stopping motor")
 
 
@@ -347,17 +379,19 @@ class MotorTupleModel(MultiMotorModel):
             show_real_motors_by_default=show_real_motors_by_default,
             **kwargs,
         )
-
+        print(f"Loading MotorTupleModel for {self.label}")
         # Create models for real motors
-        self.real_motors = [
-            MotorModel(
+        self.real_motors = []
+        for attrName in obj.component_names:
+
+            motor = MotorModel(
                 name=getattr(obj, attrName).name,
                 obj=getattr(obj, attrName),
                 group=group,
                 long_name=getattr(obj, attrName).name,
             )
-            for attrName in obj.component_names
-        ]
+            # print(f"Created motor model: {motor.label}")
+            self.real_motors.append(motor)
 
         # For compatibility with switchable views, we use real_motors as pseudo_motors
         # since they are what we want to show by default
