@@ -1,10 +1,103 @@
 from qtpy.QtCore import Signal, QTimer
 from qtpy.QtWidgets import QWidget
 import numpy as np
-
+from ophyd.signal import ReadTimeoutError, ConnectionTimeoutError
+from ophyd.utils.errors import DisconnectedError, StatusTimeoutError
+from epics.ca import ChannelAccessGetFailure
 from ..views.monitors import PVMonitor, PVControl
 from ..views.enums import EnumControl, EnumMonitor
 from .mixins import ModeManagedModel
+from functools import wraps
+
+CONNECTION_ERRORS = (
+    ReadTimeoutError,
+    DisconnectedError,
+    ConnectionTimeoutError,
+    StatusTimeoutError,
+    ChannelAccessGetFailure,
+)
+
+
+def initialize_with_retry(func, retry_intervals=None):
+    """
+    Decorator for initialization methods that:
+    1. Ensures method only runs once successfully
+    2. Handles retrying failed initializations with exponential backoff
+    3. Ensures parent class initialization succeeds first
+
+    The decorated method should:
+    1. Call super()._initialize() if it has a parent class
+    2. Return True if initialization succeeded
+    3. Return False if initialization failed
+
+    Retry intervals:
+    - 1st attempt: 1 second
+    - 2nd attempt: 5 seconds
+    - 3rd attempt: 30 seconds
+    - 4th attempt: 60 seconds
+    - 5th+ attempts: 120 seconds
+    """
+    RETRY_INTERVALS = retry_intervals or [1000, 30000, 60000, 120000]  # in milliseconds
+
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        # Initialize the set if it doesn't exist
+        if not hasattr(self, "_initialized_methods"):
+            self._initialized_methods = set()
+
+        # Initialize retry counter if it doesn't exist
+        if not hasattr(self, "_init_retry_counts"):
+            self._init_retry_counts = {}
+
+        # Get the qualified name for this initialization method
+        qual_name = func.__qualname__
+
+        # If this method has already been successfully initialized, skip
+        if qual_name in self._initialized_methods:
+            return True
+
+        try:
+            # Run the initialization method
+            result = func(self, *args, **kwargs)
+
+            # If successful, mark as initialized and reset retry counter
+            if result:
+                self._initialized_methods.add(qual_name)
+                if qual_name in self._init_retry_counts:
+                    del self._init_retry_counts[qual_name]
+                return True
+            else:
+                # Get current retry count and increment
+                retry_count = self._init_retry_counts.get(qual_name, 0)
+                self._init_retry_counts[qual_name] = retry_count + 1
+
+                # Get retry interval (use last interval if we've exceeded the list)
+                interval = RETRY_INTERVALS[min(retry_count, len(RETRY_INTERVALS) - 1)]
+
+                # Schedule retry
+                print(
+                    f"Initialization failed for {self.name}.{func.__name__}, "
+                    f"attempt {retry_count + 1}, retrying in {interval/1000}s"
+                )
+                QTimer.singleShot(interval, lambda: wrapper(self, *args, **kwargs))
+                return False
+
+        except Exception as e:
+            # Handle exceptions same as failed initialization
+            print(f"Initialization failed for {qual_name}: {e}")
+
+            retry_count = self._init_retry_counts.get(qual_name, 0)
+            self._init_retry_counts[qual_name] = retry_count + 1
+            interval = RETRY_INTERVALS[min(retry_count, len(RETRY_INTERVALS) - 1)]
+
+            print(
+                f"Retrying {self.name}.{func.__name__} after error, "
+                f"attempt {retry_count + 1}, in {interval/1000}s"
+            )
+            QTimer.singleShot(interval, lambda: wrapper(self, *args, **kwargs))
+            return False
+
+    return wrapper
 
 
 def formatFloat(value, precision=2, width=None):
@@ -54,35 +147,79 @@ def formatInt(value):
         return str(value)  # Return as string if conversion fails
 
 
+def requires_connection(func):
+    """
+    Decorator to ensure a method only runs when device is connected.
+    If not connected, triggers a connection check which will handle
+    reconnection attempts.
+
+    Parameters
+    ----------
+    func : callable
+        The method to wrap
+
+    Returns
+    -------
+    callable
+        The wrapped method that checks connection status
+    """
+
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        if not self.connected:
+            print(f"Device {self.name} not connected for {func.__name__}")
+            # Let _check_connection handle reconnection logic
+            self._check_connection()
+            return None
+
+        try:
+            return func(self, *args, **kwargs)
+        except CONNECTION_ERRORS as e:
+            print(f"Connection error in {func.__name__} for {self.name}: {e}")
+            # Let _check_connection handle reconnection logic
+            self._check_connection()
+            return None
+
+    return wrapper
+
+
 class BaseModel(QWidget, ModeManagedModel):
     default_controller = None
     default_monitor = PVMonitor
     connectionStatusChanged = Signal(bool)
 
     def __init__(self, name, obj, group, long_name, **kwargs):
+        print(f"Initializing BaseModel for {name}")
         super().__init__()
         self.name = name
         self.obj = obj
         self.group = group
         self.label = long_name
         self.enabled = True
-        self._connected = True
+        self._connected = False  # Start as disconnected
+        self._value = "Disconnected"
+        # Create reconnection timer
+        self._reconnection_timer = QTimer()
+        self._reconnection_timer.timeout.connect(self._check_connection)
+        self._reconnection_timer.setSingleShot(True)
 
         # Set common attributes
         for key, value in kwargs.items():
             setattr(self, key, value)
 
         # Try initial connection
-        if hasattr(self.obj, "wait_for_connection"):
-            try:
-                self.obj.wait_for_connection(timeout=1)
-            except Exception as e:
-                print(f"{name} timed out waiting for connection: {e}")
-                self._connected = False
-                self.connectionStatusChanged.emit(False)
+        self._initialize()
 
         self.destroyed.connect(lambda: self._cleanup)
         self.units = None
+        print(f"Initialized BaseModel for {name}")
+
+    @initialize_with_retry
+    def _initialize(self):
+        """Base initialization"""
+        print(f"Initializing BaseModel for {self.name}")
+
+        return self._check_connection(retry_on_failure=False)
 
     def _cleanup(self):
         pass
@@ -103,11 +240,34 @@ class BaseModel(QWidget, ModeManagedModel):
             self.connectionStatusChanged.emit(False)
             print(f"Connection error for {self.name} {context}: {error}")
 
-    def _handle_reconnection(self):
-        """Handle successful reconnection."""
-        if not self._connected:
-            self._connected = True
-            self.connectionStatusChanged.emit(True)
+    def _check_connection(self, retry_on_failure=True):
+        """
+        Check connection and handle reconnection attempts.
+        All connection checking and reconnection logic lives here.
+        """
+
+        try:
+            if hasattr(self.obj, "wait_for_connection"):
+                self.obj.wait_for_connection(timeout=0.2)
+                connected = True
+            else:
+                self.obj.get(timeout=0.2)
+                connected = True
+        except CONNECTION_ERRORS:
+            connected = False
+
+        # Update connection state if changed
+        if connected != self._connected:
+            self._connected = connected
+            self.connectionStatusChanged.emit(connected)
+
+            # If we're now connected, try initialization
+            if not connected and retry_on_failure:
+                if not self._reconnection_timer.isActive():
+                    print(f"Starting reconnection timer for {self.name}")
+                    self._reconnection_timer.start(60000)
+
+        return connected
 
     @property
     def connected(self):
@@ -120,12 +280,23 @@ class PVModelRO(BaseModel):
 
     def __init__(self, name, obj, group, long_name, **kwargs):
         super().__init__(name, obj, group, long_name, **kwargs)
-        if hasattr(obj, "metadata"):
-            self.units = obj.metadata.get("units", None)
-            print(f"{name} has units {self.units}")
+        print(f"Initializing PVModelRO for {name}")
+        self._initialize()
+
+    @initialize_with_retry
+    def _initialize(self):
+        print(f"Initializing PVModelRO for {self.name}")
+        if not super()._initialize():
+            self.value_type = None
+            self.units = None
+            return False
+
+        if hasattr(self.obj, "metadata"):
+            self.units = self.obj.metadata.get("units", None)
+            print(f"{self.name} has units {self.units}")
         else:
             self.units = None
-            print(f"{name} has no metadata")
+            print(f"{self.name} has no metadata")
 
         try:
             _value_type = self.obj.describe().get("dtype", None)
@@ -140,22 +311,19 @@ class PVModelRO(BaseModel):
         except:
             self.value_type = None
 
-        self._value = "Disconnected"
-        self.sub_key = self.obj.subscribe(self._value_changed, run=True)
+        self.sub_key = self.obj.subscribe(self._value_changed, run=False)
         QTimer.singleShot(5000, self._check_value)
+        print(f"Initialized PVModelRO for {self.name}")
+        return True
 
     def _cleanup(self):
         self.obj.unsubscribe(self.sub_key)
 
+    @requires_connection
     def _check_value(self):
-        try:
-            value = self.obj.get(connection_timeout=0.2, timeout=0.2)
-            self._value_changed(value)
-            self._handle_reconnection()
-            QTimer.singleShot(100000, self._check_value)
-        except Exception as e:
-            self._handle_connection_error(e, "checking value")
-            QTimer.singleShot(10000, self._check_value)
+        value = self.obj.get(connection_timeout=0.2, timeout=0.2)
+        self._value_changed(value)
+        QTimer.singleShot(100000, self._check_value)
 
     def _value_changed(self, value, **kwargs):
         """Handle value changes, with better type handling."""
@@ -199,6 +367,7 @@ class PVModelRO(BaseModel):
 class PVModel(PVModelRO):
     default_controller = PVControl
 
+    @requires_connection
     def set(self, val):
         """Set the value of the PV, with type validation.
 
@@ -231,25 +400,30 @@ class EnumModel(PVModel):
     enumChanged = Signal(tuple)
 
     def __init__(self, name, obj, group, long_name, **kwargs):
+        super().__init__(name, obj, group, long_name, **kwargs)
+        self._initialize()
+
+    @initialize_with_retry
+    def _initialize(self):
+        print(f"Initializing EnumModel for {self.name}")
         self._enum_strs = tuple("")
         self._index_value = 0
-        super().__init__(name, obj, group, long_name, **kwargs)
-        self._get_enum_strs()
+        if not super()._initialize():
+            return False
 
-    def _get_enum_strs(self):
         if hasattr(self.obj, "enum_strs") and self.obj.enum_strs is not None:
             self._enum_strs = tuple(self.obj.enum_strs)
             self.enumChanged.emit(self._enum_strs)
         else:
             print(
-                f"Warning: {self.name} does not have enum_strs attribute or it is None. Retrying in 5 seconds."
+                f"Warning: {self.name} does not have enum_strs attribute or it is None."
             )
-            QTimer.singleShot(5000, self._get_enum_strs)
 
     @property
     def enum_strs(self):
         return self._enum_strs
 
+    @requires_connection
     def set(self, value):
         if isinstance(value, str):
             if value in self._enum_strs:

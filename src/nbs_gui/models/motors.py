@@ -1,6 +1,7 @@
 from qtpy.QtCore import Signal, QTimer
 from ophyd.signal import ReadTimeoutError, ConnectionTimeoutError
 from ophyd.utils.errors import DisconnectedError, StatusTimeoutError
+from epics.ca import ChannelAccessGetFailure
 
 from ..views.motor import MotorControl, MotorMonitor
 from ..views.motor_tuple import MotorTupleControl, MotorTupleMonitor
@@ -15,6 +16,7 @@ CONNECTION_ERRORS = (
     DisconnectedError,
     ConnectionTimeoutError,
     StatusTimeoutError,
+    ChannelAccessGetFailure,
 )
 
 
@@ -41,12 +43,19 @@ class EPICSMotorModel(PVModel):
 
     def __init__(self, name, obj, group, long_name, **kwargs):
         super().__init__(name, obj, group, long_name, **kwargs)
+
+        print(f"Initializing EPICSMotorModel for {name}")
         self.obj.motor_is_moving.subscribe(self._update_moving_status)
-        if hasattr(self.obj, "user_setpoint"):
+
+        print("Setting up setpoint for {name}")
+        if "user_setpoint" in self.obj.__dir__():
+            print(f"Using user_setpoint for {name}._obj_setpoint")
             self._obj_setpoint = self.obj.user_setpoint
-        elif hasattr(self.obj, "setpoint"):
+        elif "setpoint" in self.obj.__dir__():
+            print(f"Using setpoint for {name}._obj_setpoint")
             self._obj_setpoint = self.obj.setpoint
         else:
+            print(f"Using obj for {name}._obj_setpoint")
             self._obj_setpoint = self.obj
 
         if hasattr(self._obj_setpoint, "metadata"):
@@ -71,6 +80,7 @@ class EPICSMotorModel(PVModel):
             self._setpoint = initial_pos
         except CONNECTION_ERRORS as e:
             print(f"Error getting initial position for {name}: {e}, using 0")
+        print(f"Initialized EPICSMotorModel for {name}")
 
     def _update_moving_status(self, value, **kwargs):
         try:
@@ -152,10 +162,10 @@ class PVPositionerModel(PVModel):
     def position(self):
         """Get the current position of the motor."""
         try:
-            pos = self.obj.position
+            pos = self._obj_readback.get(timeout=0.2)
             self._handle_reconnection()
             return pos
-        except CONNECTION_ERRORS as e:
+        except Exception as e:
             self._handle_connection_error(e, "getting position")
             return 0
 
@@ -165,14 +175,21 @@ class PVPositionerModel(PVModel):
         return self._setpoint
 
     def __init__(self, name, obj, group, long_name, **kwargs):
-        super().__init__(name, obj, group, long_name, **kwargs)
         print(f"Initializing PVPositionerModel for {name}")
+        super().__init__(name, obj, group, long_name, **kwargs)
         if hasattr(self.obj, "user_setpoint"):
             self._obj_setpoint = self.obj.user_setpoint
         elif hasattr(self.obj, "setpoint"):
             self._obj_setpoint = self.obj.setpoint
         else:
             self._obj_setpoint = self.obj
+
+        if hasattr(self.obj, "user_readback"):
+            self._obj_readback = self.obj.user_readback
+        elif hasattr(self.obj, "readback"):
+            self._obj_readback = self.obj.readback
+        else:
+            self._obj_readback = self.obj
 
         if hasattr(self._obj_setpoint, "metadata"):
             self.units = self._obj_setpoint.metadata.get("units", None)
@@ -205,6 +222,7 @@ class PVPositionerModel(PVModel):
             self._target = initial_pos
         except Exception as e:
             print(f"Error getting initial position for {name}: {e}, using 0")
+        print(f"Initialized PVPositionerModel for {name}")
 
     def _check_value(self):
         """
@@ -218,9 +236,9 @@ class PVPositionerModel(PVModel):
             self._value_changed(value)
             self._handle_reconnection()
             QTimer.singleShot(100000, self._check_value)
-        except CONNECTION_ERRORS + (TypeError, ValueError) as e:
+        except CONNECTION_ERRORS + (TypeError, ValueError, AttributeError) as e:
             self._handle_connection_error(e, "checking value")
-            QTimer.singleShot(10000, self._check_value)
+            QTimer.singleShot(100000, self._check_value)
 
         # print(f"[{self.name}] Done getting value")
 
@@ -229,7 +247,7 @@ class PVPositionerModel(PVModel):
         For pseudo-motors, we track both the target (where we want to go)
         and the setpoint (where we actually end up).
         """
-
+        print(f"Checking setpoint for {self.name}")
         try:
             if not all(
                 isinstance(x, (int, float))
@@ -260,9 +278,9 @@ class PVPositionerModel(PVModel):
 
             self._handle_reconnection()
             self.checkSPTimer.setInterval(1000)
-        except CONNECTION_ERRORS + (TypeError, ValueError) as e:
+        except CONNECTION_ERRORS + (TypeError, ValueError, AttributeError) as e:
             self._handle_connection_error(e, "checking setpoint")
-            self.checkSPTimer.setInterval(8000)
+            self.checkSPTimer.setInterval(60000)
         # print(f"[{self.name}] done getting sp")
 
     @property
@@ -284,7 +302,7 @@ class PVPositionerModel(PVModel):
             self.checkMovingTimer.setInterval(1000)
         except CONNECTION_ERRORS as e:
             self._handle_connection_error(e, "checking moving status")
-            self.checkMovingTimer.setInterval(8000)
+            self.checkMovingTimer.setInterval(60000)
             return
 
         if moving != self._moving:
