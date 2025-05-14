@@ -342,12 +342,11 @@ class PVModelRO(BaseModel):
 
     def __init__(self, name, obj, group, long_name, **kwargs):
         super().__init__(name, obj, group, long_name, **kwargs)
-        print(f"Initializing PVModelRO for {name}")
         self._initialize()
 
     @initialize_with_retry
     def _initialize(self):
-        print(f"Initializing PVModelRO for {self.name}")
+        print(f"[{self.name}] Initializing PVModelRO")
         if not super()._initialize():
             self.value_type = None
             self.units = None
@@ -374,8 +373,11 @@ class PVModelRO(BaseModel):
             self.value_type = None
 
         self.sub_key = self.obj.subscribe(self._value_changed, run=False)
+        initial_value = self._get_value(check_connection=False)
+        self._value_changed(initial_value)
+        print(f"[{self.name}] Initial value: {initial_value}")
         QTimer.singleShot(5000, self._check_value)
-        print(f"Initialized PVModelRO for {self.name}")
+        print(f"[{self.name}] PVModelRO Initialized")
         return True
 
     def _cleanup(self):
@@ -388,7 +390,7 @@ class PVModelRO(BaseModel):
     def _check_value(self):
         value = self._get_value()
         self._value_changed(value)
-        QTimer.singleShot(100000, self._check_value)
+        QTimer.singleShot(10000, self._check_value)
 
     def _value_changed(self, value, **kwargs):
         """Handle value changes, with better type handling."""
