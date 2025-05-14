@@ -346,7 +346,7 @@ class PVPositionerModel(BaseMotorModel):
         print(f"[{self.name}] Done requesting move")
 
 
-class PseudoPositionerModel(PVPositionerModel):
+class PseudoSingleModel(PVPositionerModel):
 
     def _check_connection(self, retry_on_failure=True):
         """
@@ -359,7 +359,7 @@ class PseudoPositionerModel(PVPositionerModel):
         try:
             if "wait_for_connection" in dir(self.obj.parent):
                 print(f"[{self.name}._check_connection] Waiting for connection")
-                self.obj.parent.wait_for_connection(timeout=0.2, connection_timeout=0.2)
+                self.obj.parent.wait_for_connection(timeout=0.2)
                 connected = True
             else:
                 print(f"[{self.name}._check_connection] Getting value")
@@ -495,6 +495,8 @@ class PseudoPositionerModel(MultiMotorModel):
         )
 
         # Create models for real motors
+        print(f"[{self.name}] Intializing PseudoPositionerModel")
+        print(f"[{self.name}] Creating real motors")
         self.real_motors = [
             MotorModel(
                 name=real_axis.name,
@@ -504,10 +506,11 @@ class PseudoPositionerModel(MultiMotorModel):
             )
             for real_axis in obj.real_positioners
         ]
-
+        print(f"[{self.name}] Created {len(self.real_motors)} real motors")
         # Create models for pseudo motors
+        print(f"[{self.name}] Creating pseudo motors")
         self.pseudo_motors = [
-            PseudoPositionerModel(
+            PseudoSingleModel(
                 name=ps_axis.name,
                 obj=ps_axis,
                 group=group,
@@ -515,3 +518,4 @@ class PseudoPositionerModel(MultiMotorModel):
             )
             for ps_axis in obj.pseudo_positioners
         ]
+        print(f"[{self.name}] Created {len(self.pseudo_motors)} pseudo motors")
