@@ -134,7 +134,7 @@ class EPICSMotorModel(BaseMotorModel):
             # Get current position
             value = self.position
             self._value_changed(value)
-
+            # print(f"[{self.name}] check_value: {value}")
             # Check setpoint
             new_sp = self._get_setpoint()
             if new_sp is None:
@@ -145,11 +145,14 @@ class EPICSMotorModel(BaseMotorModel):
                 self.setpointChanged.emit(self._setpoint)
             if value is not None:
                 self.checkValueTimer.setInterval(1000)
+                # self.checkValueTimer.start()
             else:
                 self.checkValueTimer.setInterval(8000)
+                # self.checkValueTimer.start()
         except (TypeError, ValueError) as e:
             self._handle_connection_error(e, "checking value")
             self.checkValueTimer.setInterval(8000)
+            # self.checkValueTimer.start()
 
     @property
     def setpoint(self):
@@ -267,11 +270,13 @@ class PVPositionerModel(BaseMotorModel):
         """
         value = self.position
         self._value_changed(value)
-
+        # print(f"[{self.name}] check_value: {value}")
         if value is not None:
             self.checkValueTimer.setInterval(1000)
+            # self.checkValueTimer.start()
         else:
             self.checkValueTimer.setInterval(8000)
+            # self.checkValueTimer.start()
 
     def _check_setpoint(self):
         """

@@ -82,6 +82,8 @@ class PVControl(QWidget):
             box.setAlignment(Qt.AlignVCenter)
 
         self.model.valueChanged.connect(self.setText)
+        print(f"[{self.model.name}] PVControl initial setText: {self.model.value}")
+        self.setText(self.model.value)
         self.setLayout(box)
 
     def enter_value(self):

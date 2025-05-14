@@ -64,6 +64,7 @@ class MotorMonitor(QWidget):
     def update_position(self, value):
         if value is None:
             value = "Disconnected"
+        # print(f"[MotorMonitor {self.model.label}] update_position: {value}")
         self.position.setText(f"{value} {self.units}")
 
     @Slot(bool)
@@ -152,7 +153,7 @@ class MotorControl(MotorMonitor):
             self.lineEdit.setText("Disconnected")
             self.indicator.setColor("red")
         else:
-            self.update_position(self.model.position)
+            self.update_position(self.model.value)
             self.update_sp(self.model.setpoint)
             self.update_indicator(self.model.moving)
 

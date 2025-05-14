@@ -373,7 +373,7 @@ class PVModelRO(BaseModel):
         except Exception as e:
             print(f"[{self.name}] Error in _initialize value_type: {e}")
             self.value_type = None
-
+        print(f"[{self.name}] value_type: {self.value_type}")
         self.sub_key = self.obj.subscribe(self._value_changed, run=False)
         initial_value = self._get_value(check_connection=False)
         self._value_changed(initial_value)
@@ -394,7 +394,7 @@ class PVModelRO(BaseModel):
         self._value_changed(value)
         QTimer.singleShot(10000, self._check_value)
 
-    def _value_changed(self, value, **kwargs):
+    def _value_changed(self, value, print_value=False, **kwargs):
         """Handle value changes, with better type handling."""
         # print(f"[{self.name}] _value_changed: {value}")
         if value is None:
@@ -410,6 +410,8 @@ class PVModelRO(BaseModel):
             if hasattr(value, "_fields"):
                 if hasattr(value, "user_readback"):
                     value = value.user_readback
+                elif hasattr(value, "readback"):
+                    value = value.readback
                 elif hasattr(value, "value"):
                     value = value.value
 
@@ -421,6 +423,7 @@ class PVModelRO(BaseModel):
                     self.value_type = int
                 else:
                     self.value_type = str
+                print(f"[{self.name}] new value_type: {self.value_type}")
 
             # Format based on type
             if self.value_type is float:
@@ -429,6 +432,9 @@ class PVModelRO(BaseModel):
                 formatted_value = formatInt(value)
             else:
                 formatted_value = str(value)
+            if print_value:
+                print(f"[{self.name}] value changed to {formatted_value}")
+
             if self._value != formatted_value:
                 self._value = formatted_value
                 self.valueChanged.emit(formatted_value)
