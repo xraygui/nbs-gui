@@ -394,7 +394,7 @@ class PVModelRO(BaseModel):
 
     def _value_changed(self, value, **kwargs):
         """Handle value changes, with better type handling."""
-        print(f"[{self.name}] _value_changed: {value}")
+        # print(f"[{self.name}] _value_changed: {value}")
         if value is None:
             if self._value is None:
                 return
@@ -431,7 +431,7 @@ class PVModelRO(BaseModel):
                 self._value = formatted_value
                 self.valueChanged.emit(formatted_value)
         except Exception as e:
-            print(f"Error in _value_changed for {self.name}: {e}")
+            print(f"[{self.name}] Error in _value_changed for value {value}: {e}")
             self._value = str(value)
             self.valueChanged.emit(str(value))
 
