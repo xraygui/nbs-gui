@@ -88,15 +88,15 @@ class EPICSMotorModel(BaseMotorModel):
         print(f"Initializing EPICSMotorModel for {self.name}")
         self.obj.motor_is_moving.subscribe(self._update_moving_status)
 
-        print(f"Setting up setpoint for {self.name}")
+        # print(f"Setting up setpoint for {self.name}")
         if "user_setpoint" in self.obj.__dir__():
-            print(f"Using user_setpoint for {self.name}._obj_setpoint")
+            # print(f"Using user_setpoint for {self.name}._obj_setpoint")
             self._obj_setpoint = self.obj.user_setpoint
         elif "setpoint" in self.obj.__dir__():
-            print(f"Using setpoint for {self.name}._obj_setpoint")
+            # print(f"Using setpoint for {self.name}._obj_setpoint")
             self._obj_setpoint = self.obj.setpoint
         else:
-            print(f"Using obj for {self.name}._obj_setpoint")
+            # print(f"Using obj for {self.name}._obj_setpoint")
             self._obj_setpoint = self.obj
 
         if hasattr(self._obj_setpoint, "metadata"):

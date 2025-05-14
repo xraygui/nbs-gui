@@ -62,7 +62,7 @@ def initialize_with_retry(func, retry_intervals=None, jitter_factor=0.2):
         if qual_name in self._init_retry_timers:
             timer = self._init_retry_timers[qual_name]
             if timer.isActive():
-                print(f"Retry already scheduled for {qual_name}, " "waiting for timer")
+                # print(f"Retry already scheduled for {qual_name}, " "waiting for timer")
                 return False
 
         try:
