@@ -162,6 +162,7 @@ class PVMonitor(QWidget):
         """
         if val is None:
             val = "Disconnected"
+        print(f"[{self.model.name}] PVMonitor setText: {val}")
         self.value.setText(f"{val} {self.units}")
 
 

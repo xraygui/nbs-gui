@@ -394,6 +394,7 @@ class PVModelRO(BaseModel):
 
     def _value_changed(self, value, **kwargs):
         """Handle value changes, with better type handling."""
+        print(f"[{self.name}] _value_changed: {value}")
         if value is None:
             if self._value is None:
                 return
