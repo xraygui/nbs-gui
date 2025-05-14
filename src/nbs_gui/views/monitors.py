@@ -106,6 +106,8 @@ class PVControl(QWidget):
         val : str
             Formatted value to display
         """
+        if val is None:
+            val = "Disconnected"
         self.value.setText(f"{val} {self.units}")
 
 
@@ -158,6 +160,8 @@ class PVMonitor(QWidget):
         val : str
             Formatted value to display
         """
+        if val is None:
+            val = "Disconnected"
         self.value.setText(f"{val} {self.units}")
 
 
