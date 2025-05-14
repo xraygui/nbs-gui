@@ -47,9 +47,9 @@ class BaseMotorModel(PVModel):
 
     @property
     def position(self):
-        print(f"[{self.name}.position] Getting position")
+        # print(f"[{self.name}.position] Getting position")
         pos = self._get_position()
-        print(f"[{self.name}.position] Got position: {pos}")
+        # print(f"[{self.name}.position] Got position: {pos}")
         return pos
 
     @property
@@ -278,7 +278,7 @@ class PVPositionerModel(BaseMotorModel):
         For pseudo-motors, we track both the target (where we want to go)
         and the setpoint (where we actually end up).
         """
-        print(f"Checking setpoint for {self.name}")
+        # print(f"[{self.name}._check_setpoint] Checking setpoint")
         try:
             if not all(
                 isinstance(x, (int, float))

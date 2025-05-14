@@ -300,15 +300,15 @@ class MotorProgressBar(QWidget):
 
     def update_range(self, setpoint):
         """Update the progress bar range with new setpoint."""
-        print(f"[{self.model.label}.update_range] Updating range")
+        # print(f"[{self.model.label}.update_range] Updating range")
 
         if setpoint is None or self.model.position is None:
-            print(f"[{self.model.label}.update_range] Progress bar disabled")
+            # print(f"[{self.model.label}.update_range] Progress bar disabled")
             self.progress_bar.setEnabled(False)
             self.label.setText(f"{self.model.label}: DISCONNECTED")
             return
 
-        print(f"[{self.model.label}.update_range] Progress bar enabled")
+        # print(f"[{self.model.label}.update_range] Progress bar enabled")
         self.progress_bar.setEnabled(True)
         current_value = float(self.model.position)
         setpoint = float(setpoint)
@@ -318,14 +318,14 @@ class MotorProgressBar(QWidget):
 
     def update_progress(self, value):
         """Update progress bar with new value."""
-        print(
-            f"[{self.model.label}.update_progress] Updating progress with value {value}"
-        )
+        # print(
+        #     f"[{self.model.label}.update_progress] Updating progress with value {value}"
+        # )
         if value is None or self.model.setpoint is None or value == "None":
             self.progress_bar.setEnabled(False)
             self.label.setText(f"{self.model.label}: Disconnected")
             return
-        print(f"[{self.model.label}.update_progress] Progress bar enabled")
+        # print(f"[{self.model.label}.update_progress] Progress bar enabled")
         self.progress_bar.setEnabled(True)
         try:
             value = float(value)
