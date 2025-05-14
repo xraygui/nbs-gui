@@ -179,7 +179,8 @@ def formatInt(value):
     """Format an integer value."""
     try:
         return "{:d}".format(int(value))
-    except (ValueError, TypeError):
+    except (ValueError, TypeError) as e:
+        print(f"Could not convert value {value} to int: {e}")
         return str(value)  # Return as string if conversion fails
 
 
@@ -369,7 +370,8 @@ class PVModelRO(BaseModel):
                 self.value_type = str
             else:
                 self.value_type = None
-        except:
+        except Exception as e:
+            print(f"[{self.name}] Error in _initialize value_type: {e}")
             self.value_type = None
 
         self.sub_key = self.obj.subscribe(self._value_changed, run=False)
