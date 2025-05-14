@@ -64,10 +64,16 @@ class EnumControl(QWidget):
         val : str
             Current value to display
         """
-        self.value.setText(val)
-        index = self.combo.findText(val)
-        if index >= 0:
-            self.combo.setCurrentIndex(index)
+        if val is None:
+            val = "Disconnected"
+            self.value.setText(val)
+            self.combo.setCurrentIndex(-1)
+            return
+        else:
+            self.value.setText(val)
+            index = self.combo.findText(val)
+            if index >= 0:
+                self.combo.setCurrentIndex(index)
 
     def updateCombo(self, enum_strs):
         """Update the combo box items.
@@ -138,4 +144,6 @@ class EnumMonitor(QWidget):
         val : str
             Value to display
         """
+        if val is None:
+            val = "Disconnected"
         self.value.setText(str(val))

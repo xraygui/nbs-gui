@@ -5,7 +5,13 @@ from ..views.gatevalve import GVControl, GVMonitor
 from ..views.energy import EnergyControl, EnergyMonitor
 from ..views.manipulator_monitor import RealManipulatorControl, RealManipulatorMonitor
 
-from .base import BaseModel, formatFloat, formatInt
+from .base import (
+    BaseModel,
+    formatFloat,
+    formatInt,
+    requires_connection,
+    initialize_with_retry,
+)
 from .motors import PVPositionerModel, MotorModel
 
 
@@ -43,18 +49,28 @@ class GVModel(BaseModel):
 
     def __init__(self, name, obj, group, long_name, **kwargs):
         super().__init__(name, obj, group, long_name, **kwargs)
+        self._initialize()
+
+    @initialize_with_retry
+    def _initialize(self):
+        if not super()._initialize():
+            return False
         self.sub_key = self.obj.state.subscribe(self._status_change, run=True)
-        timer = QTimer.singleShot(5000, self._check_status)
+        QTimer.singleShot(5000, self._check_status)
+        return True
 
     def _cleanup(self):
         self.obj.state.unsubscribe(self.sub_key)
 
+    @requires_connection
     def open(self):
         self.obj.open_nonplan()
 
+    @requires_connection
     def close(self):
         self.obj.close_nonplan()
 
+    @requires_connection
     def _check_status(self):
         try:
             status = self.obj.state.get(connection_timeout=0.2, timeout=0.2)
@@ -75,33 +91,50 @@ class ScalarModel(BaseModel):
 
     def __init__(self, name, obj, group, long_name, **kwargs):
         super().__init__(name, obj, group, long_name, **kwargs)
-        if hasattr(obj, "metadata"):
-            self.units = obj.metadata.get("units", None)
-            print(f"{name} has units {self.units}")
+        self._initialize()
+
+    @initialize_with_retry
+    def _initialize(self):
+        if not super()._initialize():
+            return False
+        if hasattr(self.obj, "metadata"):
+            self.units = self.obj.metadata.get("units", None)
+            print(f"{self.name} has units {self.units}")
         else:
             self.units = None
-            print(f"{name} has no metadata")
+            print(f"{self.name} has no metadata")
 
         self.value_type = None
         self._value = "Disconnected"
         self.sub_key = self.obj.target.subscribe(self._value_changed, run=True)
         QTimer.singleShot(5000, self._check_value)
+        return True
+
+    def __del__(self):
+        self._cleanup()
 
     def _cleanup(self):
+        print(f"[{self.name}] Cleaning up")
         self.obj.target.unsubscribe(self.sub_key)
 
+    @requires_connection
+    def _get_value(self):
+        return self.obj.target.get(connection_timeout=0.2, timeout=0.2)
+
     def _check_value(self):
-        try:
-            value = self.obj.target.get(connection_timeout=0.2, timeout=0.2)
-            self._value_changed(value)
-            self._handle_reconnection()
-            QTimer.singleShot(100000, self._check_value)
-        except Exception as e:
-            self._handle_connection_error(e, "checking value")
-            QTimer.singleShot(10000, self._check_value)
+        value = self._get_value()
+        self._value_changed(value)
+        QTimer.singleShot(100000, self._check_value)
 
     def _value_changed(self, value, **kwargs):
         """Handle value changes, with better type handling."""
+        if value is None:
+            if self._value is None:
+                return
+            else:
+                self._value = None
+                self.valueChanged.emit(self._value)
+                return
         try:
             # Extract value from named tuple if needed
             if hasattr(value, "_fields"):
@@ -126,9 +159,9 @@ class ScalarModel(BaseModel):
                 formatted_value = formatInt(value)
             else:
                 formatted_value = str(value)
-
-            self._value = formatted_value
-            self.valueChanged.emit(formatted_value)
+            if self._value != formatted_value:
+                self._value = formatted_value
+                self.valueChanged.emit(formatted_value)
         except Exception as e:
             print(f"Error in _value_changed for {self.name}: {e}")
             self._value = str(value)

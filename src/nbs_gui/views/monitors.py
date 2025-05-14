@@ -82,6 +82,8 @@ class PVControl(QWidget):
             box.setAlignment(Qt.AlignVCenter)
 
         self.model.valueChanged.connect(self.setText)
+        print(f"[{self.model.name}] PVControl initial setText: {self.model.value}")
+        self.setText(self.model.value)
         self.setLayout(box)
 
     def enter_value(self):
@@ -106,6 +108,8 @@ class PVControl(QWidget):
         val : str
             Formatted value to display
         """
+        if val is None:
+            val = "Disconnected"
         self.value.setText(f"{val} {self.units}")
 
 
@@ -148,6 +152,8 @@ class PVMonitor(QWidget):
             box.setAlignment(Qt.AlignVCenter)
 
         self.model.valueChanged.connect(self.setText)
+        print(f"[{self.model.name}] PVMonitor initial setText: {self.model.value}")
+        self.setText(self.model.value)
         self.setLayout(box)
 
     def setText(self, val):
@@ -158,6 +164,8 @@ class PVMonitor(QWidget):
         val : str
             Formatted value to display
         """
+        if val is None:
+            val = "Disconnected"
         self.value.setText(f"{val} {self.units}")
 
 

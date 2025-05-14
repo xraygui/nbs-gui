@@ -37,7 +37,7 @@ class PushButtonMinimumWidth(QPushButton):
 class QtReConsoleMonitor(QWidget):
     def __init__(self, model, parent=None):
         super().__init__(parent)
-        # self.setAttribute(Qt.WA_DeleteOnClose)
+        self.setAttribute(Qt.WA_DeleteOnClose)
         print("New QtReConsoleMonitor with QPlainTextEdit")
         self._max_lines = 1000
 
@@ -93,6 +93,10 @@ class QtReConsoleMonitor(QWidget):
         self._start_thread()
         self._start_timer()
         self._stop = False
+
+    def __del__(self):
+        self.model.stop_console_output_monitoring()
+        self._stop = True
 
     def _process_new_console_output(self, result):
         """

@@ -1,7 +1,7 @@
 """Model for beamline mode control."""
 
 from qtpy.QtCore import Signal
-from .base import EnumModel
+from .base import EnumModel, initialize_with_retry, requires_connection
 
 
 class ModeModel(EnumModel):
@@ -31,30 +31,26 @@ class ModeModel(EnumModel):
         super().__init__(name, obj, group, long_name, **kwargs)
         self.mode_info = mode_info or {}
         self._current_mode = "Unknown"
-        self._enum_strs = []
+        self._initialize()
 
-        # Try to get enum strings, but don't fail if not available
+    @initialize_with_retry
+    def _initialize(self):
+        if not super()._initialize():
+            return False
         try:
-            if hasattr(obj, "enum_strs") and obj.enum_strs is not None:
-                self._enum_strs = list(obj.enum_strs)
-                print(f"Mode PV {name} has enum strings: {self._enum_strs}")
-            else:
-                print(f"Warning: Mode PV {name} does not have enum strings")
+            self.sub_key = self.obj.subscribe(self._mode_changed)
+            return True
         except Exception as e:
-            print(f"Error getting enum strings for {name}: {e}")
-
-        try:
-            self.sub_key = obj.subscribe(self._mode_changed)
-        except Exception as e:
-            print(f"Error subscribing to mode changes for {name}: {e}")
+            print(f"Error subscribing to mode changes for {self.name}: {e}")
+            return False
 
     def _mode_changed(self, value, **kwargs):
         """Handle mode changes from PV."""
         try:
             if isinstance(value, (int, float)):
                 # Convert enum index to string if possible
-                if self._enum_strs and 0 <= value < len(self._enum_strs):
-                    mode = self._enum_strs[int(value)]
+                if self.enum_strs and 0 <= value < len(self.enum_strs):
+                    mode = self.enum_strs[int(value)]
                 else:
                     mode = f"Mode_{value}"
             else:
@@ -67,6 +63,7 @@ class ModeModel(EnumModel):
         except Exception as e:
             print(f"Error handling mode change for {self.name}: {e}")
 
+    @requires_connection
     def set_mode(self, mode):
         """Set the beamline mode.
 
@@ -77,9 +74,9 @@ class ModeModel(EnumModel):
         """
         try:
             if isinstance(mode, str):
-                if mode in self._enum_strs:
+                if mode in self.enum_strs:
                     # Convert mode name to enum index
-                    mode = self._enum_strs.index(mode)
+                    mode = self.enum_strs.index(mode)
                 elif mode.startswith("Mode_"):
                     # Convert Mode_N back to integer
                     try:
@@ -101,4 +98,4 @@ class ModeModel(EnumModel):
     @property
     def available_modes(self):
         """List of available mode names."""
-        return self._enum_strs or [self._current_mode]
+        return self.enum_strs or [self.current_mode]
