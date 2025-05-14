@@ -121,7 +121,7 @@ class MotorControl(MotorMonitor):
         self.stopButton = QPushButton("Stop!")
         self.stopButton.setFixedWidth(60)
         self.stopButton.setFixedHeight(20)
-        self.stopButton.clicked.connect(self.model.stop)
+        self.stopButton.clicked.connect(lambda x: self.model.stop())
 
         # Add remaining widgets in sequence
         self.box.addWidget(self.gobutton)
