@@ -6,6 +6,7 @@ from qtpy.QtWidgets import (
 
 from qtpy.QtCore import Signal, Qt
 from .planParam import ParamGroup, SpinBoxParam, LineEditParam, TextEditParam
+from nbs_gui.settings import SETTINGS
 
 
 class ScanModifierParam(ParamGroup):
@@ -97,19 +98,23 @@ class BeamlineModifierParam(ParamGroup):
     def __init__(self, model, parent=None):
         super().__init__(parent, "Beamline Setup")
 
-        self.add_param(LineEditParam("eslit", float, "Exit Slit"))
-        self.add_param(
-            LineEditParam(
-                "polarization",
-                float,
-                "Polarization",
-                "EPU Polarization to set at plan start",
+        config = SETTINGS.beamline_config.get("configuration", {})
+        if config.get("has_slits", False):
+            self.add_param(LineEditParam("eslit", float, "Exit Slit"))
+        if config.get("has_polarization", False):
+            self.add_param(
+                LineEditParam(
+                    "polarization",
+                    float,
+                    "Polarization",
+                    "EPU Polarization to set at plan start",
+                )
             )
-        )
+        if config.get("has_motorized_eref", False):
+            self.add_param(ReferenceComboParam(model))
         self.add_param(
-            LineEditParam("energy", float, "Energy", "Energy to set a plan start")
+            LineEditParam("energy", float, "Energy", "Energy to set at plan start")
         )
-        self.add_param(ReferenceComboParam(model))
 
     def check_ready(self):
         # All parameters optional, so return True
