@@ -78,7 +78,7 @@ class EPICSMotorModel(BaseMotorModel):
         self._position = None
         self._moving = False
         self.checkValueTimer = QTimer(self)
-        self._initialize()
+        EPICSMotorModel._initialize(self)
 
     @initialize_with_retry
     def _initialize(self):
@@ -180,7 +180,7 @@ class EPICSMotorModel(BaseMotorModel):
 class PVPositionerModel(BaseMotorModel):
 
     def __init__(self, name, obj, group, long_name, **kwargs):
-        print(f"Initializing PVPositionerModel for {name}")
+        print(f"[{name}.__init__] Initializing PVPositionerModel")
         super().__init__(name, obj, group, long_name, **kwargs)
         self._setpoint = None
         self._target = None
@@ -191,11 +191,12 @@ class PVPositionerModel(BaseMotorModel):
         self.checkSPTimer = QTimer(self)
         self.checkMovingTimer = QTimer(self)
         self.checkValueTimer = QTimer(self)
-
-        self._initialize()
+        print(f"[{name}.__init__] about to call _initialize")
+        PVPositionerModel._initialize(self)
 
     @initialize_with_retry
     def _initialize(self):
+        print(f"[{self.name}._initialize] Initializing PVPositionerModel")
         if not super()._initialize():
             return False
 

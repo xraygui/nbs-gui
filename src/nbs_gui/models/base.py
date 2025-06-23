@@ -239,7 +239,7 @@ class BaseModel(QWidget, ModeManagedModel):
     connectionStatusChanged = Signal(bool)
 
     def __init__(self, name, obj, group, long_name, **kwargs):
-        print(f"Initializing BaseModel for {name}")
+        print(f"[{name}.__init__] Initializing BaseModel")
         super().__init__()
         self.name = name
         self.obj = obj
@@ -257,8 +257,9 @@ class BaseModel(QWidget, ModeManagedModel):
         for key, value in kwargs.items():
             setattr(self, key, value)
 
-        # Try initial connection
-        self._initialize()
+        # Try initial connection - call BaseModel._initialize explicitly
+        # to avoid calling derived class _initialize methods before they're ready
+        BaseModel._initialize(self)
 
         self.destroyed.connect(lambda: self._cleanup)
         self.units = None
@@ -270,10 +271,10 @@ class BaseModel(QWidget, ModeManagedModel):
     @initialize_with_retry
     def _initialize(self):
         """Base initialization"""
-        print(f"Initializing BaseModel for {self.name}")
+        print(f"[{self.name}._initialize] Initializing BaseModel")
         result = self._check_connection(retry_on_failure=False)
         if result:
-            print(f"Initialized BaseModel for {self.name}")
+            print(f"[{self.name}._initialize] Initialized BaseModel")
         return result
 
     def _cleanup(self):
@@ -342,12 +343,14 @@ class PVModelRO(BaseModel):
     valueChanged = Signal(str)
 
     def __init__(self, name, obj, group, long_name, **kwargs):
+        print(f"[{name}.__init__] Initializing PVModelRO")
         super().__init__(name, obj, group, long_name, **kwargs)
-        self._initialize()
+        print(f"[{name}.__init__] about to call _initialize")
+        PVModelRO._initialize(self)
 
     @initialize_with_retry
     def _initialize(self):
-        print(f"[{self.name}] Initializing PVModelRO")
+        print(f"[{self.name}._initialize] Initializing PVModelRO")
         if not super()._initialize():
             self.value_type = None
             self.units = None
@@ -486,14 +489,14 @@ class EnumModel(PVModel):
     enumChanged = Signal(tuple)
 
     def __init__(self, name, obj, group, long_name, **kwargs):
+        self._enum_strs = tuple("")
+        self._index_value = 0
         super().__init__(name, obj, group, long_name, **kwargs)
-        self._initialize()
+        EnumModel._initialize(self)
 
     @initialize_with_retry
     def _initialize(self):
         print(f"Initializing EnumModel for {self.name}")
-        self._enum_strs = tuple("")
-        self._index_value = 0
         if not super()._initialize():
             return False
 
