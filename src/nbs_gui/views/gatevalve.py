@@ -39,9 +39,9 @@ class GVControl(GVMonitor):
         super().__init__(model, *args, **kwargs)
         print(f"Initializing GVControl for model: {model.label}")
         self.opn = QPushButton("Open")
-        self.opn.clicked.connect(self.model.open)
+        self.opn.clicked.connect(lambda x: self.model.open())
         self.close = QPushButton("Close")
-        self.close.clicked.connect(self.model.close)
+        self.close.clicked.connect(lambda x: self.model.close())
         self.vbox.insertWidget(1, self.opn)
         self.vbox.insertWidget(3, self.close)
 
