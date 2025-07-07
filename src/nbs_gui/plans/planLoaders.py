@@ -113,6 +113,31 @@ class PlanLoaderWidgetBase(QWidget):
             if not self.submit_plan(item):
                 break  # Stop submitting if an error occurs
 
+    def stage_plan(self, item):
+        """
+        Stage a plan item.
+        """
+        try:
+            self.model.queue_staging.queue_item_add(item=item)
+            return True
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                "Plan Staging Error",
+                f"Failed to stage plan: {str(e)}",
+                QMessageBox.Ok,
+            )
+            return False
+
+    def stage_all_plans(self):
+        """
+        Create and stage all plan items.
+        """
+        plan_items = self.create_plan_items()
+        for item in plan_items:
+            if not self.stage_plan(item):
+                break  # Stop staging if an error occurs
+
     def check_plan_ready(self):
         if len(self.plan_queue_data) > 0:
             self.plan_ready.emit(True)

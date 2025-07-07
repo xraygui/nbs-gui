@@ -31,7 +31,7 @@ class MonitorTab(QWidget):
         # Add energy control if available
         if hasattr(self.beamline, "energy") and self.beamline.energy is not None:
             print("Adding energy control...")
-            vbox.addWidget(AutoControl(self.beamline.energy, self.model))
+            vbox.addWidget(AutoControl(self.beamline.energy))
             print("Energy control added")
 
         # Add motor controls and sample selection
@@ -50,18 +50,14 @@ class MonitorTab(QWidget):
         if hasattr(self.beamline, "signals") and self.beamline.signals:
             print("Adding ring signals monitor...")
             beamBox.addWidget(
-                AutoMonitorBox(
-                    self.beamline.signals, "Ring Signals", self.model, orientation="v"
-                )
+                AutoMonitorBox(self.beamline.signals, "Ring Signals", orientation="v")
             )
             print("Ring signals monitor added")
 
         # Add shutters control if available
         if hasattr(self.beamline, "shutters") and self.beamline.shutters:
             print("Adding shutters control...")
-            beamBox.addWidget(
-                AutoControlBox(self.beamline.shutters, "Shutters", self.model)
-            )
+            beamBox.addWidget(AutoControlBox(self.beamline.shutters, "Shutters"))
             print("Shutters control added")
 
         # Add detectors and vacuum monitoring
@@ -70,14 +66,14 @@ class MonitorTab(QWidget):
         if hasattr(self.beamline, "detectors") and self.beamline.detectors:
             print("Adding detectors monitor...")
             vbox1.addWidget(
-                AutoMonitorBox(self.beamline.detectors, "Detectors", self.model, "h")
+                AutoMonitorBox(self.beamline.detectors, "Detectors", orientation="h")
             )
             print("Detectors monitor added")
 
         if hasattr(self.beamline, "vacuum") and self.beamline.vacuum:
             print("Adding vacuum monitor...")
             vbox1.addWidget(
-                AutoMonitorBox(self.beamline.vacuum, "Vacuum", self.model, "h")
+                AutoMonitorBox(self.beamline.vacuum, "Vacuum", orientation="h")
             )
             print("Vacuum monitor added")
 
@@ -108,9 +104,7 @@ class MonitorTab(QWidget):
         # Add motor control if any motors are available
         if motor_devices:
             print("Creating motor control widget...")
-            hbox.addWidget(
-                AutoControlCombo(motor_devices, "Choose a Motor", self.model)
-            )
+            hbox.addWidget(AutoControlCombo(motor_devices, "Choose a Motor"))
             print("Motor control widget added")
 
         # Add sample selection if available

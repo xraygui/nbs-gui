@@ -227,7 +227,7 @@ class PVPositionerModel(BaseMotorModel):
         self.checkSPTimer.timeout.connect(self._check_setpoint)
 
         self.checkMovingTimer.setInterval(500)
-        self.checkMovingTimer.timeout.connect(self._check_moving)
+        self.checkMovingTimer.timeout.connect(self.check_moving)
 
         # Start the timers
 
@@ -298,6 +298,10 @@ class PVPositionerModel(BaseMotorModel):
             if self._moving:
                 # During motion, show where we're trying to go
                 if self._setpoint != self._target:
+                    # print(
+                    #     f"[{self.name}._check_setpoint] Updating setpoint to {self._target}"
+                    # )
+
                     self._setpoint = self._target
                     self.setpointChanged.emit(self.setpoint)
             else:
@@ -311,6 +315,7 @@ class PVPositionerModel(BaseMotorModel):
                     # )
                     self._setpoint = achieved_pos
                     self._target = achieved_pos
+
                     self.setpointChanged.emit(self.setpoint)
 
             self.checkSPTimer.setInterval(2000)
@@ -335,7 +340,7 @@ class PVPositionerModel(BaseMotorModel):
         if moving != self._moving:
             self.movingStatusChanged.emit(moving)
             self._moving = moving
-        # print(f"[{self.name}] Done getting move status")
+        # print(f"[{self.name}] Done getting move status, {moving}")
 
     @requires_connection
     def set(self, value):

@@ -25,7 +25,7 @@ from qtpy.QtGui import QBrush, QColor
 from bluesky_queueserver import construct_parameters, format_text_descriptions
 
 """
-Vendored from bluesky-widgets and modified
+Copied from bluesky-widgets and modified
 """
 
 
@@ -523,7 +523,8 @@ class _QtReViewer(QWidget):
 
     def __init__(self, model, parent=None):
         super().__init__(parent)
-        self.model = model
+        self.model = model.run_engine
+        self.top_level_model = model
 
         self._queue_item_name = ""
         self._queue_item_type = None
@@ -535,6 +536,7 @@ class _QtReViewer(QWidget):
         self._lb_item_source = QLabel("QUEUE ITEM")
 
         self._pb_copy_to_queue = QPushButton("Copy to Queue")
+        self._pb_add_to_staging = QPushButton("Copy to Staging")
         self._pb_edit = QPushButton("Edit")
 
         # Start with 'detailed' view (show optional parameters)
@@ -560,6 +562,7 @@ class _QtReViewer(QWidget):
         hbox = QHBoxLayout()
         hbox.addStretch(1)
         hbox.addWidget(self._pb_copy_to_queue)
+        hbox.addWidget(self._pb_add_to_staging)
         hbox.addWidget(self._pb_edit)
         vbox.addLayout(hbox)
 
@@ -569,6 +572,7 @@ class _QtReViewer(QWidget):
             self._cb_show_optional_state_changed
         )
         self._pb_copy_to_queue.clicked.connect(self._pb_copy_to_queue_clicked)
+        self._pb_add_to_staging.clicked.connect(self._pb_add_to_staging_clicked)
         self._pb_edit.clicked.connect(self._pb_edit_clicked)
 
         self.model.events.queue_item_selection_changed.connect(
@@ -619,6 +623,7 @@ class _QtReViewer(QWidget):
         is_connected = bool(self.model.re_manager_connected)
 
         self._pb_copy_to_queue.setEnabled(is_item_allowed and is_connected)
+        self._pb_add_to_staging.setEnabled(is_item_allowed)
         self._pb_edit.setEnabled(is_item_allowed)
 
     @Slot(str)
@@ -661,6 +666,23 @@ class _QtReViewer(QWidget):
         except Exception as ex:
             print(f"Exception: {ex}")
 
+    def _pb_add_to_staging_clicked(self):
+        """
+        Add currently selected item to staging queue.
+        """
+        try:
+            # Get the current item from the viewer
+            if (
+                self._queue_item_name
+                and self._queue_item_name != self._lb_item_name_default
+            ):
+                # Create a copy of the current item
+                item = copy.deepcopy(self._wd_editor.queue_item)
+                if item:
+                    self.top_level_model.queue_staging.queue_item_add(item=item)
+        except Exception as ex:
+            print(f"Exception: {ex}")
+
     def _pb_edit_clicked(self):
         sel_item_uids = self.model.selected_queue_item_uids
         if len(sel_item_uids) == 1:
@@ -679,6 +701,7 @@ class _QtReEditor(QWidget):
     def __init__(self, model, parent=None):
         super().__init__(parent)
         self.model = model.run_engine
+        self.top_level_model = model
         self.user_status = model.user_status
 
         self.user_status.register_signal("PLAN_LIST", self.signal_update_plan_list)
@@ -733,6 +756,7 @@ class _QtReEditor(QWidget):
 
         self._pb_batch_upload = QPushButton("Batch Upload")
         self._pb_add_to_queue = QPushButton("Add to Queue")
+        self._pb_add_to_staging = QPushButton("Add to Staging")
         self._pb_save_item = QPushButton("Save")
         self._pb_reset = QPushButton("Reset")
         self._pb_cancel = QPushButton("Cancel")
@@ -740,6 +764,7 @@ class _QtReEditor(QWidget):
         self._pb_batch_upload.clicked.connect(self._pb_batch_upload_clicked)
 
         self._pb_add_to_queue.clicked.connect(self._pb_add_to_queue_clicked)
+        self._pb_add_to_staging.clicked.connect(self._pb_add_to_staging_clicked)
         self._pb_save_item.clicked.connect(self._pb_save_item_clicked)
         self._pb_reset.clicked.connect(self._pb_reset_clicked)
         self._pb_cancel.clicked.connect(self._pb_cancel_clicked)
@@ -763,6 +788,7 @@ class _QtReEditor(QWidget):
         hbox.addWidget(self._pb_batch_upload)
         hbox.addStretch(1)
         hbox.addWidget(self._pb_add_to_queue)
+        hbox.addWidget(self._pb_add_to_staging)
         hbox.addWidget(self._pb_save_item)
         hbox.addWidget(self._pb_reset)
         hbox.addWidget(self._pb_cancel)
@@ -839,10 +865,11 @@ class _QtReEditor(QWidget):
         self._pb_batch_upload.setEnabled(is_connected)
 
         self._pb_add_to_queue.setEnabled(self._editor_state_valid and is_connected)
+        self._pb_add_to_staging.setEnabled(self._editor_state_valid and is_connected)
         self._pb_save_item.setEnabled(
             self._editor_state_valid
             and is_connected
-            and self._current_item_source == "QUEUE ITEM"
+            and self._current_item_source in ("QUEUE ITEM", "STAGED ITEM")
         )
         self._pb_reset.setEnabled(self._edit_mode_enabled)
         self._pb_cancel.setEnabled(self._edit_mode_enabled)
@@ -864,6 +891,14 @@ class _QtReEditor(QWidget):
         """
         self._current_item_source = "QUEUE ITEM"
         self._edit_item(queue_item)
+
+    def edit_staged_item(self, staged_item):
+        """
+        Calling this function while another plan is being edited will cancel editing, discard results
+        and open another plan for editing.
+        """
+        self._current_item_source = "STAGED ITEM"
+        self._edit_item(staged_item)
 
     def _edit_item(self, queue_item, *, edit_mode=True):
         self._queue_item_name = queue_item.get("name", None)
@@ -970,13 +1005,40 @@ class _QtReEditor(QWidget):
         except Exception as ex:
             print(f"Exception: {ex}")
 
+    def _pb_add_to_staging_clicked(self):
+        """
+        Add item to staging queue
+        """
+        item = self._wd_editor.get_modified_item()
+        try:
+            self.top_level_model.queue_staging.queue_item_add(item=item)
+            self._wd_editor.show_item(item=None)
+            self.signal_switch_tab.emit("view")
+            self._edit_mode_enabled = False
+            self._current_item_source = ""
+            self._update_widget_state()
+            self._show_item_preview()
+        except Exception as ex:
+            print(f"Exception: {ex}")
+
     def _pb_save_item_clicked(self):
         """
         Save item to queue (update the edited item)
         """
         item = self._wd_editor.get_modified_item()
         try:
-            self.model.queue_item_update(item=item)
+            if self._current_item_source == "QUEUE ITEM":
+                self.model.queue_item_update(item=item)
+            elif self._current_item_source == "STAGED ITEM":
+                # For staged items, we need to update the staging queue
+                # Since we don't have a direct update method, we'll remove and re-add
+                # This is a simplified approach - in a real implementation you might
+                # want to track the original item's position/UID
+                self.top_level_model.queue_staging.queue_item_update(item=item)
+            else:
+                # Default to main queue
+                self.model.queue_item_update(item=item)
+
             self._wd_editor.show_item(item=None)
             self.signal_switch_tab.emit("view")
             self._edit_mode_enabled = False
@@ -1041,7 +1103,7 @@ class PlanEditor(QWidget):
         self.run_engine = model.run_engine
         self.user_status = model.user_status
 
-        self._plan_viewer = _QtReViewer(self.run_engine)
+        self._plan_viewer = _QtReViewer(self.model)
         self._plan_editor = _QtReEditor(self.model)
 
         self._tab_widget = QTabWidget()
@@ -1062,6 +1124,19 @@ class PlanEditor(QWidget):
 
     @Slot(object)
     def edit_queue_item(self, queue_item):
+        """
+        Calling this function while another plan is being edited will cancel editing, discard results
+        and open another plan for editing.
+        """
         self._switch_tab("edit")
         self._plan_editor.edit_queue_item(queue_item)
         return True  # Indicates that the plan was accepted
+
+    def edit_staged_item(self, staged_item):
+        """
+        Calling this function while another plan is being edited will cancel editing, discard results
+        and open another plan for editing.
+        """
+        self._switch_tab("edit")
+        self._plan_editor.edit_staged_item(staged_item)
+        return True

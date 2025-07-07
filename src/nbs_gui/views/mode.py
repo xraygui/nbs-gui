@@ -17,11 +17,13 @@ class ModeMonitor(QWidget):
     ----------
     model : ModeModel
         Model containing mode information and state
-    parent_model : object
-        Parent model containing beamline configuration
+    parent_model : object, optional
+        The direct parent of the model in the widget/model hierarchy, if any. Defaults to None.
+    parent : QWidget, optional
+        The Qt parent widget.
     """
 
-    def __init__(self, model, parent_model, parent=None):
+    def __init__(self, model, parent_model=None, parent=None):
         super().__init__(parent)
         self.model = model
 
@@ -70,12 +72,14 @@ class ModeControl(ModeMonitor):
     ----------
     model : ModeModel
         Model containing mode information and state
-    parent_model : object
-        Parent model containing beamline configuration
+    parent_model : object, optional
+        The direct parent of the model in the widget/model hierarchy, if any. Defaults to None.
+    parent : QWidget, optional
+        The Qt parent widget.
     """
 
-    def __init__(self, model, parent_model, parent=None):
-        super().__init__(model, parent_model, parent)
+    def __init__(self, model, parent_model=None, parent=None):
+        super().__init__(model, parent_model=parent_model, parent=parent)
 
         # Add mode selector after the display
         self.mode_combo = QComboBox()

@@ -10,7 +10,23 @@ class MotorTupleBox(QWidget):
     without the complexity of switchable views.
     """
 
-    def __init__(self, model, parent_model, title=None, orientation=None, **kwargs):
+    def __init__(
+        self, model, parent_model=None, title=None, orientation=None, **kwargs
+    ):
+        """
+        Initialize the motor tuple widget.
+
+        Parameters
+        ----------
+        model : object
+            The model to monitor/control.
+        parent_model : object, optional
+            The direct parent of the model in the widget/model hierarchy, if any. Defaults to None.
+        title : str, optional
+            The title of the widget.
+        orientation : str, optional
+            The orientation of the widget ('h' or 'v').
+        """
         super().__init__(**kwargs)
         self.model = model
         self.parent_model = parent_model
@@ -39,14 +55,14 @@ class MotorTupleMonitor(MotorTupleBox):
     ----------
     model : MotorTupleModel
         The model representing the motor tuple
-    parent_model : object
-        Parent model for the widget
+    parent_model : object, optional
+        The direct parent of the model in the widget/model hierarchy, if any. Defaults to None.
     title : str, optional
         Title for the group box
     """
 
-    def __init__(self, model, parent_model, title=None, **kwargs):
-        super().__init__(model, parent_model, title=title, **kwargs)
+    def __init__(self, model, parent_model=None, title=None, **kwargs):
+        super().__init__(model, parent_model=parent_model, title=title, **kwargs)
 
         # Add motor monitors
         for motor in model.real_motors:
@@ -62,14 +78,14 @@ class MotorTupleControl(MotorTupleBox):
     ----------
     model : MotorTupleModel
         The model representing the motor tuple
-    parent_model : object
-        Parent model for the widget
+    parent_model : object, optional
+        The direct parent of the model in the widget/model hierarchy, if any. Defaults to None.
     title : str, optional
         Title for the group box
     """
 
-    def __init__(self, model, parent_model, title=None, **kwargs):
-        super().__init__(model, parent_model, title=title, **kwargs)
+    def __init__(self, model, parent_model=None, title=None, **kwargs):
+        super().__init__(model, parent_model=parent_model, title=title, **kwargs)
 
         # Add motor controls
         for motor in model.real_motors:

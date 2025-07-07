@@ -10,13 +10,17 @@ class RealManipulatorControl(QGroupBox):
     ----------
     manipulator : object
         The manipulator model to display the real axis controls for.
+    parent_model : object, optional
+        The direct parent of the model in the widget/model hierarchy, if any. Defaults to None.
+    orientation : str, optional
+        The orientation of the widget ('h' or 'v').
     *args
         Variable length argument list.
     **kwargs
         Arbitrary keyword arguments.
     """
 
-    def __init__(self, manipulator, parent_model, orientation=None, **kwargs):
+    def __init__(self, manipulator, parent_model=None, orientation=None, **kwargs):
         super().__init__(manipulator.label + " Real Axes", **kwargs)
         self.layout = QVBoxLayout(self)
         self.layout.setSpacing(5)  # Adjust spacing as needed
@@ -27,7 +31,7 @@ class RealManipulatorControl(QGroupBox):
 
 
 class PseudoManipulatorControl(QGroupBox):
-    def __init__(self, manipulator, parent_model, orientation=None, **kwargs):
+    def __init__(self, manipulator, parent_model=None, orientation=None, **kwargs):
         super().__init__(manipulator.label + " Pseudoaxes", **kwargs)
         self.layout = QVBoxLayout(self)
         self.layout.setSpacing(5)  # Adjust spacing as needed
@@ -38,7 +42,7 @@ class PseudoManipulatorControl(QGroupBox):
 
 
 class RealManipulatorMonitor(QGroupBox):
-    def __init__(self, manipulator, parent_model, orientation=None, **kwargs):
+    def __init__(self, manipulator, parent_model=None, orientation=None, **kwargs):
         super().__init__(manipulator.label + " Real Axes", **kwargs)
         self.layout = QVBoxLayout(self)
         self.layout.setSpacing(5)  # Adjust spacing as needed
@@ -49,7 +53,7 @@ class RealManipulatorMonitor(QGroupBox):
 
 
 class PseudoManipulatorMonitor(QGroupBox):
-    def __init__(self, manipulator, parent_model, orientation=None, **kwargs):
+    def __init__(self, manipulator, parent_model=None, orientation=None, **kwargs):
         super().__init__(manipulator.label + " Pseudoaxes", **kwargs)
         self.layout = QVBoxLayout(self)
         self.layout.setSpacing(5)  # Adjust spacing as needed
@@ -61,7 +65,7 @@ class PseudoManipulatorMonitor(QGroupBox):
 
 class ManipulatorMonitor(QWidget):
     def __init__(
-        self, manipulator, parent_model, orientation=None, parent=None, **kwargs
+        self, manipulator, parent_model=None, orientation=None, parent=None, **kwargs
     ):
         super().__init__(parent=parent)
         hbox = QHBoxLayout()
@@ -76,7 +80,7 @@ class ManipulatorMonitor(QWidget):
 
 class ManipulatorControl(QWidget):
     def __init__(
-        self, manipulator, parent_model, orientation=None, parent=None, **kwargs
+        self, manipulator, parent_model=None, orientation=None, parent=None, **kwargs
     ):
         super().__init__(parent=parent)
         hbox = QHBoxLayout()

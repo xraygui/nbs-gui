@@ -21,7 +21,7 @@ class PVControl(QWidget):
         model : PVModel
             Model containing the PV to control
         parent_model : object, optional
-            Parent model for additional context
+            The direct parent of the model in the widget/model hierarchy, if any. Defaults to None.
         orientation : str, optional
             Layout orientation ('v' for vertical, 'h' for horizontal)
         **kwargs : dict
@@ -117,6 +117,18 @@ class PVMonitor(QWidget):
     """Monitor a generic PV with fixed-width styling."""
 
     def __init__(self, model, parent_model=None, orientation="v", **kwargs):
+        """
+        Initialize the monitor widget.
+
+        Parameters
+        ----------
+        model : object
+            The model to monitor.
+        parent_model : object, optional
+            The direct parent of the model in the widget/model hierarchy, if any. Defaults to None.
+        orientation : str, optional
+            The orientation of the monitor ('h' or 'v').
+        """
         super().__init__(**kwargs)
         print(f"Initializing PVMonitor for model: {model.label}")
         self.model = model

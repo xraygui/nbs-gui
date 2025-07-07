@@ -19,7 +19,19 @@ from ..widgets.utils import SquareByteIndicator
 
 
 class MotorMonitor(QWidget):
-    def __init__(self, model, parent_model, orientation="h", *args, **kwargs):
+    def __init__(self, model, parent_model=None, orientation="h", *args, **kwargs):
+        """
+        Initialize the motor widget.
+
+        Parameters
+        ----------
+        model : object
+            The model to monitor/control.
+        parent_model : object, optional
+            The direct parent of the model in the widget/model hierarchy, if any. Defaults to None.
+        orientation : str, optional
+            The orientation of the widget ('h' or 'v').
+        """
         super().__init__(*args, **kwargs)
         print(f"[{model.label}] Initializing MotorMonitor")
         self.model = model

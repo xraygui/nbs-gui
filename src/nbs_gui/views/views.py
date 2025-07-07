@@ -12,7 +12,7 @@ from qtpy.QtWidgets import (
 from ..widgets.qt_custom import ScrollingComboBox
 
 
-def AutoMonitor(model, parent_model, orientation="h"):
+def AutoMonitor(model, parent_model=None, orientation="h"):
     """
     Takes a model, and automatically creates and returns a widget to monitor the model.
 
@@ -20,27 +20,29 @@ def AutoMonitor(model, parent_model, orientation="h"):
     ----------
     model : object
         Any model class that wraps a device.
-    parent_model : object
-        The full GUI model.
+    parent_model : object, optional
+        The direct parent of the model in the widget/model hierarchy, if any. Defaults to None.
+    orientation : str
+        Layout orientation ('h' or 'v').
     """
     print(f"Initializing AutoMonitor for model: {model.label}")
     Monitor = model.default_monitor
     try:
-        return Monitor(model, parent_model, orientation=orientation)
+        return Monitor(model, parent_model=parent_model, orientation=orientation)
     except Exception as e:
         print(f"Exception {e} in AutoMonitor for {model.name}")
         raise e
 
 
-def AutoControl(model, parent_model, orientation="h"):
+def AutoControl(model, parent_model=None, orientation="h"):
     """Create an appropriate widget to control the model.
 
     Parameters
     ----------
     model : BaseModel
         Model containing device information and state
-    parent_model : GUIBeamlineModel
-        Parent model containing beamline configuration
+    parent_model : object, optional
+        The direct parent of the model in the widget/model hierarchy, if any. Defaults to None.
     orientation : str
         Layout orientation ('h' or 'v')
 
@@ -52,12 +54,27 @@ def AutoControl(model, parent_model, orientation="h"):
     print(f"Initializing AutoControl for model: {model.label}")
     try:
         if hasattr(model, "availability_changed"):
-            widget = DynamicControlWidget(model, parent_model, orientation)
+            print("Adding DynamicControlWidget for model: ", model.label)
+            widget = DynamicControlWidget(
+                model, parent_model=parent_model, orientation=orientation
+            )
         elif getattr(model, "view_only", False):
-            widget = model.default_monitor(model, parent_model, orientation=orientation)
+            print(
+                "Adding default monitor {} for model: {}".format(
+                    model.default_monitor, model.label
+                )
+            )
+            widget = model.default_monitor(
+                model, parent_model=parent_model, orientation=orientation
+            )
         else:
+            print(
+                "Adding default controller {} for model: {}".format(
+                    model.default_controller, model.label
+                )
+            )
             widget = model.default_controller(
-                model, parent_model, orientation=orientation
+                model, parent_model=parent_model, orientation=orientation
             )
         return widget
     except Exception as e:
@@ -68,23 +85,20 @@ def AutoControl(model, parent_model, orientation="h"):
 class AutoControlBox(QGroupBox):
     """
     A widget that automatically generates control interfaces for a given set of models.
+
+    Parameters
+    ----------
+    models : dict, list
+        A container with model objects for which control interfaces are to be generated.
+    title : str
+        The title of the group box.
+    parent_model : object, optional
+        The direct parent of the model in the widget/model hierarchy, if any. Defaults to None.
+    orientation : str, optional
+        The orientation of the control interface box. Can be 'h' for horizontal or 'v' for vertical. Default is 'h'.
     """
 
-    def __init__(self, models, title, parent_model, orientation="h"):
-        """
-        Initializes the AutoControlBox widget with a set of models, a title, a parent model, and an orientation.
-
-        Parameters
-        ----------
-        models : dict, list
-            A container with model objects for which control interfaces are to be generated.
-        title : str
-            The title of the group box.
-        parent_model : object
-            The parent model for the GUI.
-        orientation : str, optional
-            The orientation of the control interface box. Can be 'h' for horizontal or 'v' for vertical. Default is 'h'.
-        """
+    def __init__(self, models, title, parent_model=None, orientation="h"):
         super().__init__(title)
         print(f"Initializing AutoControlBox {title}")
         self.widgets = {}
@@ -98,14 +112,18 @@ class AutoControlBox(QGroupBox):
         self.box.setSpacing(5)
         if isinstance(models, dict):
             for k, m in models.items():
-                widget = AutoControl(m, parent_model, widget_orientation)
+                widget = AutoControl(
+                    m, parent_model=parent_model, orientation=widget_orientation
+                )
                 self.widgets[k] = widget
                 self.box.addWidget(widget)
                 widget.setVisible(getattr(m, "visible", True))
 
         elif isinstance(models, list):
             for m in models:
-                widget = AutoControl(m, parent_model, widget_orientation)
+                widget = AutoControl(
+                    m, parent_model=parent_model, orientation=widget_orientation
+                )
                 self.widgets[m.label] = widget
                 self.box.addWidget(widget)
                 widget.setVisible(getattr(m, "visible", True))
@@ -129,23 +147,20 @@ class AutoControlBox(QGroupBox):
 class AutoMonitorBox(QGroupBox):
     """
     A widget that automatically generates a monitor interface for a given set of models.
+
+    Parameters
+    ----------
+    models : dict, list
+        A container with model objects to be monitored.
+    title : str
+        The title of the group box.
+    parent_model : object, optional
+        The direct parent of the model in the widget/model hierarchy, if any. Defaults to None.
+    orientation : str, optional
+        The orientation of the monitor box. Can be 'h' for horizontal or 'v' for vertical. Default is 'h'.
     """
 
-    def __init__(self, models, title, parent_model, orientation="h"):
-        """
-        Initializes the AutoMonitorBox widget with a set of models, a title, a parent model, and an orientation.
-
-        Parameters
-        ----------
-        modelDict : dict
-            A dictionary where keys are identifiers and values are model objects to be monitored.
-        title : str
-            The title of the group box.
-        parent_model : object
-            The parent model for the GUI.
-        orientation : str, optional
-            The orientation of the monitor box. Can be 'h' for horizontal or 'v' for vertical. Default is 'h'.
-        """
+    def __init__(self, models, title, parent_model=None, orientation="h"):
         super().__init__(title)
         print(f"Initializing AutoMonitorBox {title}")
         self.widgets = {}
@@ -159,14 +174,18 @@ class AutoMonitorBox(QGroupBox):
         self.box.setSpacing(5)
         if isinstance(models, dict):
             for k, m in models.items():
-                widget = AutoMonitor(m, parent_model, widget_orientation)
+                widget = AutoMonitor(
+                    m, parent_model=parent_model, orientation=widget_orientation
+                )
 
                 self.widgets[k] = widget
                 self.box.addWidget(widget)
                 widget.setVisible(getattr(m, "visible", True))
         elif isinstance(models, list):
             for m in models:
-                widget = AutoMonitor(m, parent_model, widget_orientation)
+                widget = AutoMonitor(
+                    m, parent_model=parent_model, orientation=widget_orientation
+                )
 
                 self.widgets[m.label] = widget
                 self.box.addWidget(widget)
@@ -189,7 +208,7 @@ class AutoMonitorBox(QGroupBox):
 
 class AutoControlCombo(QWidget):
     def __init__(
-        self, modelDict, title, parent_model, *args, orientation="h", **kwargs
+        self, modelDict, title, parent_model=None, *args, orientation="h", **kwargs
     ):
         """
         Initializes an AutoControlCombo widget with a dropdown to select between different models.
@@ -201,8 +220,8 @@ class AutoControlCombo(QWidget):
             the dropdown and the stacked widget.
         title : str
             The title label for the combo box.
-        parent_model : object
-            The parent model associated with the GUI. Used for creating AutoControl instances.
+        parent_model : object, optional
+            The direct parent of the model in the widget/model hierarchy, if any. Defaults to None.
         *args
             Variable length argument list for QWidget.
         orientation : str, optional
@@ -228,7 +247,9 @@ class AutoControlCombo(QWidget):
                 dropdown.addItem(key)
                 print(f"Adding model {model.label} to widgetStack")
                 widgetStack.addWidget(
-                    AutoControl(model, parent_model, orientation=orientation)
+                    AutoControl(
+                        model, parent_model=parent_model, orientation=orientation
+                    )
                 )
             else:
                 print(f"Model with key {key} is not loaded!")
@@ -251,13 +272,13 @@ class DynamicControlWidget(QStackedWidget):
     ----------
     model : BaseModel
         Model containing device information and state
-    parent_model : GUIBeamlineModel
-        Parent model containing beamline configuration
+    parent_model : object, optional
+        The direct parent of the model in the widget/model hierarchy, if any. Defaults to None.
     orientation : str
         Layout orientation ('h' or 'v')
     """
 
-    def __init__(self, model, parent_model, orientation="h"):
+    def __init__(self, model, parent_model=None, orientation="h"):
         super().__init__()
         self.model = model
 

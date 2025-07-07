@@ -7,6 +7,7 @@ from qtpy.QtCore import Qt
 from ..widgets.planSubmission import PlanSubmissionWidget, PlanLoadWidget
 from ..widgets.planEditor import PlanEditor
 from ..widgets.simpleConsoleMonitor import QtReConsoleMonitor
+from ..widgets.QtReQueueStaging import QtReQueueStaging
 
 # from ..widgets.plan_creator import QtRePlanEditor
 
@@ -37,12 +38,19 @@ class QueueControlTab(QWidget):
         horizontal_splitter.addWidget(pe)
 
         tab_widget = QTabWidget()
+        print("DEBUG: QueueControlTab - model")
         pq = QtRePlanQueue(self.model)
+        print("DEBUG: QueueControlTab - pq")
         ph = QtRePlanHistory(self.model)
+        print("DEBUG: QueueControlTab - ph")
+        qs = QtReQueueStaging(model)
+        print("DEBUG: QueueControlTab - qs")
         pq.registered_item_editors.append(pe.edit_queue_item)
+        qs.registered_item_editors.append(pe.edit_staged_item)
 
         tab_widget.addTab(pq, "Plan Queue")
         tab_widget.addTab(ph, "Plan History")
+        tab_widget.addTab(qs, "Queue Staging")
         horizontal_splitter.addWidget(tab_widget)
 
         vertical_splitter.addWidget(horizontal_splitter)

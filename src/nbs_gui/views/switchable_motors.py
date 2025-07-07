@@ -11,8 +11,8 @@ class SwitchableMotorBox(QWidget):
     ----------
     model : object
         Model containing the motors
-    parent_model : object
-        Parent model for the widget
+    parent_model : object, optional
+        The direct parent of the model in the widget/model hierarchy, if any. Defaults to None.
     pseudo_title : str, optional
         Title for pseudo motors box, defaults to "Pseudo Motors"
     real_title : str, optional
@@ -24,7 +24,7 @@ class SwitchableMotorBox(QWidget):
     def __init__(
         self,
         model,
-        parent_model,
+        parent_model=None,
         pseudo_title="Pseudo Motors",
         real_title="Real Motors",
         title=None,
@@ -96,8 +96,8 @@ class SwitchableMotorMonitor(SwitchableMotorBox):
     ----------
     model : object
         Model containing pseudo_motors and real_motors lists
-    parent_model : object
-        Parent model for the widget
+    parent_model : object, optional
+        The direct parent of the model in the widget/model hierarchy, if any. Defaults to None.
     pseudo_title : str, optional
         Title for pseudo motors box
     real_title : str, optional
@@ -106,8 +106,8 @@ class SwitchableMotorMonitor(SwitchableMotorBox):
         Title for the group box
     """
 
-    def __init__(self, model, parent_model, *args, **kwargs):
-        super().__init__(model, parent_model, *args, **kwargs)
+    def __init__(self, model, parent_model=None, *args, **kwargs):
+        super().__init__(model, parent_model=parent_model, *args, **kwargs)
         print(f"Setting up switchable motor monitor for model: {model.label}")
         # Add pseudo motor monitors
         for motor in model.pseudo_motors:
@@ -126,8 +126,8 @@ class SwitchableMotorControl(SwitchableMotorBox):
     ----------
     model : object
         Model containing pseudo_motors and real_motors lists
-    parent_model : object
-        Parent model for the widget
+    parent_model : object, optional
+        The direct parent of the model in the widget/model hierarchy, if any. Defaults to None.
     pseudo_title : str, optional
         Title for pseudo motors box
     real_title : str, optional
@@ -136,9 +136,9 @@ class SwitchableMotorControl(SwitchableMotorBox):
         Title for the group box
     """
 
-    def __init__(self, model, parent_model, *args, **kwargs):
+    def __init__(self, model, parent_model=None, *args, **kwargs):
         print(f"Setting up switchable motor control for model: {model.label}")
-        super().__init__(model, parent_model, *args, **kwargs)
+        super().__init__(model, parent_model=parent_model, *args, **kwargs)
         print("Adding pseudo motors")
         # Add pseudo motor controls
         for motor in model.pseudo_motors:

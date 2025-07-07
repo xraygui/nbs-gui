@@ -67,6 +67,9 @@ class PlanSubmissionWidget(QWidget):
         self.submit_button = QPushButton("Add to Queue", self)
         self.submit_button.clicked.connect(self.submit_plan)
         self.submit_button.setEnabled(False)
+        self.staging_button = QPushButton("Add to Staging", self)
+        self.staging_button.clicked.connect(self.stage_plan)
+        self.staging_button.setEnabled(False)
         self.reset_button = QPushButton("Reset", self)
         self.reset_button.clicked.connect(self.reset_plan)
 
@@ -80,6 +83,7 @@ class PlanSubmissionWidget(QWidget):
         h.addWidget(self.action_label)
         h.addWidget(self.action_selection)
         h.addWidget(self.submit_button)
+        h.addWidget(self.staging_button)
         h.addWidget(self.reset_button)
         self.layout.addLayout(h)
         self.layout.addWidget(self.action_widget)
@@ -104,6 +108,9 @@ class PlanSubmissionWidget(QWidget):
         ):
             try:
                 self.current_widget.plan_ready.disconnect(self.submit_button.setEnabled)
+                self.current_widget.plan_ready.disconnect(
+                    self.staging_button.setEnabled
+                )
             except TypeError:
                 pass
 
@@ -111,6 +118,7 @@ class PlanSubmissionWidget(QWidget):
         self.current_widget = self.action_widget.widget(index)
         if isinstance(self.current_widget, PlanWidgetBase):
             self.current_widget.plan_ready.connect(self.submit_button.setEnabled)
+            self.current_widget.plan_ready.connect(self.staging_button.setEnabled)
         else:
             print("[PlanSubmission] Current widget is not a PlanWidgetBase")
 
@@ -119,6 +127,10 @@ class PlanSubmissionWidget(QWidget):
     def submit_plan(self):
         selected_widget = self.action_widget.currentWidget()
         selected_widget.submit_all_plans()
+
+    def stage_plan(self):
+        selected_widget = self.action_widget.currentWidget()
+        selected_widget.stage_all_plans()
 
     def reset_plan(self):
         selected_widget = self.action_widget.currentWidget()
