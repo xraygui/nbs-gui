@@ -1,29 +1,152 @@
 import copy
-import json
+
+from qtpy.QtCore import Qt, QTimer, Signal, Slot, QMimeData
+from qtpy.QtGui import QBrush, QColor, QFontMetrics, QIntValidator, QPalette
 from qtpy.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
-    QHBoxLayout,
+    QAbstractItemView,
     QGroupBox,
+    QHBoxLayout,
+    QHeaderView,
     QLabel,
+    QPushButton,
+    QTableView,
     QTableWidget,
     QTableWidgetItem,
-    QHeaderView,
-    QTableView,
-    QAbstractItemView,
+    QVBoxLayout,
+    QWidget,
 )
-from qtpy.QtCore import Signal, Slot, Qt
-from .QtRePlanQueue import QueueTableWidget, PushButtonMinimumWidth
+import json
 
 
-class QtReQueueStaging(QWidget):
+class QueueTableWidget(QTableWidget):
+    signal_drop_event = Signal(int, int)
+    signal_scroll = Signal(str)
+    signal_resized = Signal()
+
+    def __init__(self, plan_queue_items=None):
+        super().__init__()
+        self.plan_queue_items = plan_queue_items or []
+        self._is_mouse_pressed = False
+        self._is_scroll_active = False
+        self._scroll_direction = ""
+
+        self._scroll_timer_count = 0
+        # Duration of period of the first series of events, ms
+        self._scroll_timer_period_1 = 200
+        # Duration of period of the remaining events, ms
+        self._scroll_timer_period_2 = 100
+        self._scroll_timer_n_events = 4  # The number of events in the first period
+        self._scroll_timer = QTimer()
+        self._scroll_timer.setSingleShot(True)
+        self._scroll_timer.timeout.connect(self._on_scroll_timeout)
+
+    def set_plan_queue_items(self, items):
+        """Set the plan queue items for MIME data generation."""
+        self.plan_queue_items = items
+
+    def mimeData(self, indexes):
+        """Override to provide custom MIME data for drag operations."""
+        if not indexes:
+            return None
+
+        # Get unique rows from selected indexes
+        selected_rows = set(idx.row() for idx in indexes)
+
+        # Get the plan data for each selected row
+        plans = []
+        for row in sorted(selected_rows):
+            if 0 <= row < len(self.plan_queue_items):
+                plan = self.plan_queue_items[row]
+                plans.append(plan)
+
+        if not plans:
+            return None
+
+        mime_data = QMimeData()
+        json_data = json.dumps(plans).encode("utf-8")
+        mime_data.setData("application/x-bluesky-plan", json_data)
+        return mime_data
+
+    def dropEvent(self, event):
+        self.deactivate_scroll()
+        row, col = -1, -1
+        if (event.source() == self) and self.viewport().rect().contains(event.pos()):
+            index = self.indexAt(event.pos())
+            if not index.isValid() or not self.visualRect(index).contains(event.pos()):
+                index = self.rootIndex()
+            row = index.row()
+            col = index.column()
+
+        self.signal_drop_event.emit(row, col)
+
+    def dragMoveEvent(self, event):
+        # 'rowHeight(0)' will return 0 if the table is empty,
+        #    but we don't need to scroll the empty table
+        scroll_activation_area = int(self.rowHeight(0) / 2)
+
+        y = event.pos().y()
+        if y < scroll_activation_area:
+            self.activate_scroll("up")
+        elif y > self.viewport().height() - scroll_activation_area:
+            self.activate_scroll("down")
+        else:
+            self.deactivate_scroll()
+
+    def dragLeaveEvent(self, event):
+        self.deactivate_scroll()
+
+    def activate_scroll(self, str):
+        if str not in ("up", "down"):
+            return
+
+        if not self._is_scroll_active or self._scroll_direction != str:
+            self._is_scroll_active = True
+            self._scroll_direction = str
+            self._scroll_timer_count = 0
+            # The period before the first scroll event should be very short
+            self._scroll_timer.start(20)
+
+    def deactivate_scroll(self):
+        if self._is_scroll_active:
+            self._is_scroll_active = False
+            self._scroll_direction = ""
+            self._scroll_timer.stop()
+
+    def _on_scroll_timeout(self):
+        self.signal_scroll.emit(self._scroll_direction)
+
+        self._scroll_timer_count += 1
+        timeout = (
+            self._scroll_timer_period_1
+            if self._scroll_timer_count <= self._scroll_timer_n_events
+            else self._scroll_timer_period_2
+        )
+        self._scroll_timer.start(timeout)
+
+
+class PushButtonMinimumWidth(QPushButton):
+    """
+    Push button minimum width necessary to fit the text
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        text = self.text()
+        font = self.font()
+
+        fm = QFontMetrics(font)
+        text_width = fm.width(text) + 6
+        self.setFixedWidth(text_width)
+
+
+class QtRePlanQueue(QWidget):
+    signal_update_widgets = Signal(bool)
     signal_update_selection = Signal(object)
     signal_plan_queue_changed = Signal(object, object)
 
     def __init__(self, model, parent=None):
         super().__init__(parent)
-        self.model = model.queue_staging
-        self.top_level_model = model
+        self.model = model
         self._monitor_mode = False
 
         # Set True to block processing of table selection change events
@@ -44,7 +167,7 @@ class QtReQueueStaging(QWidget):
             "USER",
             "GROUP",
         )
-        self._table = QueueTableWidget(self._plan_queue_items)
+        self._table = QueueTableWidget()
         self._table.setColumnCount(len(self._table_column_labels))
         self._table.setHorizontalHeaderLabels(self._table_column_labels)
         self._table.horizontalHeader().setSectionsMovable(True)
@@ -86,16 +209,8 @@ class QtReQueueStaging(QWidget):
         self._pb_duplicate_plan = PushButtonMinimumWidth("Duplicate")
         self._pb_clear_queue = PushButtonMinimumWidth("Clear")
         self._pb_deselect = PushButtonMinimumWidth("Deselect")
-
-        # New buttons for queue operations
-        self._pb_move_selected_to_queue = PushButtonMinimumWidth(
-            "Move Selected to Queue"
-        )
-        self._pb_move_all_to_queue = PushButtonMinimumWidth("Move All to Queue")
-        self._pb_copy_selected_to_queue = PushButtonMinimumWidth(
-            "Copy Selected to Queue"
-        )
-        self._pb_copy_all_to_queue = PushButtonMinimumWidth("Copy All to Queue")
+        self._pb_loop_on = PushButtonMinimumWidth("Loop")
+        self._pb_loop_on.setCheckable(True)
 
         self._pb_move_up.clicked.connect(self._pb_move_up_clicked)
         self._pb_move_down.clicked.connect(self._pb_move_down_clicked)
@@ -105,50 +220,31 @@ class QtReQueueStaging(QWidget):
         self._pb_duplicate_plan.clicked.connect(self._pb_duplicate_plan_clicked)
         self._pb_clear_queue.clicked.connect(self._pb_clear_queue_clicked)
         self._pb_deselect.clicked.connect(self._pb_deselect_clicked)
-
-        # Connect new button signals
-        self._pb_move_selected_to_queue.clicked.connect(
-            self._pb_move_selected_to_queue_clicked
-        )
-        self._pb_move_all_to_queue.clicked.connect(self._pb_move_all_to_queue_clicked)
-        self._pb_copy_selected_to_queue.clicked.connect(
-            self._pb_copy_selected_to_queue_clicked
-        )
-        self._pb_copy_all_to_queue.clicked.connect(self._pb_copy_all_to_queue_clicked)
+        self._pb_loop_on.clicked.connect(self._pb_loop_on_clicked)
 
         self._group_box = QGroupBox("Plan Queue")
         vbox = QVBoxLayout()
-
-        # First row - staging operations
-        hbox1 = QHBoxLayout()
-        hbox1.addWidget(QLabel("STAGING"))
-        hbox1.addStretch(1)
-        hbox1.addWidget(self._pb_move_up)
-        hbox1.addWidget(self._pb_move_down)
-        hbox1.addWidget(self._pb_move_to_top)
-        hbox1.addWidget(self._pb_move_to_bottom)
-        hbox1.addStretch(1)
-        hbox1.addWidget(self._pb_deselect)
-        hbox1.addWidget(self._pb_clear_queue)
-        hbox1.addStretch(1)
-        hbox1.addWidget(self._pb_delete_plan)
-        hbox1.addWidget(self._pb_duplicate_plan)
-
-        # Second row - queue operations
-        hbox2 = QHBoxLayout()
-        hbox2.addWidget(QLabel("QUEUE OPS"))
-        hbox2.addStretch(1)
-        hbox2.addWidget(self._pb_move_selected_to_queue)
-        hbox2.addWidget(self._pb_move_all_to_queue)
-        hbox2.addStretch(1)
-        hbox2.addWidget(self._pb_copy_selected_to_queue)
-        hbox2.addWidget(self._pb_copy_all_to_queue)
-        # hbox2.addStretch(1)
-
-        vbox.addLayout(hbox1)
-        vbox.addLayout(hbox2)
+        hbox = QHBoxLayout()
+        hbox.addWidget(QLabel("QUEUE"))
+        hbox.addStretch(1)
+        hbox.addWidget(self._pb_move_up)
+        hbox.addWidget(self._pb_move_down)
+        hbox.addWidget(self._pb_move_to_top)
+        hbox.addWidget(self._pb_move_to_bottom)
+        hbox.addStretch(1)
+        hbox.addWidget(self._pb_deselect)
+        hbox.addWidget(self._pb_clear_queue)
+        hbox.addStretch(1)
+        hbox.addWidget(self._pb_loop_on)
+        hbox.addStretch(1)
+        hbox.addWidget(self._pb_delete_plan)
+        hbox.addWidget(self._pb_duplicate_plan)
+        vbox.addLayout(hbox)
         vbox.addWidget(self._table)
         self.setLayout(vbox)
+
+        self.model.events.status_changed.connect(self.on_update_widgets)
+        self.signal_update_widgets.connect(self.slot_update_widgets)
 
         self.model.events.plan_queue_changed.connect(self.on_plan_queue_changed)
         self.signal_plan_queue_changed.connect(self.slot_plan_queue_changed)
@@ -171,7 +267,6 @@ class QtReQueueStaging(QWidget):
         self._table.cellDoubleClicked.connect(self._on_table_cell_double_clicked)
 
         self._update_button_states()
-        self._update_widgets()
 
     @property
     def monitor_mode(self):
@@ -210,15 +305,29 @@ class QtReQueueStaging(QWidget):
         """
         return self._registered_item_editors
 
+    def on_update_widgets(self, event):
+        # None should be converted to False:
+        is_connected = bool(event.is_connected)
+        self.signal_update_widgets.emit(is_connected)
+
     def _update_widgets(self, is_connected=None):
-        """Update widget state - simplified for staging without connection requirements."""
-        # Enable drag and drop for staging
-        self._table.setDragEnabled(True)
-        self._table.setAcceptDrops(True)
+        if is_connected is None:
+            is_connected = bool(self.model.re_manager_connected)
+
+        # Disable drops if there is no connection to RE Manager
+        self._table.setDragEnabled(is_connected and not self._monitor_mode)
+        self._table.setAcceptDrops(is_connected and not self._monitor_mode)
+
         self._update_button_states()
 
+    @Slot(bool)
+    def slot_update_widgets(self, is_connected):
+        self._update_widgets(is_connected)
+
     def _update_button_states(self):
-        """Update button states based on selection and queue state."""
+        is_connected = bool(self.model.re_manager_connected)
+        status = self.model.re_manager_status
+        loop_mode_on = status["plan_queue_mode"]["loop"] if status else False
         mon = self._monitor_mode
 
         n_items = self._n_table_items
@@ -228,22 +337,25 @@ class QtReQueueStaging(QWidget):
         sel_top = len(selected_items_pos) and (selected_items_pos[0] == 0)
         sel_bottom = len(selected_items_pos) and (selected_items_pos[-1] == n_items - 1)
 
-        self._pb_move_up.setEnabled(not mon and is_sel and not sel_top)
-        self._pb_move_down.setEnabled(not mon and is_sel and not sel_bottom)
-        self._pb_move_to_top.setEnabled(not mon and is_sel and not sel_top)
-        self._pb_move_to_bottom.setEnabled(not mon and is_sel and not sel_bottom)
+        self._pb_move_up.setEnabled(is_connected and not mon and is_sel and not sel_top)
+        self._pb_move_down.setEnabled(
+            is_connected and not mon and is_sel and not sel_bottom
+        )
+        self._pb_move_to_top.setEnabled(
+            is_connected and not mon and is_sel and not sel_top
+        )
+        self._pb_move_to_bottom.setEnabled(
+            is_connected and not mon and is_sel and not sel_bottom
+        )
 
-        self._pb_clear_queue.setEnabled(not mon and n_items)
+        self._pb_clear_queue.setEnabled(is_connected and not mon and n_items)
         self._pb_deselect.setEnabled(is_sel)
 
-        self._pb_delete_plan.setEnabled(not mon and is_sel)
-        self._pb_duplicate_plan.setEnabled(not mon and is_sel)
+        self._pb_loop_on.setEnabled(is_connected and not mon)
+        self._pb_loop_on.setChecked(loop_mode_on)
 
-        # Queue operation buttons
-        self._pb_move_selected_to_queue.setEnabled(not mon and is_sel)
-        self._pb_move_all_to_queue.setEnabled(not mon and n_items)
-        self._pb_copy_selected_to_queue.setEnabled(not mon and is_sel)
-        self._pb_copy_all_to_queue.setEnabled(not mon and n_items)
+        self._pb_delete_plan.setEnabled(is_connected and not mon and is_sel)
+        self._pb_duplicate_plan.setEnabled(is_connected and not mon and is_sel)
 
     def on_vertical_scrollbar_value_changed(self, value):
         max = self._table.verticalScrollBar().maximum()
@@ -293,7 +405,6 @@ class QtReQueueStaging(QWidget):
         #   within the widget without involving the model.
         self._plan_queue_items = copy.deepcopy(plan_queue_items)
 
-        # Update the custom table widget with the plan queue items
         self._table.set_plan_queue_items(self._plan_queue_items)
 
         scroll_value = self._table.verticalScrollBar().value()
@@ -470,78 +581,15 @@ class QtReQueueStaging(QWidget):
     def _pb_deselect_clicked(self):
         self._table.clearSelection()
 
+    def _pb_loop_on_clicked(self):
+        loop_enable = self._pb_loop_on.isChecked()
+        try:
+            self.model.queue_mode_loop_enable(loop_enable)
+        except Exception as ex:
+            print(f"Exception: {ex}")
+
     def _pb_duplicate_plan_clicked(self):
         try:
             self.model.queue_item_copy_to_queue()
         except Exception as ex:
             print(f"Exception: {ex}")
-
-    def _pb_move_selected_to_queue_clicked(self):
-        """Move selected items from staging to main queue."""
-        selected_uids = self.model.selected_queue_item_uids
-        if not selected_uids:
-            return
-
-        try:
-            # Get selected items from staging
-            selected_items = []
-            for uid in selected_uids:
-                item = self.model.queue_item_by_uid(uid)
-                if item:
-                    selected_items.append(item)
-
-            # Add to main queue
-            for item in selected_items:
-                self.top_level_model.run_engine.queue_item_add(item=item)
-
-            # Remove from staging
-            self.model.queue_items_remove()
-
-        except Exception as ex:
-            print(f"Exception moving selected to queue: {ex}")
-
-    def _pb_move_all_to_queue_clicked(self):
-        """Move all items from staging to main queue."""
-        try:
-            # Get all items from staging
-            all_items = []
-            for item in self.model.staged_plans:
-                all_items.append(item)
-
-            # Add to main queue
-            for item in all_items:
-                self.top_level_model.run_engine.queue_item_add(item=item)
-
-            # Clear staging
-            self.model.queue_clear()
-
-        except Exception as ex:
-            print(f"Exception moving all to queue: {ex}")
-
-    def _pb_copy_selected_to_queue_clicked(self):
-        """Copy selected items from staging to main queue."""
-        selected_uids = self.model.selected_queue_item_uids
-        if not selected_uids:
-            return
-
-        try:
-            # Get selected items from staging
-            for uid in selected_uids:
-                item = self.model.queue_item_by_uid(uid)
-                if item:
-                    # Copy to main queue (don't remove from staging)
-                    self.top_level_model.run_engine.queue_item_add(item=item)
-
-        except Exception as ex:
-            print(f"Exception copying selected to queue: {ex}")
-
-    def _pb_copy_all_to_queue_clicked(self):
-        """Copy all items from staging to main queue."""
-        try:
-            # Get all items from staging
-            for item in self.model.staged_plans:
-                # Copy to main queue (don't remove from staging)
-                self.top_level_model.run_engine.queue_item_add(item=item)
-
-        except Exception as ex:
-            print(f"Exception copying all to queue: {ex}")

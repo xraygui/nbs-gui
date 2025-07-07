@@ -1,5 +1,4 @@
 from bluesky_widgets.qt.run_engine_client import (
-    QtRePlanQueue,
     QtRePlanHistory,
 )
 from qtpy.QtWidgets import QWidget, QVBoxLayout, QTabWidget, QSplitter
@@ -8,6 +7,8 @@ from ..widgets.planSubmission import PlanSubmissionWidget, PlanLoadWidget
 from ..widgets.planEditor import PlanEditor
 from ..widgets.simpleConsoleMonitor import QtReConsoleMonitor
 from ..widgets.QtReQueueStaging import QtReQueueStaging
+from ..widgets.metaPlanSubmission import MetaPlanSubmissionWidget
+from ..widgets.QtRePlanQueue import QtRePlanQueue
 
 # from ..widgets.plan_creator import QtRePlanEditor
 
@@ -34,6 +35,10 @@ class QueueControlTab(QWidget):
             pl = PlanLoadWidget(model, self)
             pe._tab_widget.addTab(ps, "Plan Widgets")
             pe._tab_widget.addTab(pl, "Plan Loaders")
+
+        # Add MetaPlanSubmissionWidget tab
+        mps = MetaPlanSubmissionWidget(model, self)
+        pe._tab_widget.addTab(mps, "Meta Plan Widget")
 
         horizontal_splitter.addWidget(pe)
 
