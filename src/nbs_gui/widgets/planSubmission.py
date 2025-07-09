@@ -13,6 +13,8 @@ from qtpy.QtWidgets import (
 )
 from ..plans.planLoaders import PlanLoaderWidgetBase
 from ..plans.base import PlanWidgetBase
+from qtpy.QtCore import Signal
+import importlib
 
 
 class PlanSubmissionWidget(QWidget):
@@ -24,6 +26,12 @@ class PlanSubmissionWidget(QWidget):
         self.user_status = model.user_status
         self.action_dict = {}
         config = model.settings.gui_config
+
+        # Load time estimation functions
+        self._load_time_estimators()
+
+        # Subscribe to plan time estimation dictionary
+        self._subscribe_to_time_estimation()
 
         plans_to_include = config.get("gui", {}).get("plans", {}).get("include", [])
         plans_to_exclude = config.get("gui", {}).get("plans", {}).get("exclude", [])
@@ -73,6 +81,10 @@ class PlanSubmissionWidget(QWidget):
         self.reset_button = QPushButton("Reset", self)
         self.reset_button.clicked.connect(self.reset_plan)
 
+        # Add time estimation label
+        self.time_estimate_label = QLabel("Time Estimate: --", self)
+        self.time_estimate_label.setStyleSheet("QLabel { color: gray; }")
+
         print("[PlanSubmission] Adding widgets to stacked widget")
         for k, widget in self.action_dict.items():
             self.action_widget.addWidget(widget)
@@ -85,6 +97,7 @@ class PlanSubmissionWidget(QWidget):
         h.addWidget(self.submit_button)
         h.addWidget(self.staging_button)
         h.addWidget(self.reset_button)
+        h.addWidget(self.time_estimate_label)
         self.layout.addLayout(h)
         self.layout.addWidget(self.action_widget)
 
@@ -93,6 +106,135 @@ class PlanSubmissionWidget(QWidget):
         )
         self.action_widget.currentChanged.connect(self.update_plan_ready_connection)
         self.update_plan_ready_connection(self.action_widget.currentIndex())
+
+    def _load_time_estimators(self):
+        """Load time estimation functions from nbs_bl.plans.time_estimation"""
+        try:
+            from nbs_bl.plans.time_estimation import (
+                generic_estimate,
+                list_scan_estimate,
+                grid_scan_estimate,
+                list_grid_scan_estimate,
+                fly_scan_estimate,
+                gscan_estimate,
+                with_repeat,
+            )
+
+            self.time_estimators = {
+                "generic_estimate": generic_estimate,
+                "list_scan_estimate": list_scan_estimate,
+                "grid_scan_estimate": grid_scan_estimate,
+                "list_grid_scan_estimate": list_grid_scan_estimate,
+                "fly_scan_estimate": fly_scan_estimate,
+                "gscan_estimate": gscan_estimate,
+            }
+            print("[PlanSubmission] Loaded time estimators")
+        except ImportError as e:
+            print(f"[PlanSubmission] Failed to load time estimators: {e}")
+            self.time_estimators = {}
+
+    def _subscribe_to_time_estimation(self):
+        """Subscribe to the plan time estimation dictionary"""
+        try:
+            # Get the Redis dictionary for plan time estimation
+            self.plan_time_dict = self.user_status.get_redis_dict("PLAN_TIME_DICT")
+            if self.plan_time_dict:
+                print("[PlanSubmission] Subscribed to plan time estimation dictionary")
+            else:
+                print(
+                    "[PlanSubmission] Could not subscribe to plan time estimation dictionary"
+                )
+        except Exception as e:
+            print(f"[PlanSubmission] Error subscribing to time estimation: {e}")
+
+    def _calculate_time_estimate(self, plan_name, plan_args):
+        """Calculate time estimate for a plan"""
+        try:
+            if not hasattr(self, "plan_time_dict") or self.plan_time_dict is None:
+                return None
+
+            # Get the estimation parameters for this plan
+            estimation_params = self.plan_time_dict.get(plan_name)
+            if not estimation_params:
+                print(f"[PlanSubmission] No estimation parameters for {plan_name}")
+                return None
+
+            # Get the estimator function name
+            estimator_name = estimation_params.get("estimator", "generic_estimate")
+            if estimator_name not in self.time_estimators:
+                print(f"[PlanSubmission] Unknown estimator: {estimator_name}")
+                return None
+
+            # Calculate the estimate
+            estimator_func = self.time_estimators[estimator_name]
+            print(
+                f"Calling estimator function {estimator_name} with params: {plan_name}, {plan_args}, {estimation_params}"
+            )
+            estimate = estimator_func(plan_name, plan_args, estimation_params)
+
+            return estimate
+        except Exception as e:
+            print(f"[PlanSubmission] Error calculating time estimate: {e}")
+            return None
+
+    def _update_time_estimate(self):
+        """Update the time estimate display"""
+        try:
+            current_widget = self.action_widget.currentWidget()
+            if not isinstance(current_widget, PlanWidgetBase):
+                self.time_estimate_label.setText("Time Estimate: --")
+                return
+
+            # Only calculate time estimate if the plan is ready (submit button enabled)
+            if not self.submit_button.isEnabled():
+                self.time_estimate_label.setText("Time Estimate: --")
+                self.time_estimate_label.setStyleSheet("QLabel { color: gray; }")
+                return
+
+            # Get the plan items from the current widget
+            try:
+                plan_items = current_widget.create_plan_items()
+                if not plan_items:
+                    self.time_estimate_label.setText("Time Estimate: --")
+                    return
+
+                # Use the first plan item for estimation
+                plan_dict = plan_items[0].to_dict()
+                print(f"[_update_time_estimate] Plan dict: {plan_dict}")
+                plan_name = plan_dict.get("name")
+                plan_args = plan_dict.get("kwargs", {})
+                if "args" in plan_dict:
+                    plan_args["args"] = plan_dict["args"]
+
+                if not plan_name:
+                    self.time_estimate_label.setText("Time Estimate: --")
+                    return
+
+                # Calculate the estimate
+                estimate = self._calculate_time_estimate(plan_name, plan_args)
+
+                if estimate is not None:
+                    # Format the time estimate
+                    if estimate < 60:
+                        time_str = f"{estimate:.1f}s"
+                    elif estimate < 3600:
+                        time_str = f"{estimate/60:.1f}m"
+                    else:
+                        time_str = f"{estimate/3600:.1f}h"
+
+                    self.time_estimate_label.setText(f"Time Estimate: {time_str}")
+                    self.time_estimate_label.setStyleSheet("QLabel { color: black; }")
+                else:
+                    self.time_estimate_label.setText("Time Estimate: --")
+                    self.time_estimate_label.setStyleSheet("QLabel { color: gray; }")
+
+            except Exception as e:
+                print(f"[PlanSubmission] Error getting plan info: {e}")
+                self.time_estimate_label.setText("Time Estimate: --")
+
+        except Exception as e:
+            print(f"[PlanSubmission] Error updating time estimate: {e}")
+            self.time_estimate_label.setText("Time Estimate: --")
 
     def on_action_selection_changed(self, index):
         """Handler for action selection changes"""
@@ -111,6 +253,10 @@ class PlanSubmissionWidget(QWidget):
                 self.current_widget.plan_ready.disconnect(
                     self.staging_button.setEnabled
                 )
+                self.current_widget.plan_ready.disconnect(self._update_time_estimate)
+                self.current_widget.editingFinished.disconnect(
+                    self._update_time_estimate
+                )
             except TypeError:
                 pass
 
@@ -119,6 +265,8 @@ class PlanSubmissionWidget(QWidget):
         if isinstance(self.current_widget, PlanWidgetBase):
             self.current_widget.plan_ready.connect(self.submit_button.setEnabled)
             self.current_widget.plan_ready.connect(self.staging_button.setEnabled)
+            self.current_widget.plan_ready.connect(self._update_time_estimate)
+            self.current_widget.editingFinished.connect(self._update_time_estimate)
         else:
             print("[PlanSubmission] Current widget is not a PlanWidgetBase")
 
