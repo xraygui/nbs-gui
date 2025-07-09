@@ -1,5 +1,4 @@
 import copy
-import json
 from qtpy.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -13,71 +12,36 @@ from qtpy.QtWidgets import (
     QAbstractItemView,
 )
 from qtpy.QtCore import Signal, Slot, Qt
-from .QtRePlanQueue import QueueTableWidget, PushButtonMinimumWidth
+from bluesky_widgets.qt.run_engine_client import PushButtonMinimumWidth
+from .QtRePlanQueue import BaseQueueWidget
 
 
-class QtReQueueStaging(QWidget):
+class QtReQueueStaging(BaseQueueWidget):
     signal_update_selection = Signal(object)
     signal_plan_queue_changed = Signal(object, object)
 
     def __init__(self, model, parent=None):
-        super().__init__(parent)
         self.model = model.queue_staging
         self.top_level_model = model
-        self._monitor_mode = False
+        super().__init__(self.model, parent)
 
-        # Set True to block processing of table selection change events
+        # Initialize missing attributes
+        self._registered_item_editors = []
+        self._monitor_mode = False
         self._block_table_selection_processing = False
 
-        self._registered_item_editors = []
+        # Connect staging-specific signals
+        self.model.events.plan_queue_changed.connect(self.on_plan_queue_changed)
+        self.signal_plan_queue_changed.connect(self.slot_plan_queue_changed)
 
-        # Local copy of the plan queue items for operations performed locally
-        #   in the Qt Widget code without calling the model. Using local copy that
-        #   precisely matches the contents displayed in the table is more reliable
-        #   for local operations (e.g. calling editor when double-clicking the row).
-        self._plan_queue_items = []
-
-        self._table_column_labels = (
-            "",
-            "Name",
-            "Parameters",
-            "USER",
-            "GROUP",
+        self.model.events.queue_item_selection_changed.connect(
+            self.on_queue_item_selection_changed
         )
-        self._table = QueueTableWidget(self._plan_queue_items)
-        self._table.setColumnCount(len(self._table_column_labels))
-        self._table.setHorizontalHeaderLabels(self._table_column_labels)
-        self._table.horizontalHeader().setSectionsMovable(True)
+        self.signal_update_selection.connect(self.slot_change_selection)
 
-        self._table.setVerticalScrollMode(QAbstractItemView.ScrollPerItem)
-        self._table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
-
-        self._table.setSelectionBehavior(QTableView.SelectRows)
-        self._table.setSelectionMode(QTableWidget.ContiguousSelection)
-
-        self._table.setDragEnabled(False)
-        self._table.setAcceptDrops(False)
-        self._table.setDropIndicatorShown(True)
-        self._table.setShowGrid(True)
-
-        # Prevents horizontal autoscrolling when clicking on an item (column) that
-        # doesn't fit horizontally the displayed view of the table (annoying behavior)
-        self._table.setAutoScroll(False)
-
-        self._table.setAlternatingRowColors(True)
-
-        self._table.horizontalHeader().setDefaultAlignment(Qt.AlignLeft)
-        self._table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        self._table.horizontalHeader().setStretchLastSection(True)
-        self._table.horizontalHeader().setMinimumSectionSize(5)
-
-        self._table_scrolled_to_bottom = False
-
-        # The following parameters are used only to control widget state (e.g. activate/deactivate
-        #   buttons), not to perform real operations.
-        self._n_table_items = 0  # The number of items in the table
-        self._selected_items_pos = []  # Selected items (list of table rows)
-
+    def _create_buttons(self):
+        """Create buttons specific to queue staging."""
+        # First row of buttons (same as main queue)
         self._pb_move_up = PushButtonMinimumWidth("Up")
         self._pb_move_down = PushButtonMinimumWidth("Down")
         self._pb_move_to_top = PushButtonMinimumWidth("Top")
@@ -87,7 +51,7 @@ class QtReQueueStaging(QWidget):
         self._pb_clear_queue = PushButtonMinimumWidth("Clear")
         self._pb_deselect = PushButtonMinimumWidth("Deselect")
 
-        # New buttons for queue operations
+        # Second row of buttons (staging-specific)
         self._pb_move_selected_to_queue = PushButtonMinimumWidth(
             "Move Selected to Queue"
         )
@@ -97,6 +61,7 @@ class QtReQueueStaging(QWidget):
         )
         self._pb_copy_all_to_queue = PushButtonMinimumWidth("Copy All to Queue")
 
+        # Connect first row buttons
         self._pb_move_up.clicked.connect(self._pb_move_up_clicked)
         self._pb_move_down.clicked.connect(self._pb_move_down_clicked)
         self._pb_move_to_top.clicked.connect(self._pb_move_to_top_clicked)
@@ -106,7 +71,7 @@ class QtReQueueStaging(QWidget):
         self._pb_clear_queue.clicked.connect(self._pb_clear_queue_clicked)
         self._pb_deselect.clicked.connect(self._pb_deselect_clicked)
 
-        # Connect new button signals
+        # Connect second row buttons
         self._pb_move_selected_to_queue.clicked.connect(
             self._pb_move_selected_to_queue_clicked
         )
@@ -116,10 +81,12 @@ class QtReQueueStaging(QWidget):
         )
         self._pb_copy_all_to_queue.clicked.connect(self._pb_copy_all_to_queue_clicked)
 
-        self._group_box = QGroupBox("Plan Queue")
+    def _create_layout(self):
+        """Create layout specific to queue staging."""
+        self._group_box = QGroupBox("Queue Staging")
         vbox = QVBoxLayout()
 
-        # First row - staging operations
+        # First row of buttons
         hbox1 = QHBoxLayout()
         hbox1.addWidget(QLabel("STAGING"))
         hbox1.addStretch(1)
@@ -134,91 +101,24 @@ class QtReQueueStaging(QWidget):
         hbox1.addWidget(self._pb_delete_plan)
         hbox1.addWidget(self._pb_duplicate_plan)
 
-        # Second row - queue operations
+        # Second row of buttons
         hbox2 = QHBoxLayout()
-        hbox2.addWidget(QLabel("QUEUE OPS"))
         hbox2.addStretch(1)
         hbox2.addWidget(self._pb_move_selected_to_queue)
         hbox2.addWidget(self._pb_move_all_to_queue)
         hbox2.addStretch(1)
         hbox2.addWidget(self._pb_copy_selected_to_queue)
         hbox2.addWidget(self._pb_copy_all_to_queue)
-        # hbox2.addStretch(1)
+        hbox2.addStretch(1)
 
         vbox.addLayout(hbox1)
         vbox.addLayout(hbox2)
         vbox.addWidget(self._table)
         self.setLayout(vbox)
 
-        self.model.events.plan_queue_changed.connect(self.on_plan_queue_changed)
-        self.signal_plan_queue_changed.connect(self.slot_plan_queue_changed)
-
-        self.model.events.queue_item_selection_changed.connect(
-            self.on_queue_item_selection_changed
-        )
-        self.signal_update_selection.connect(self.slot_change_selection)
-
-        self._table.signal_drop_event.connect(self.on_table_drop_event)
-        self._table.signal_scroll.connect(self.on_table_scroll_event)
-
-        self._table.itemSelectionChanged.connect(self.on_item_selection_changed)
-        self._table.verticalScrollBar().valueChanged.connect(
-            self.on_vertical_scrollbar_value_changed
-        )
-        self._table.verticalScrollBar().rangeChanged.connect(
-            self.on_vertical_scrollbar_range_changed
-        )
-        self._table.cellDoubleClicked.connect(self._on_table_cell_double_clicked)
-
-        self._update_button_states()
-        self._update_widgets()
-
-    @property
-    def monitor_mode(self):
-        return self._monitor_mode
-
-    @monitor_mode.setter
-    def monitor_mode(self, monitor):
-        self._monitor_mode = bool(monitor)
-        self._update_widgets()
-
-        if monitor:
-            self._table.cellDoubleClicked.disconnect(self._on_table_cell_double_clicked)
-        else:
-            self._table.cellDoubleClicked.connect(self._on_table_cell_double_clicked)
-
-    @property
-    def registered_item_editors(self):
-        """
-        Returns reference to the list of registered plan editors. The reference is not editable,
-        but the items can be added or removed from the list using ``append``, ``pop`` and ``clear``
-        methods.
-
-        Editors may be added to the list of registered plan editors by inserting/appending reference
-        to a callable. The must accepts dictionary of item parameters as an argument and return
-        boolean value ``True`` if the editor accepts the item. When user double-clicks the table row,
-        the editors from the list are called one by one until the plan is accepted. The first editor
-        that accepts the plan must be activated and allow users to change plan parameters. Typically
-        the editors should be registered in the order starting from custom editors designed for
-        editing specific plans proceeding to generic editors that will accept any plan that was
-        rejected by custom editors.
-
-        Returns
-        -------
-        list(callable)
-            List of references to registered editors. List is empty if no editors are registered.
-        """
-        return self._registered_item_editors
-
-    def _update_widgets(self, is_connected=None):
-        """Update widget state - simplified for staging without connection requirements."""
-        # Enable drag and drop for staging
-        self._table.setDragEnabled(True)
-        self._table.setAcceptDrops(True)
-        self._update_button_states()
-
     def _update_button_states(self):
-        """Update button states based on selection and queue state."""
+        """Update button states specific to queue staging."""
+        # Simplified for staging without connection requirements
         mon = self._monitor_mode
 
         n_items = self._n_table_items
@@ -239,19 +139,11 @@ class QtReQueueStaging(QWidget):
         self._pb_delete_plan.setEnabled(not mon and is_sel)
         self._pb_duplicate_plan.setEnabled(not mon and is_sel)
 
-        # Queue operation buttons
+        # Second row buttons
         self._pb_move_selected_to_queue.setEnabled(not mon and is_sel)
         self._pb_move_all_to_queue.setEnabled(not mon and n_items)
         self._pb_copy_selected_to_queue.setEnabled(not mon and is_sel)
         self._pb_copy_all_to_queue.setEnabled(not mon and n_items)
-
-    def on_vertical_scrollbar_value_changed(self, value):
-        max = self._table.verticalScrollBar().maximum()
-        self._table_scrolled_to_bottom = value == max
-
-    def on_vertical_scrollbar_range_changed(self, min, max):
-        if self._table_scrolled_to_bottom:
-            self._table.verticalScrollBar().setValue(max)
 
     def on_table_drop_event(self, row, col):
         # If the selected queue item is not in the table anymore (e.g. sent to execution),
@@ -264,18 +156,6 @@ class QtReQueueStaging(QWidget):
                 print(f"Exception: {ex}")
 
         self._update_button_states()
-
-    def on_table_scroll_event(self, scroll_direction):
-        v = self._table.verticalScrollBar().value()
-        v_max = self._table.verticalScrollBar().maximum()
-        if scroll_direction == "up" and v > 0:
-            v_new = v - 1
-        elif scroll_direction == "down" and v < v_max:
-            v_new = v + 1
-        else:
-            v_new = v
-        if v != v_new:
-            self._table.verticalScrollBar().setValue(v_new)
 
     def on_plan_queue_changed(self, event):
         plan_queue_items = event.plan_queue_items
@@ -337,28 +217,6 @@ class QtReQueueStaging(QWidget):
         self.slot_change_selection(selected_item_uids)
         self._update_button_states()
 
-    def on_item_selection_changed(self):
-        """
-        The handler for ``item_selection_changed`` signal emitted by QTableWidget
-        """
-        if self._block_table_selection_processing:
-            return
-
-        sel_rows = self._table.selectionModel().selectedRows()
-        try:
-            if len(sel_rows) >= 1:
-                selected_item_pos = [_.row() for _ in sel_rows]
-                selected_item_uids = [
-                    self.model.queue_item_pos_to_uid(_) for _ in selected_item_pos
-                ]
-                self.model.selected_queue_item_uids = selected_item_uids
-                self._selected_items_pos = selected_item_pos
-            else:
-                raise Exception()
-        except Exception:
-            self.model.selected_queue_item_uids = []
-            self._selected_items_pos = []
-
     def on_queue_item_selection_changed(self, event):
         """
         The handler for the event generated by the model
@@ -402,34 +260,6 @@ class QtReQueueStaging(QWidget):
 
         self.model.selected_queue_item_uids = selected_item_uids
         self._update_button_states()
-
-    def _on_table_cell_double_clicked(self, n_row, n_col):
-        """
-        Double-clicking of an item of the table widget opens the item in Plan Editor.
-        """
-        # We use local copy of the queue here
-        try:
-            queue_item = self._plan_queue_items[n_row]
-        except IndexError:
-            queue_item = None
-        registered_editors = self.registered_item_editors
-
-        # Do nothing if item is not found or there are no registered editors
-        if not queue_item or not registered_editors:
-            return
-
-        item_accepted = False
-        for editor_activator in registered_editors:
-            try:
-                item_accepted = editor_activator(queue_item)
-            except Exception:
-                print(f"Editor failed to start for the item {queue_item['name']}")
-
-            if item_accepted:
-                break
-
-        if not item_accepted:
-            print(f"Item {queue_item['name']!r} was rejected by all registered editors")
 
     def _pb_move_up_clicked(self):
         try:
@@ -477,71 +307,45 @@ class QtReQueueStaging(QWidget):
             print(f"Exception: {ex}")
 
     def _pb_move_selected_to_queue_clicked(self):
-        """Move selected items from staging to main queue."""
-        selected_uids = self.model.selected_queue_item_uids
-        if not selected_uids:
-            return
-
         try:
-            # Get selected items from staging
-            selected_items = []
-            for uid in selected_uids:
-                item = self.model.queue_item_by_uid(uid)
-                if item:
-                    selected_items.append(item)
-
-            # Add to main queue
-            for item in selected_items:
-                self.top_level_model.run_engine.queue_item_add(item=item)
-
-            # Remove from staging
-            self.model.queue_items_remove()
-
+            selected_plans = self.model.selected_plans
+            if selected_plans:
+                # Add to main queue
+                for plan in selected_plans:
+                    self.top_level_model.queue_item_add(item=plan)
+                # Remove from staging
+                self.model.queue_items_remove()
         except Exception as ex:
-            print(f"Exception moving selected to queue: {ex}")
+            print(f"Exception: {ex}")
 
     def _pb_move_all_to_queue_clicked(self):
-        """Move all items from staging to main queue."""
         try:
-            # Get all items from staging
-            all_items = []
-            for item in self.model.staged_plans:
-                all_items.append(item)
-
-            # Add to main queue
-            for item in all_items:
-                self.top_level_model.run_engine.queue_item_add(item=item)
-
-            # Clear staging
-            self.model.queue_clear()
-
+            all_plans = self.model.staged_plans
+            if all_plans:
+                # Add all to main queue
+                for plan in all_plans:
+                    self.top_level_model.queue_item_add(item=plan)
+                # Clear staging
+                self.model.queue_clear()
         except Exception as ex:
-            print(f"Exception moving all to queue: {ex}")
+            print(f"Exception: {ex}")
 
     def _pb_copy_selected_to_queue_clicked(self):
-        """Copy selected items from staging to main queue."""
-        selected_uids = self.model.selected_queue_item_uids
-        if not selected_uids:
-            return
-
         try:
-            # Get selected items from staging
-            for uid in selected_uids:
-                item = self.model.queue_item_by_uid(uid)
-                if item:
-                    # Copy to main queue (don't remove from staging)
-                    self.top_level_model.run_engine.queue_item_add(item=item)
-
+            selected_plans = self.model.selected_plans
+            if selected_plans:
+                # Add to main queue without removing from staging
+                for plan in selected_plans:
+                    self.top_level_model.queue_item_add(item=plan)
         except Exception as ex:
-            print(f"Exception copying selected to queue: {ex}")
+            print(f"Exception: {ex}")
 
     def _pb_copy_all_to_queue_clicked(self):
-        """Copy all items from staging to main queue."""
         try:
-            # Get all items from staging
-            for item in self.model.staged_plans:
-                # Copy to main queue (don't remove from staging)
-                self.top_level_model.run_engine.queue_item_add(item=item)
-
+            all_plans = self.model.staged_plans
+            if all_plans:
+                # Add all to main queue without removing from staging
+                for plan in all_plans:
+                    self.top_level_model.queue_item_add(item=plan)
         except Exception as ex:
-            print(f"Exception copying all to queue: {ex}")
+            print(f"Exception: {ex}")
