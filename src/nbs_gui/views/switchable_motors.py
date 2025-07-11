@@ -1,6 +1,5 @@
 from qtpy.QtWidgets import QVBoxLayout, QGroupBox, QMenu, QAction, QWidget
 from qtpy.QtCore import Qt
-from .motor import MotorMonitor, MotorControl
 from .views import AutoControl, AutoMonitor
 
 
@@ -73,7 +72,7 @@ class SwitchableMotorBox(QWidget):
 
         # Create action for toggling between pseudo and real motors
         toggle_action = QAction(
-            "Show Pseudo Motors" if self.showing_real_motors else "Show Real Motors",
+            ("Show Pseudo Motors" if self.showing_real_motors else "Show Real Motors"),
             self,
         )
         toggle_action.triggered.connect(self.toggle_motors_view)

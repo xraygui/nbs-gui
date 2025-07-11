@@ -1,10 +1,39 @@
-from .switchable_motors import SwitchableMotorMonitor, SwitchableMotorControl
+from qtpy.QtWidgets import QVBoxLayout, QGroupBox, QWidget, QHBoxLayout
+from .views import AutoControl, AutoMonitor
 
 
-class MotorTupleMonitor(SwitchableMotorMonitor):
+class MotorTupleBox(QWidget):
+    """
+    Base class for a simple motor tuple view.
+
+    This is a simple widget that displays motors in a single group box,
+    without the complexity of switchable views.
+    """
+
+    def __init__(self, model, parent_model, title=None, orientation=None, **kwargs):
+        super().__init__(**kwargs)
+        self.model = model
+        self.parent_model = parent_model
+        base_title = title if title is not None else model.label
+
+        # Create main layout
+        self.layout = QVBoxLayout()
+        self.layout.setContentsMargins(0, 0, 0, 0)
+        self.setLayout(self.layout)
+
+        # Create single group box for motors
+        self.motors_box = QGroupBox(base_title)
+        self.motors_layout = QVBoxLayout()
+        self.motors_box.setLayout(self.motors_layout)
+
+        # Add box to layout
+        self.layout.addWidget(self.motors_box)
+
+
+class MotorTupleMonitor(MotorTupleBox):
     """
     Monitor widget for a tuple of motors.
-    Shows real motors with option to hide them.
+    Shows all motors in a simple, compact layout.
 
     Parameters
     ----------
@@ -12,24 +41,22 @@ class MotorTupleMonitor(SwitchableMotorMonitor):
         The model representing the motor tuple
     parent_model : object
         Parent model for the widget
+    title : str, optional
+        Title for the group box
     """
 
-    def __init__(self, model, parent_model, *args, **kwargs):
-        super().__init__(
-            title=model.label,
-            model=model,
-            parent_model=parent_model,
-            pseudo_title="Motors",  # Main view title
-            real_title="All Motors",  # Detailed view title
-            *args,
-            **kwargs,
-        )
+    def __init__(self, model, parent_model, title=None, **kwargs):
+        super().__init__(model, parent_model, title=title, **kwargs)
+
+        # Add motor monitors
+        for motor in model.real_motors:
+            self.motors_layout.addWidget(AutoMonitor(motor, parent_model))
 
 
-class MotorTupleControl(SwitchableMotorControl):
+class MotorTupleControl(MotorTupleBox):
     """
     Control widget for a tuple of motors.
-    Shows real motors with option to hide them.
+    Shows all motors in a simple, compact layout.
 
     Parameters
     ----------
@@ -37,15 +64,13 @@ class MotorTupleControl(SwitchableMotorControl):
         The model representing the motor tuple
     parent_model : object
         Parent model for the widget
+    title : str, optional
+        Title for the group box
     """
 
-    def __init__(self, model, parent_model, *args, **kwargs):
-        super().__init__(
-            title=model.label,
-            model=model,
-            parent_model=parent_model,
-            pseudo_title="Motors",  # Main view title
-            real_title="All Motors",  # Detailed view title
-            *args,
-            **kwargs,
-        )
+    def __init__(self, model, parent_model, title=None, **kwargs):
+        super().__init__(model, parent_model, title=title, **kwargs)
+
+        # Add motor controls
+        for motor in model.real_motors:
+            self.motors_layout.addWidget(AutoControl(motor, parent_model))
