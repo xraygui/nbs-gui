@@ -110,23 +110,48 @@ class AutoControlBox(QGroupBox):
             widget_orientation = "h"
         self.box.setContentsMargins(5, 5, 5, 5)
         self.box.setSpacing(5)
+
+        # Filter models that have controllers
+        controllable_models = {}
+
         if isinstance(models, dict):
             for k, m in models.items():
+                # Check if model has a controller
+                if (
+                    hasattr(m, "default_controller")
+                    and m.default_controller is not None
+                ):
+                    controllable_models[k] = m
+                else:
+                    print(f"Skipping {k} - no controller available")
+        elif isinstance(models, list):
+            for m in models:
+                # Check if model has a controller
+                if (
+                    hasattr(m, "default_controller")
+                    and m.default_controller is not None
+                ):
+                    controllable_models[m.label] = m
+                else:
+                    print(f"Skipping {m.label} - no controller available")
+
+        # Create widgets only for controllable models
+        for k, m in controllable_models.items():
+            try:
                 widget = AutoControl(
                     m, parent_model=parent_model, orientation=widget_orientation
                 )
                 self.widgets[k] = widget
                 self.box.addWidget(widget)
                 widget.setVisible(getattr(m, "visible", True))
+            except Exception as e:
+                print(f"Failed to create control widget for {k}: {e}")
 
-        elif isinstance(models, list):
-            for m in models:
-                widget = AutoControl(
-                    m, parent_model=parent_model, orientation=widget_orientation
-                )
-                self.widgets[m.label] = widget
-                self.box.addWidget(widget)
-                widget.setVisible(getattr(m, "visible", True))
+        # If no controllable models, add a message
+        if not controllable_models:
+            no_controls_label = QLabel("No controllable devices found")
+            no_controls_label.setAlignment(Qt.AlignCenter)
+            self.box.addWidget(no_controls_label)
 
         self.setLayout(self.box)
 
@@ -173,7 +198,12 @@ class AutoMonitorBox(QGroupBox):
         self.box.setContentsMargins(5, 5, 5, 5)
         self.box.setSpacing(5)
         if isinstance(models, dict):
+            print(f"Adding {models.keys()} to AutoMonitorBox")
             for k, m in models.items():
+                if m is None:
+                    print(f"Skipping {k} - no model available")
+                    continue
+                print(f"Adding {m.label} to AutoMonitorBox")
                 widget = AutoMonitor(
                     m, parent_model=parent_model, orientation=widget_orientation
                 )
@@ -182,7 +212,12 @@ class AutoMonitorBox(QGroupBox):
                 self.box.addWidget(widget)
                 widget.setVisible(getattr(m, "visible", True))
         elif isinstance(models, list):
+            print(f"Adding {models} to AutoMonitorBox")
             for m in models:
+                if m is None:
+                    print(f"Skipping None - no model available")
+                    continue
+                print(f"Adding {m.label} to AutoMonitorBox")
                 widget = AutoMonitor(
                     m, parent_model=parent_model, orientation=widget_orientation
                 )
@@ -244,6 +279,8 @@ class AutoControlCombo(QWidget):
             print(f"Adding {key} to AutoControlCombo")
             model = modelDict.get(key, None)
             if model:
+                if model.default_controller is None:
+                    continue
                 dropdown.addItem(key)
                 print(f"Adding model {model.label} to widgetStack")
                 widgetStack.addWidget(
@@ -284,11 +321,11 @@ class DynamicControlWidget(QStackedWidget):
 
         # Create both views
         self.monitor = model.default_monitor(
-            model, parent_model, orientation=orientation
+            model, parent_model=parent_model, orientation=orientation
         )
         if not getattr(model, "view_only", False):
             self.controller = model.default_controller(
-                model, parent_model, orientation=orientation
+                model, parent_model=parent_model, orientation=orientation
             )
         else:
             self.controller = None
