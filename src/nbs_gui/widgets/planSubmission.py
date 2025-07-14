@@ -14,7 +14,7 @@ from qtpy.QtWidgets import (
 from ..plans.planLoaders import PlanLoaderWidgetBase
 from ..plans.base import PlanWidgetBase
 from qtpy.QtCore import Signal
-import importlib
+from nbs_gui.plans.timeEstimators import load_time_estimators
 
 
 class PlanSubmissionWidget(QWidget):
@@ -28,7 +28,7 @@ class PlanSubmissionWidget(QWidget):
         config = model.settings.gui_config
 
         # Load time estimation functions
-        self._load_time_estimators()
+        self.time_estimators = load_time_estimators()
 
         # Subscribe to plan time estimation dictionary
         self._subscribe_to_time_estimation()
@@ -106,32 +106,6 @@ class PlanSubmissionWidget(QWidget):
         )
         self.action_widget.currentChanged.connect(self.update_plan_ready_connection)
         self.update_plan_ready_connection(self.action_widget.currentIndex())
-
-    def _load_time_estimators(self):
-        """Load time estimation functions from nbs_bl.plans.time_estimation"""
-        try:
-            from nbs_bl.plans.time_estimation import (
-                generic_estimate,
-                list_scan_estimate,
-                grid_scan_estimate,
-                list_grid_scan_estimate,
-                fly_scan_estimate,
-                gscan_estimate,
-                with_repeat,
-            )
-
-            self.time_estimators = {
-                "generic_estimate": generic_estimate,
-                "list_scan_estimate": list_scan_estimate,
-                "grid_scan_estimate": grid_scan_estimate,
-                "list_grid_scan_estimate": list_grid_scan_estimate,
-                "fly_scan_estimate": fly_scan_estimate,
-                "gscan_estimate": gscan_estimate,
-            }
-            print("[PlanSubmission] Loaded time estimators")
-        except ImportError as e:
-            print(f"[PlanSubmission] Failed to load time estimators: {e}")
-            self.time_estimators = {}
 
     def _subscribe_to_time_estimation(self):
         """Subscribe to the plan time estimation dictionary"""

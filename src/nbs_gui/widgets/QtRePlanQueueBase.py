@@ -14,6 +14,7 @@ from qtpy.QtWidgets import (
 )
 from qtpy.QtCore import Signal, Slot, Qt, QMimeData, QTimer
 from bluesky_widgets.qt.run_engine_client import PushButtonMinimumWidth
+from nbs_gui.plans.timeEstimators import load_time_estimators
 
 
 class QueueTableWidget(QTableWidget):
@@ -145,7 +146,7 @@ class QtRePlanQueue(QWidget):
         self._plan_queue_items = []
 
         # Load time estimation functions
-        self._load_time_estimators()
+        self.time_estimators = load_time_estimators()
 
         # Subscribe to plan time estimation dictionary
         self._subscribe_to_time_estimation()
@@ -263,32 +264,6 @@ class QtRePlanQueue(QWidget):
         self._table.cellDoubleClicked.connect(self._on_table_cell_double_clicked)
 
         self._update_button_states()
-
-    def _load_time_estimators(self):
-        """Load time estimation functions from nbs_bl.plans.time_estimation"""
-        try:
-            from nbs_bl.plans.time_estimation import (
-                generic_estimate,
-                list_scan_estimate,
-                grid_scan_estimate,
-                list_grid_scan_estimate,
-                fly_scan_estimate,
-                gscan_estimate,
-                with_repeat,
-            )
-
-            self.time_estimators = {
-                "generic_estimate": generic_estimate,
-                "list_scan_estimate": list_scan_estimate,
-                "grid_scan_estimate": grid_scan_estimate,
-                "list_grid_scan_estimate": list_grid_scan_estimate,
-                "fly_scan_estimate": fly_scan_estimate,
-                "gscan_estimate": gscan_estimate,
-            }
-            print("[QtRePlanQueue] Loaded time estimators")
-        except ImportError as e:
-            print(f"[QtRePlanQueue] Failed to load time estimators: {e}")
-            self.time_estimators = {}
 
     def _subscribe_to_time_estimation(self):
         """Subscribe to the plan time estimation dictionary"""
