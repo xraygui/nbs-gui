@@ -30,13 +30,15 @@ def load_time_estimators():
                 estimator = entry_point.load()
                 if callable(estimator):
                     time_estimators[entry_point.name] = estimator
-                    print(f"[PlanSubmission] Loaded time estimator {entry_point.name}")
+                    print(
+                        f"[load_time_estimators] Loaded time estimator {entry_point.name}"
+                    )
         except Exception as e:
             print(
-                f"[PlanSubmission] Error loading time estimators from entry points: {e}"
+                f"[load_time_estimators] Error loading time estimators from entry points: {e}"
             )
-        print("[PlanSubmission] Loaded time estimators")
+        print("[load_time_estimators] Loaded time estimators")
     except ImportError as e:
-        print(f"[PlanSubmission] Failed to load time estimators: {e}")
+        print(f"[load_time_estimators] Failed to load time estimators: {e}")
         time_estimators = {}
     return time_estimators
