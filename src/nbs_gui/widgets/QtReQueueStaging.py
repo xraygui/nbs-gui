@@ -77,6 +77,7 @@ class QtReQueueStaging(QtReActiveQueue):
 
         header_hbox = QHBoxLayout()
         header_hbox.addWidget(QLabel("STAGING"))
+        header_hbox.addStretch(1)
 
         header_vbox = QVBoxLayout()
         # First row of buttons
@@ -102,6 +103,7 @@ class QtReQueueStaging(QtReActiveQueue):
 
         header_vbox.addLayout(hbox1)
         header_vbox.addLayout(hbox2)
+
         header_hbox.addLayout(header_vbox)
         vbox.addLayout(header_hbox)
         vbox.addWidget(self._table)
