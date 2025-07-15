@@ -105,6 +105,8 @@ class TimeEstimator:
             return f"{estimate/3600:.1f}h"
 
     def calculate_plan_time(self, plan_item):
+        if hasattr(plan_item, "to_dict"):
+            plan_item = plan_item.to_dict()
         plan_name = plan_item.get("name")
         plan_args = plan_item.get("kwargs", {})
         if "args" in plan_item:

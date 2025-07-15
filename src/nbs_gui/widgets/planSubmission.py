@@ -14,7 +14,7 @@ from qtpy.QtWidgets import (
 from ..plans.planLoaders import PlanLoaderWidgetBase
 from ..plans.base import PlanWidgetBase
 from qtpy.QtCore import Signal
-from nbs_gui.widgets.timeEstimators import load_time_estimators
+from nbs_gui.widgets.timeEstimators import TimeEstimator
 
 
 class PlanSubmissionWidget(QWidget):
@@ -28,10 +28,7 @@ class PlanSubmissionWidget(QWidget):
         config = model.settings.gui_config
 
         # Load time estimation functions
-        self.time_estimators = load_time_estimators()
-
-        # Subscribe to plan time estimation dictionary
-        self._subscribe_to_time_estimation()
+        self.time_estimator = TimeEstimator(model)
 
         plans_to_include = config.get("gui", {}).get("plans", {}).get("include", [])
         plans_to_exclude = config.get("gui", {}).get("plans", {}).get("exclude", [])
@@ -107,50 +104,6 @@ class PlanSubmissionWidget(QWidget):
         self.action_widget.currentChanged.connect(self.update_plan_ready_connection)
         self.update_plan_ready_connection(self.action_widget.currentIndex())
 
-    def _subscribe_to_time_estimation(self):
-        """Subscribe to the plan time estimation dictionary"""
-        try:
-            # Get the Redis dictionary for plan time estimation
-            self.plan_time_dict = self.user_status.get_redis_dict("PLAN_TIME_DICT")
-            if self.plan_time_dict:
-                print("[PlanSubmission] Subscribed to plan time estimation dictionary")
-            else:
-                print(
-                    "[PlanSubmission] Could not subscribe to plan time estimation dictionary"
-                )
-        except Exception as e:
-            print(f"[PlanSubmission] Error subscribing to time estimation: {e}")
-
-    def _calculate_time_estimate(self, plan_name, plan_args):
-        """Calculate time estimate for a plan"""
-        try:
-            if not hasattr(self, "plan_time_dict") or self.plan_time_dict is None:
-                return None
-
-            # Get the estimation parameters for this plan
-            estimation_params = self.plan_time_dict.get(plan_name)
-            if not estimation_params:
-                print(f"[PlanSubmission] No estimation parameters for {plan_name}")
-                return None
-
-            # Get the estimator function name
-            estimator_name = estimation_params.get("estimator", "generic_estimate")
-            if estimator_name not in self.time_estimators:
-                print(f"[PlanSubmission] Unknown estimator: {estimator_name}")
-                return None
-
-            # Calculate the estimate
-            estimator_func = self.time_estimators[estimator_name]
-            print(
-                f"Calling estimator function {estimator_name} with params: {plan_name}, {plan_args}, {estimation_params}"
-            )
-            estimate = estimator_func(plan_name, plan_args, estimation_params)
-
-            return estimate
-        except Exception as e:
-            print(f"[PlanSubmission] Error calculating time estimate: {e}")
-            return None
-
     def _update_time_estimate(self):
         """Update the time estimate display"""
         try:
@@ -173,33 +126,15 @@ class PlanSubmissionWidget(QWidget):
                     return
 
                 # Use the first plan item for estimation
-                plan_dict = plan_items[0].to_dict()
-                print(f"[_update_time_estimate] Plan dict: {plan_dict}")
-                plan_name = plan_dict.get("name")
-                plan_args = plan_dict.get("kwargs", {})
-                if "args" in plan_dict:
-                    plan_args["args"] = plan_dict["args"]
-
-                if not plan_name:
-                    self.time_estimate_label.setText("Time Estimate: --")
-                    return
-
                 # Calculate the estimate
-                estimate = self._calculate_time_estimate(plan_name, plan_args)
+                estimate = self.time_estimator.calculate_plan_time(plan_items[0])
+
+                time_str = self.time_estimator.format_time_estimate(estimate)
+                self.time_estimate_label.setText(f"Time Estimate: {time_str}")
 
                 if estimate is not None:
-                    # Format the time estimate
-                    if estimate < 60:
-                        time_str = f"{estimate:.1f}s"
-                    elif estimate < 3600:
-                        time_str = f"{estimate/60:.1f}m"
-                    else:
-                        time_str = f"{estimate/3600:.1f}h"
-
-                    self.time_estimate_label.setText(f"Time Estimate: {time_str}")
                     self.time_estimate_label.setStyleSheet("QLabel { color: black; }")
                 else:
-                    self.time_estimate_label.setText("Time Estimate: --")
                     self.time_estimate_label.setStyleSheet("QLabel { color: gray; }")
 
             except Exception as e:
