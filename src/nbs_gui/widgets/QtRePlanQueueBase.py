@@ -14,7 +14,7 @@ from qtpy.QtWidgets import (
 )
 from qtpy.QtCore import Signal, Slot, Qt, QMimeData, QTimer
 from bluesky_widgets.qt.run_engine_client import PushButtonMinimumWidth
-from nbs_gui.plans.timeEstimators import load_time_estimators
+from nbs_gui.widgets.timeEstimators import TimeEstimator
 
 
 class QueueTableWidget(QTableWidget):
@@ -123,7 +123,15 @@ class QueueTableWidget(QTableWidget):
         self._scroll_timer.start(timeout)
 
 
-class QtRePlanQueue(QWidget):
+class BaseQueueWidget(QWidget):
+    """
+    Base class for queue widgets with common functionality.
+
+    This class provides the common table setup, event handling, and basic
+    functionality that is shared between QtRePlanQueue, QtReQueueStaging,
+    and QtRePlanHistory.
+    """
+
     signal_update_widgets = Signal(bool)
     signal_update_selection = Signal(object)
     signal_plan_queue_changed = Signal(object, object)
@@ -133,32 +141,8 @@ class QtRePlanQueue(QWidget):
         self.run_engine = model.run_engine
         self.model = model
         self._monitor_mode = False
-
-        # Set True to block processing of table selection change events
-        self._block_table_selection_processing = False
-
-        self._registered_item_editors = []
-
-        # Local copy of the plan queue items for operations performed locally
-        #   in the Qt Widget code without calling the model. Using local copy that
-        #   precisely matches the contents displayed in the table is more reliable
-        #   for local operations (e.g. calling editor when double-clicking the row).
-        self._plan_queue_items = []
-
-        # Load time estimation functions
-        self.time_estimators = load_time_estimators()
-
-        # Subscribe to plan time estimation dictionary
-        self._subscribe_to_time_estimation()
-
-        self._table_column_labels = (
-            "",
-            "Name",
-            "Parameters",
-            "USER",
-            "GROUP",
-            "Est. Time",
-        )
+        print("DEBUG: BaseQueueWidget - __init__")
+        self._table_column_labels = self.get_table_column_labels()
         self._table = QueueTableWidget()
         self._table.setColumnCount(len(self._table_column_labels))
         self._table.setHorizontalHeaderLabels(self._table_column_labels)
@@ -170,8 +154,8 @@ class QtRePlanQueue(QWidget):
         self._table.setSelectionBehavior(QTableView.SelectRows)
         self._table.setSelectionMode(QTableWidget.ContiguousSelection)
 
-        self._table.setDragEnabled(False)
-        self._table.setAcceptDrops(False)
+        self._table.setDragEnabled(True)
+        self._table.setAcceptDrops(True)
         self._table.setDropIndicatorShown(True)
         self._table.setShowGrid(True)
 
@@ -191,62 +175,60 @@ class QtRePlanQueue(QWidget):
         # The following parameters are used only to control widget state (e.g. activate/deactivate
         #   buttons), not to perform real operations.
         self._n_table_items = 0  # The number of items in the table
-        self._selected_items_pos = []  # Selected items (list of table rows)
+        self._selected_items_pos = []  # Selected items (table rows)
+        print("DEBUG: BaseQueueWidget - __init__ done")
 
-        self._pb_move_up = PushButtonMinimumWidth("Up")
-        self._pb_move_down = PushButtonMinimumWidth("Down")
-        self._pb_move_to_top = PushButtonMinimumWidth("Top")
-        self._pb_move_to_bottom = PushButtonMinimumWidth("Bottom")
-        self._pb_delete_plan = PushButtonMinimumWidth("Delete")
-        self._pb_duplicate_plan = PushButtonMinimumWidth("Duplicate")
-        self._pb_clear_queue = PushButtonMinimumWidth("Clear")
-        self._pb_deselect = PushButtonMinimumWidth("Deselect")
-        self._pb_loop_on = PushButtonMinimumWidth("Loop")
-        self._pb_loop_on.setCheckable(True)
+    def get_table_column_labels(self):
+        """Get the column labels for the table. Override in subclasses."""
+        return ("", "Name", "Parameters", "USER", "GROUP")
 
-        self._pb_move_up.clicked.connect(self._pb_move_up_clicked)
-        self._pb_move_down.clicked.connect(self._pb_move_down_clicked)
-        self._pb_move_to_top.clicked.connect(self._pb_move_to_top_clicked)
-        self._pb_move_to_bottom.clicked.connect(self._pb_move_to_bottom_clicked)
-        self._pb_delete_plan.clicked.connect(self._pb_delete_plan_clicked)
-        self._pb_duplicate_plan.clicked.connect(self._pb_duplicate_plan_clicked)
-        self._pb_clear_queue.clicked.connect(self._pb_clear_queue_clicked)
-        self._pb_deselect.clicked.connect(self._pb_deselect_clicked)
-        self._pb_loop_on.clicked.connect(self._pb_loop_on_clicked)
+    @property
+    def monitor_mode(self):
+        return self._monitor_mode
 
-        # Add total time estimate label
-        self._total_time_label = QLabel("Total Est. Time: --")
-        self._total_time_label.setStyleSheet("QLabel { color: gray; }")
+    @monitor_mode.setter
+    def monitor_mode(self, monitor):
+        self._monitor_mode = bool(monitor)
+        self._update_widgets()
 
-        self._group_box = QGroupBox("Plan Queue")
-        vbox = QVBoxLayout()
-        hbox = QHBoxLayout()
-        hbox.addWidget(QLabel("QUEUE"))
-        hbox.addStretch(1)
-        hbox.addWidget(self._pb_move_up)
-        hbox.addWidget(self._pb_move_down)
-        hbox.addWidget(self._pb_move_to_top)
-        hbox.addWidget(self._pb_move_to_bottom)
-        hbox.addStretch(1)
-        hbox.addWidget(self._pb_deselect)
-        hbox.addWidget(self._pb_clear_queue)
-        hbox.addStretch(1)
-        hbox.addWidget(self._pb_loop_on)
-        hbox.addStretch(1)
-        hbox.addWidget(self._pb_delete_plan)
-        hbox.addWidget(self._pb_duplicate_plan)
-        hbox.addWidget(self._total_time_label)
-        vbox.addLayout(hbox)
-        vbox.addWidget(self._table)
-        self.setLayout(vbox)
+        if monitor:
+            self._table.cellDoubleClicked.disconnect(self._on_table_cell_double_clicked)
+        else:
+            self._table.cellDoubleClicked.connect(self._on_table_cell_double_clicked)
+
+    def on_update_widgets(self, event):
+        # None should be converted to False:
+        is_connected = bool(event.is_connected)
+        self.signal_update_widgets.emit(is_connected)
+
+
+class QtReActiveQueue(BaseQueueWidget):
+    def __init__(self, model, parent=None):
+        super().__init__(model, parent=parent)
+
+        # Set True to block processing of table selection change events
+        self._block_table_selection_processing = False
+        self._registered_item_editors = []
+        self._plan_queue_items = []
+
+        self._create_buttons()
+        self._create_layout()
+        self._connect_signals()
+
+        self._update_button_states()
+
+        self._update_widgets()
+
+    def _connect_signals(self):
+        print("DEBUG: QtReActiveQueue - connecting signals")
 
         self.run_engine.events.status_changed.connect(self.on_update_widgets)
         self.signal_update_widgets.connect(self.slot_update_widgets)
 
-        self.run_engine.events.plan_queue_changed.connect(self.on_plan_queue_changed)
+        self.queue_model.events.plan_queue_changed.connect(self.on_plan_queue_changed)
         self.signal_plan_queue_changed.connect(self.slot_plan_queue_changed)
 
-        self.run_engine.events.queue_item_selection_changed.connect(
+        self.queue_model.events.queue_item_selection_changed.connect(
             self.on_queue_item_selection_changed
         )
         self.signal_update_selection.connect(self.slot_change_selection)
@@ -263,106 +245,21 @@ class QtRePlanQueue(QWidget):
         )
         self._table.cellDoubleClicked.connect(self._on_table_cell_double_clicked)
 
+    def _update_widgets(self, is_connected=None):
+        if is_connected is None:
+            is_connected = bool(self.run_engine.re_manager_connected)
+
+        # Disable drops if there is no connection to RE Manager
+        enable_drops = is_connected and not self._monitor_mode
+        # print(f"DEBUG: QtRePlanQueue - enable_drops: {enable_drops}")
+        self._table.setDragEnabled(enable_drops)
+        self._table.setAcceptDrops(enable_drops)
+
         self._update_button_states()
 
-    def _subscribe_to_time_estimation(self):
-        """Subscribe to the plan time estimation dictionary"""
-        try:
-            # Get the Redis dictionary for plan time estimation
-            self.plan_time_dict = self.model.user_status.get_redis_dict(
-                "PLAN_TIME_DICT"
-            )
-            if self.plan_time_dict:
-                print("[QtRePlanQueue] Subscribed to plan time estimation dictionary")
-            else:
-                print(
-                    "[QtRePlanQueue] Could not subscribe to plan time estimation dictionary"
-                )
-        except Exception as e:
-            print(f"[QtRePlanQueue] Error subscribing to time estimation: {e}")
-
-    def _calculate_time_estimate(self, plan_name, plan_args):
-        """Calculate time estimate for a plan"""
-        try:
-            if not hasattr(self, "plan_time_dict") or self.plan_time_dict is None:
-                return None
-
-            # Get the estimation parameters for this plan
-            estimation_params = self.plan_time_dict.get(plan_name)
-            if not estimation_params:
-                return None
-
-            # Get the estimator function name
-            estimator_name = estimation_params.get("estimator", "generic_estimate")
-            if estimator_name not in self.time_estimators:
-                return None
-
-            # Calculate the estimate
-            estimator_func = self.time_estimators[estimator_name]
-            estimate = estimator_func(plan_name, plan_args, estimation_params)
-
-            return estimate
-        except Exception as e:
-            print(f"[QtRePlanQueue] Error calculating time estimate: {e}")
-            return None
-
-    def _format_time_estimate(self, estimate):
-        """Format time estimate for display"""
-        if estimate is None:
-            return "--"
-
-        if estimate < 60:
-            return f"{estimate:.1f}s"
-        elif estimate < 3600:
-            return f"{estimate/60:.1f}m"
-        else:
-            return f"{estimate/3600:.1f}h"
-
-    def _update_total_time_estimate(self):
-        """Update the total time estimate display"""
-        try:
-            total_estimate = 0
-            valid_estimates = 0
-
-            for item in self._plan_queue_items:
-                try:
-                    plan_name = item.get("name")
-                    plan_args = item.get("kwargs", {})
-                    if "args" in item:
-                        plan_args["args"] = item["args"]
-
-                    estimate = self._calculate_time_estimate(plan_name, plan_args)
-                    if estimate is not None:
-                        total_estimate += estimate
-                        valid_estimates += 1
-                except Exception as e:
-                    print(f"[QtRePlanQueue] Error estimating plan time: {e}")
-
-            if valid_estimates > 0:
-                time_str = self._format_time_estimate(total_estimate)
-                self._total_time_label.setText(f"Total Est. Time: {time_str}")
-                self._total_time_label.setStyleSheet("QLabel { color: black; }")
-            else:
-                self._total_time_label.setText("Total Est. Time: --")
-                self._total_time_label.setStyleSheet("QLabel { color: gray; }")
-
-        except Exception as e:
-            print(f"[QtRePlanQueue] Error updating total time estimate: {e}")
-            self._total_time_label.setText("Total Est. Time: --")
-
-    @property
-    def monitor_mode(self):
-        return self._monitor_mode
-
-    @monitor_mode.setter
-    def monitor_mode(self, monitor):
-        self._monitor_mode = bool(monitor)
-        self._update_widgets()
-
-        if monitor:
-            self._table.cellDoubleClicked.disconnect(self._on_table_cell_double_clicked)
-        else:
-            self._table.cellDoubleClicked.connect(self._on_table_cell_double_clicked)
+    @Slot(bool)
+    def slot_update_widgets(self, is_connected):
+        self._update_widgets(is_connected)
 
     @property
     def registered_item_editors(self):
@@ -387,24 +284,331 @@ class QtRePlanQueue(QWidget):
         """
         return self._registered_item_editors
 
-    def on_update_widgets(self, event):
-        # None should be converted to False:
-        is_connected = bool(event.is_connected)
-        self.signal_update_widgets.emit(is_connected)
-
-    def _update_widgets(self, is_connected=None):
-        if is_connected is None:
-            is_connected = bool(self.run_engine.re_manager_connected)
-
-        # Disable drops if there is no connection to RE Manager
-        self._table.setDragEnabled(is_connected and not self._monitor_mode)
-        self._table.setAcceptDrops(is_connected and not self._monitor_mode)
+    def on_table_drop_event(self, row, col):
+        # If the selected queue item is not in the table anymore (e.g. sent to execution),
+        #   then ignore the drop event, since the item can not be moved.
+        if self.queue_model.selected_queue_item_uids:
+            uid_ref_item = self.queue_model.queue_item_pos_to_uid(row)
+            try:
+                self.queue_model.queue_items_move_in_place_of(uid_ref_item)
+            except Exception as ex:
+                print(f"Exception: {ex}")
 
         self._update_button_states()
 
-    @Slot(bool)
-    def slot_update_widgets(self, is_connected):
-        self._update_widgets(is_connected)
+    def on_vertical_scrollbar_value_changed(self, value):
+        max = self._table.verticalScrollBar().maximum()
+        self._table_scrolled_to_bottom = value == max
+
+    def on_vertical_scrollbar_range_changed(self, min, max):
+        if self._table_scrolled_to_bottom:
+            self._table.verticalScrollBar().setValue(max)
+
+    def on_table_scroll_event(self, scroll_direction):
+        v = self._table.verticalScrollBar().value()
+        v_max = self._table.verticalScrollBar().maximum()
+        if scroll_direction == "up" and v > 0:
+            v_new = v - 1
+        elif scroll_direction == "down" and v < v_max:
+            v_new = v + 1
+        else:
+            v_new = v
+        if v != v_new:
+            self._table.verticalScrollBar().setValue(v_new)
+
+    def _on_table_cell_double_clicked(self, n_row, n_col):
+        """
+        Double-clicking of an item of the table widget opens the item in Plan Editor.
+        """
+        # We use local copy of the queue here
+        try:
+            queue_item = self._plan_queue_items[n_row]
+        except IndexError:
+            queue_item = None
+        registered_editors = self.registered_item_editors
+
+        # Do nothing if item is not found or there are no registered editors
+        if not queue_item or not registered_editors:
+            return
+
+        item_accepted = False
+        for editor_activator in registered_editors:
+            try:
+                item_accepted = editor_activator(queue_item)
+            except Exception:
+                print(f"Editor failed to start for the item {queue_item['name']}")
+
+            if item_accepted:
+                break
+
+        if not item_accepted:
+            print(f"Item {queue_item['name']!r} was rejected by all registered editors")
+
+    def on_item_selection_changed(self):
+        """
+        The handler for ``item_selection_changed`` signal emitted by QTableWidget
+        """
+        if self._block_table_selection_processing:
+            return
+
+        sel_rows = self._table.selectionModel().selectedRows()
+        try:
+            if len(sel_rows) >= 1:
+                selected_item_pos = [_.row() for _ in sel_rows]
+                selected_item_uids = [
+                    self.queue_model.queue_item_pos_to_uid(_) for _ in selected_item_pos
+                ]
+                self.queue_model.selected_queue_item_uids = selected_item_uids
+                self._selected_items_pos = selected_item_pos
+            else:
+                raise Exception()
+        except Exception:
+            self.queue_model.selected_queue_item_uids = []
+            self._selected_items_pos = []
+
+    def on_queue_item_selection_changed(self, event):
+        """
+        The handler for the event generated by the model
+        """
+        selected_item_uids = event.selected_item_uids
+        self.signal_update_selection.emit(selected_item_uids)
+
+    def get_item_value_for_label(self, item, label):
+        return self.queue_model.get_item_value_for_label(item=item, label=label)
+
+    @Slot(object, object)
+    def slot_plan_queue_changed(self, plan_queue_items, selected_item_uids):
+        # Check if the vertical scroll bar is scrolled to the bottom. Ignore the case
+        #   when 'scroll_value==0': if the top plan is visible, it should remain visible
+        #   even if additional plans are added to the queue.
+        self._block_table_selection_processing = True
+
+        # Create local copy of the plan queue items for operations performed locally
+        #   within the widget without involving the model.
+        self._plan_queue_items = copy.deepcopy(plan_queue_items)
+
+        # Update the custom table widget with the plan queue items
+        self._table.set_plan_queue_items(self._plan_queue_items)
+
+        scroll_value = self._table.verticalScrollBar().value()
+        scroll_maximum = self._table.verticalScrollBar().maximum()
+        self._table_scrolled_to_bottom = scroll_value and (
+            scroll_value == scroll_maximum
+        )
+
+        self._table.clearContents()
+        self._table.setRowCount(len(plan_queue_items))
+
+        if len(plan_queue_items):
+            resize_mode = QHeaderView.ResizeToContents
+        else:
+            # Empty table, stretch the header
+            resize_mode = QHeaderView.Stretch
+        self._table.horizontalHeader().setSectionResizeMode(resize_mode)
+
+        for nr, item in enumerate(plan_queue_items):
+            for nc, col_name in enumerate(self._table_column_labels):
+                try:
+                    value = self.get_item_value_for_label(item=item, label=col_name)
+                except KeyError:
+                    value = ""
+                table_item = QTableWidgetItem(value)
+                table_item.setFlags(table_item.flags() & ~Qt.ItemIsEditable)
+                self._table.setItem(nr, nc, table_item)
+
+        # Update the number of table items
+        self._n_table_items = len(plan_queue_items)
+
+        # Advance scrollbar if the table is scrolled all the way down.
+        if self._table_scrolled_to_bottom:
+            scroll_maximum_new = self._table.verticalScrollBar().maximum()
+            self._table.verticalScrollBar().setValue(scroll_maximum_new)
+
+        self._block_table_selection_processing = False
+
+        self.slot_change_selection(selected_item_uids)
+        self._update_button_states()
+
+    @Slot(object)
+    def slot_change_selection(self, selected_item_uids):
+        rows = [self.queue_model.queue_item_uid_to_pos(_) for _ in selected_item_uids]
+
+        # Keep horizontal scroll value while the selection is changed (more consistent behavior)
+        scroll_value = self._table.horizontalScrollBar().value()
+
+        if not rows:
+            self._table.clearSelection()
+            self._selected_items_pos = []
+        else:
+            self._block_table_selection_processing = True
+            self._table.clearSelection()
+            for row in rows:
+                if self._table.currentRow() not in rows:
+                    self._table.setCurrentCell(rows[-1], 0)
+                for col in range(self._table.columnCount()):
+                    item = self._table.item(row, col)
+                    if item:
+                        item.setSelected(True)
+                    else:
+                        print(
+                            f"Plan Queue Table: attempting to select non-existing item: row={row} col={col}"
+                        )
+
+            row_visible = rows[-1]
+            item_visible = self._table.item(row_visible, 0)
+            self._table.scrollToItem(item_visible, QAbstractItemView.EnsureVisible)
+            self._block_table_selection_processing = False
+
+            self._selected_items_pos = rows
+
+        self._table.horizontalScrollBar().setValue(scroll_value)
+
+        self.queue_model.selected_queue_item_uids = selected_item_uids
+        self._update_button_states()
+
+    def on_plan_queue_changed(self, event):
+        plan_queue_items = event.plan_queue_items
+        selected_item_uids = event.selected_item_uids
+        self.signal_plan_queue_changed.emit(plan_queue_items, selected_item_uids)
+
+    def _pb_move_up_clicked(self):
+        try:
+            self.queue_model.queue_items_move_up()
+        except Exception as ex:
+            print(f"Exception: {ex}")
+
+    def _pb_move_down_clicked(self):
+        try:
+            self.queue_model.queue_items_move_down()
+        except Exception as ex:
+            print(f"Exception: {ex}")
+
+    def _pb_move_to_top_clicked(self):
+        try:
+            self.queue_model.queue_items_move_to_top()
+        except Exception as ex:
+            print(f"Exception: {ex}")
+
+    def _pb_move_to_bottom_clicked(self):
+        try:
+            self.queue_model.queue_items_move_to_bottom()
+        except Exception as ex:
+            print(f"Exception: {ex}")
+
+    def _pb_delete_plan_clicked(self):
+        try:
+            self.queue_model.queue_items_remove()
+        except Exception as ex:
+            print(f"Exception: {ex}")
+
+    def _pb_clear_queue_clicked(self):
+        try:
+            self.queue_model.queue_clear()
+        except Exception as ex:
+            print(f"Exception: {ex}")
+
+    def _pb_deselect_clicked(self):
+        self._table.clearSelection()
+
+    def _pb_duplicate_plan_clicked(self):
+        try:
+            self.queue_model.queue_item_copy_to_queue()
+        except Exception as ex:
+            print(f"Exception: {ex}")
+
+
+class QtRePlanQueue(QtReActiveQueue):
+
+    def __init__(self, model, parent=None):
+        self.queue_model = model.run_engine
+        super().__init__(model, parent=parent)
+        # Load time estimation functions
+
+        self.time_estimator = TimeEstimator(model)
+        self.signal_plan_queue_changed.connect(self._update_total_time_estimate)
+
+    def _create_buttons(self):
+        """Create buttons specific to plan queue."""
+        self._pb_move_up = PushButtonMinimumWidth("Up")
+        self._pb_move_down = PushButtonMinimumWidth("Down")
+        self._pb_move_to_top = PushButtonMinimumWidth("Top")
+        self._pb_move_to_bottom = PushButtonMinimumWidth("Bottom")
+        self._pb_delete_plan = PushButtonMinimumWidth("Delete")
+        self._pb_duplicate_plan = PushButtonMinimumWidth("Duplicate")
+        self._pb_clear_queue = PushButtonMinimumWidth("Clear")
+        self._pb_deselect = PushButtonMinimumWidth("Deselect")
+        self._pb_loop_on = PushButtonMinimumWidth("Loop")
+        self._pb_loop_on.setCheckable(True)
+
+        self._pb_move_up.clicked.connect(self._pb_move_up_clicked)
+        self._pb_move_down.clicked.connect(self._pb_move_down_clicked)
+        self._pb_move_to_top.clicked.connect(self._pb_move_to_top_clicked)
+        self._pb_move_to_bottom.clicked.connect(self._pb_move_to_bottom_clicked)
+        self._pb_delete_plan.clicked.connect(self._pb_delete_plan_clicked)
+        self._pb_duplicate_plan.clicked.connect(self._pb_duplicate_plan_clicked)
+        self._pb_clear_queue.clicked.connect(self._pb_clear_queue_clicked)
+        self._pb_deselect.clicked.connect(self._pb_deselect_clicked)
+        self._pb_loop_on.clicked.connect(self._pb_loop_on_clicked)
+
+    def _create_layout(self):
+        # Add total time estimate label
+        self._total_time_label = QLabel("Total Est. Time: --")
+        self._total_time_label.setStyleSheet("QLabel { color: gray; }")
+        print("DEBUG: QtRePlanQueue - creating layout")
+        self._group_box = QGroupBox("Plan Queue")
+        vbox = QVBoxLayout()
+
+        header_hbox = QHBoxLayout()
+
+        label_vbox = QVBoxLayout()
+        label_vbox.addWidget(QLabel("QUEUE"))
+        label_vbox.addWidget(self._total_time_label)
+
+        header_hbox.addLayout(label_vbox)
+        header_hbox.addStretch(1)
+
+        button_vbox = QVBoxLayout()
+        hbox = QHBoxLayout()
+        hbox.addWidget(self._pb_move_up)
+        hbox.addWidget(self._pb_move_down)
+        hbox.addWidget(self._pb_move_to_top)
+        hbox.addWidget(self._pb_move_to_bottom)
+        hbox.addStretch(1)
+        hbox.addWidget(self._pb_deselect)
+        hbox.addWidget(self._pb_clear_queue)
+        hbox.addStretch(1)
+        hbox.addWidget(self._pb_loop_on)
+        hbox.addStretch(1)
+        hbox.addWidget(self._pb_delete_plan)
+        hbox.addWidget(self._pb_duplicate_plan)
+
+        button_vbox.addLayout(hbox)
+
+        header_hbox.addLayout(button_vbox)
+        vbox.addLayout(header_hbox)
+        vbox.addWidget(self._table)
+        self.setLayout(vbox)
+
+    def get_table_column_labels(self):
+        """Get the column labels for the table. Override in subclasses."""
+        return ("", "Name", "Parameters", "USER", "GROUP", "Est. Time")
+
+    def _update_total_time_estimate(self, plan_queue_items, selected_item_uids):
+        """Update the total time estimate display"""
+        try:
+            estimate = self.time_estimator.calculate_queue_time(plan_queue_items)
+
+            if estimate is not None:
+                time_str = self.time_estimator.format_time_estimate(estimate)
+                self._total_time_label.setText(f"Total Est. Time: {time_str}")
+                self._total_time_label.setStyleSheet("QLabel { color: black; }")
+            else:
+                self._total_time_label.setText("Total Est. Time: --")
+                self._total_time_label.setStyleSheet("QLabel { color: gray; }")
+
+        except Exception as e:
+            print(f"[QtRePlanQueue] Error updating total time estimate: {e}")
+            self._total_time_label.setText("Total Est. Time: --")
 
     def _update_button_states(self):
         is_connected = bool(self.run_engine.re_manager_connected)
@@ -439,307 +643,39 @@ class QtRePlanQueue(QWidget):
         self._pb_delete_plan.setEnabled(is_connected and not mon and is_sel)
         self._pb_duplicate_plan.setEnabled(is_connected and not mon and is_sel)
 
-    def on_vertical_scrollbar_value_changed(self, value):
-        max = self._table.verticalScrollBar().maximum()
-        self._table_scrolled_to_bottom = value == max
-
-    def on_vertical_scrollbar_range_changed(self, min, max):
-        if self._table_scrolled_to_bottom:
-            self._table.verticalScrollBar().setValue(max)
-
-    def on_table_drop_event(self, row, col):
-        # If the selected queue item is not in the table anymore (e.g. sent to execution),
-        #   then ignore the drop event, since the item can not be moved.
-        if self.run_engine.selected_queue_item_uids:
-            uid_ref_item = self.run_engine.queue_item_pos_to_uid(row)
+    def get_item_value_for_label(self, item, label):
+        if label == "Est. Time":
             try:
-                self.run_engine.queue_items_move_in_place_of(uid_ref_item)
-            except Exception as ex:
-                print(f"Exception: {ex}")
-
-        self._update_button_states()
-
-    def on_table_scroll_event(self, scroll_direction):
-        v = self._table.verticalScrollBar().value()
-        v_max = self._table.verticalScrollBar().maximum()
-        if scroll_direction == "up" and v > 0:
-            v_new = v - 1
-        elif scroll_direction == "down" and v < v_max:
-            v_new = v + 1
+                return self.time_estimator.format_time_estimate(
+                    self.time_estimator.calculate_plan_time(item)
+                )
+            except Exception as e:
+                print(f"[QtRePlanQueue] Error estimating plan time: {e}")
+                return "--"
         else:
-            v_new = v
-        if v != v_new:
-            self._table.verticalScrollBar().setValue(v_new)
-
-    def on_plan_queue_changed(self, event):
-        plan_queue_items = event.plan_queue_items
-        selected_item_uids = event.selected_item_uids
-        self.signal_plan_queue_changed.emit(plan_queue_items, selected_item_uids)
-
-    @Slot(object, object)
-    def slot_plan_queue_changed(self, plan_queue_items, selected_item_uids):
-        # Check if the vertical scroll bar is scrolled to the bottom. Ignore the case
-        #   when 'scroll_value==0': if the top plan is visible, it should remain visible
-        #   even if additional plans are added to the queue.
-        self._block_table_selection_processing = True
-
-        # Create local copy of the plan queue items for operations performed locally
-        #   within the widget without involving the model.
-        self._plan_queue_items = copy.deepcopy(plan_queue_items)
-
-        scroll_value = self._table.verticalScrollBar().value()
-        scroll_maximum = self._table.verticalScrollBar().maximum()
-        self._table_scrolled_to_bottom = scroll_value and (
-            scroll_value == scroll_maximum
-        )
-
-        self._table.clearContents()
-        self._table.setRowCount(len(plan_queue_items))
-
-        if len(plan_queue_items):
-            resize_mode = QHeaderView.ResizeToContents
-        else:
-            # Empty table, stretch the header
-            resize_mode = QHeaderView.Stretch
-        self._table.horizontalHeader().setSectionResizeMode(resize_mode)
-
-        for nr, item in enumerate(plan_queue_items):
-            for nc, col_name in enumerate(self._table_column_labels):
-                try:
-                    if col_name == "Est. Time":
-                        # Calculate time estimate for this plan
-                        plan_name = item.get("name")
-                        plan_args = item.get("kwargs", {})
-                        if "args" in item:
-                            plan_args["args"] = item["args"]
-
-                        estimate = self._calculate_time_estimate(plan_name, plan_args)
-                        value = self._format_time_estimate(estimate)
-                    else:
-                        value = self.run_engine.get_item_value_for_label(
-                            item=item, label=col_name
-                        )
-                except KeyError:
-                    value = ""
-                table_item = QTableWidgetItem(value)
-                table_item.setFlags(table_item.flags() & ~Qt.ItemIsEditable)
-                self._table.setItem(nr, nc, table_item)
-
-        # Update the number of table items
-        self._n_table_items = len(plan_queue_items)
-
-        # Update total time estimate
-        self._update_total_time_estimate()
-
-        # Advance scrollbar if the table is scrolled all the way down.
-        if self._table_scrolled_to_bottom:
-            scroll_maximum_new = self._table.verticalScrollBar().maximum()
-            self._table.verticalScrollBar().setValue(scroll_maximum_new)
-
-        self._block_table_selection_processing = False
-
-        self.slot_change_selection(selected_item_uids)
-        self._update_button_states()
-
-    def on_item_selection_changed(self):
-        """
-        The handler for ``item_selection_changed`` signal emitted by QTableWidget
-        """
-        if self._block_table_selection_processing:
-            return
-
-        sel_rows = self._table.selectionModel().selectedRows()
-        try:
-            if len(sel_rows) >= 1:
-                selected_item_pos = [_.row() for _ in sel_rows]
-                selected_item_uids = [
-                    self.run_engine.queue_item_pos_to_uid(_) for _ in selected_item_pos
-                ]
-                self.run_engine.selected_queue_item_uids = selected_item_uids
-                self._selected_items_pos = selected_item_pos
-            else:
-                raise Exception()
-        except Exception:
-            self.run_engine.selected_queue_item_uids = []
-            self._selected_items_pos = []
-
-    def on_queue_item_selection_changed(self, event):
-        """
-        The handler for the event generated by the model
-        """
-        selected_item_uids = event.selected_item_uids
-        self.signal_update_selection.emit(selected_item_uids)
-
-    @Slot(object)
-    def slot_change_selection(self, selected_item_uids):
-        rows = [self.run_engine.queue_item_uid_to_pos(_) for _ in selected_item_uids]
-
-        # Keep horizontal scroll value while the selection is changed (more consistent behavior)
-        scroll_value = self._table.horizontalScrollBar().value()
-
-        if not rows:
-            self._table.clearSelection()
-            self._selected_items_pos = []
-        else:
-            self._block_table_selection_processing = True
-            self._table.clearSelection()
-            for row in rows:
-                if self._table.currentRow() not in rows:
-                    self._table.setCurrentCell(rows[-1], 0)
-                for col in range(self._table.columnCount()):
-                    item = self._table.item(row, col)
-                    if item:
-                        item.setSelected(True)
-                    else:
-                        print(
-                            f"Plan Queue Table: attempting to select non-existing item: row={row} col={col}"
-                        )
-
-            row_visible = rows[-1]
-            item_visible = self._table.item(row_visible, 0)
-            self._table.scrollToItem(item_visible, QAbstractItemView.EnsureVisible)
-            self._block_table_selection_processing = False
-
-            self._selected_items_pos = rows
-
-        self._table.horizontalScrollBar().setValue(scroll_value)
-
-        self.run_engine.selected_queue_item_uids = selected_item_uids
-        self._update_button_states()
-
-    def _on_table_cell_double_clicked(self, n_row, n_col):
-        """
-        Double-clicking of an item of the table widget opens the item in Plan Editor.
-        """
-        # We use local copy of the queue here
-        try:
-            queue_item = self._plan_queue_items[n_row]
-        except IndexError:
-            queue_item = None
-        registered_editors = self.registered_item_editors
-
-        # Do nothing if item is not found or there are no registered editors
-        if not queue_item or not registered_editors:
-            return
-
-        item_accepted = False
-        for editor_activator in registered_editors:
             try:
-                item_accepted = editor_activator(queue_item)
-            except Exception:
-                print(f"Editor failed to start for the item {queue_item['name']}")
-
-            if item_accepted:
-                break
-
-        if not item_accepted:
-            print(f"Item {queue_item['name']!r} was rejected by all registered editors")
-
-    def _pb_move_up_clicked(self):
-        try:
-            self.run_engine.queue_items_move_up()
-        except Exception as ex:
-            print(f"Exception: {ex}")
-
-    def _pb_move_down_clicked(self):
-        try:
-            self.run_engine.queue_items_move_down()
-        except Exception as ex:
-            print(f"Exception: {ex}")
-
-    def _pb_move_to_top_clicked(self):
-        try:
-            self.run_engine.queue_items_move_to_top()
-        except Exception as ex:
-            print(f"Exception: {ex}")
-
-    def _pb_move_to_bottom_clicked(self):
-        try:
-            self.run_engine.queue_items_move_to_bottom()
-        except Exception as ex:
-            print(f"Exception: {ex}")
-
-    def _pb_delete_plan_clicked(self):
-        try:
-            self.run_engine.queue_items_remove()
-        except Exception as ex:
-            print(f"Exception: {ex}")
-
-    def _pb_clear_queue_clicked(self):
-        try:
-            self.run_engine.queue_clear()
-        except Exception as ex:
-            print(f"Exception: {ex}")
-
-    def _pb_deselect_clicked(self):
-        self._table.clearSelection()
+                return self.queue_model.get_item_value_for_label(item=item, label=label)
+            except Exception as e:
+                print(f"[QtRePlanQueue] Error getting item value for label: {e}")
+                return ""
 
     def _pb_loop_on_clicked(self):
         loop_enable = self._pb_loop_on.isChecked()
         try:
-            self.run_engine.queue_mode_loop_enable(loop_enable)
-        except Exception as ex:
-            print(f"Exception: {ex}")
-
-    def _pb_duplicate_plan_clicked(self):
-        try:
-            self.run_engine.queue_item_copy_to_queue()
+            self.queue_model.queue_mode_loop_enable(loop_enable)
         except Exception as ex:
             print(f"Exception: {ex}")
 
 
-class QtRePlanHistory(QWidget):
-    signal_update_widgets = Signal()
-    signal_update_selection = Signal(object)
+class QtRePlanHistory(BaseQueueWidget):
     signal_plan_history_changed = Signal(object, object)
 
     def __init__(self, model, parent=None):
-        super().__init__(parent)
-        self.run_engine = model.run_engine
-        self.model = model
-        self._monitor_mode = False
+        print("DEBUG: QtRePlanHistory - __init__")
+        super().__init__(model, parent=parent)
 
         # Set True to block processing of table selection change events
         self._block_table_selection_processing = False
-
-        self._table_column_labels = (
-            "",
-            "Name",
-            "STATUS",
-            "Parameters",
-            "USER",
-            "GROUP",
-        )
-        self._table = QueueTableWidget()
-        self._table.setColumnCount(len(self._table_column_labels))
-        # self._table.verticalHeader().hide()
-        self._table.setHorizontalHeaderLabels(self._table_column_labels)
-        self._table.horizontalHeader().setSectionsMovable(True)
-
-        self._table.setVerticalScrollMode(QAbstractItemView.ScrollPerItem)
-        self._table.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
-
-        self._table.setSelectionBehavior(QTableView.SelectRows)
-        self._table.setSelectionMode(QTableWidget.ContiguousSelection)
-        self._table.setShowGrid(True)
-        self._table.setAlternatingRowColors(True)
-
-        # Prevents horizontal autoscrolling when clicking on an item (column) that
-        # doesn't fit horizontally the displayed view of the table (annoying behavior)
-        self._table.setAutoScroll(False)
-
-        self._table.horizontalHeader().setDefaultAlignment(Qt.AlignLeft)
-        self._table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        self._table.horizontalHeader().setStretchLastSection(True)
-        self._table.horizontalHeader().setMinimumSectionSize(5)
-
-        self._table_scrolled_to_bottom = False
-        # self._table_slider_is_pressed = False
-
-        # The following parameters are used only to control widget state (e.g. activate/deactivate
-        #   buttons), not to perform real operations.
-        self._n_table_items = 0  # The number of items in the table
-        self._selected_items_pos = []  # Selected items (table rows)
 
         self._pb_copy_to_queue = PushButtonMinimumWidth("Copy to Queue")
         self._pb_deselect_all = PushButtonMinimumWidth("Deselect All")
@@ -749,6 +685,7 @@ class QtRePlanHistory(QWidget):
         self._pb_deselect_all.clicked.connect(self._pb_deselect_all_clicked)
         self._pb_clear_history.clicked.connect(self._pb_clear_history_clicked)
 
+        print("DEBUG: QtRePlanHistory - creating layout")
         vbox = QVBoxLayout()
         hbox = QHBoxLayout()
         hbox.addWidget(QLabel("HISTORY"))
@@ -760,7 +697,7 @@ class QtRePlanHistory(QWidget):
         vbox.addLayout(hbox)
         vbox.addWidget(self._table)
         self.setLayout(vbox)
-
+        print("DEBUG: QtRePlanHistory - connecting signals")
         self.run_engine.events.status_changed.connect(self.on_update_widgets)
         self.signal_update_widgets.connect(self.slot_update_widgets)
 
@@ -784,14 +721,13 @@ class QtRePlanHistory(QWidget):
         self._table.cellDoubleClicked.connect(self._on_table_cell_double_clicked)
 
         self._update_button_states()
+        print("DEBUG: QtRePlanHistory - __init__ done")
 
-    @property
-    def monitor_mode(self):
-        return self._monitor_mode
+    def get_table_column_labels(self):
+        """Get the column labels for the table. Override in subclasses."""
+        return ("", "Name", "STATUS", "Parameters", "USER", "GROUP")
 
-    @monitor_mode.setter
-    def monitor_mode(self, monitor):
-        self._monitor_mode = bool(monitor)
+    def _update_widgets(self):
         self._update_button_states()
 
     def on_vertical_scrollbar_value_changed(self, value):
@@ -802,11 +738,8 @@ class QtRePlanHistory(QWidget):
         if self._table_scrolled_to_bottom:
             self._table.verticalScrollBar().setValue(max)
 
-    def on_update_widgets(self, event):
-        self.signal_update_widgets.emit()
-
-    @Slot()
-    def slot_update_widgets(self):
+    @Slot(bool)
+    def slot_update_widgets(self, is_connected):
         self._update_button_states()
 
     def _update_button_states(self):
@@ -835,6 +768,8 @@ class QtRePlanHistory(QWidget):
 
         self._table.clearContents()
         self._table.setRowCount(len(plan_history_items))
+
+        self._table.set_plan_queue_items(plan_history_items)
 
         if len(plan_history_items):
             resize_mode = QHeaderView.ResizeToContents

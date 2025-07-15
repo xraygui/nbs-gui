@@ -14,7 +14,7 @@ from qtpy.QtWidgets import (
 from ..plans.planLoaders import PlanLoaderWidgetBase
 from ..plans.base import PlanWidgetBase
 from qtpy.QtCore import Signal
-from nbs_gui.plans.timeEstimators import load_time_estimators
+from nbs_gui.widgets.timeEstimators import load_time_estimators
 
 
 class PlanSubmissionWidget(QWidget):
