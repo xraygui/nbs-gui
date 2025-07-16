@@ -51,14 +51,6 @@ class VariableStepParam(ParamGroupBase, QWidget):
     def add_param_pair(self):
         # print("Adding Param Pair")
         index = (len(self.params) + 1) // 2
-        stop = LineEditParam(
-            f"stop_{index}",
-            float,
-            f"Stop {index}",
-            f"Motor endpoint {index}",
-            self,
-        )
-        stop.label_text = f"Stop {index}"
         step = LineEditParam(
             f"step_{index}",
             float,
@@ -67,9 +59,18 @@ class VariableStepParam(ParamGroupBase, QWidget):
             self,
         )
         step.label_text = f"Step {index}"
-        super().add_param(stop)
+        stop = LineEditParam(
+            f"stop_{index}",
+            float,
+            f"Stop {index}",
+            f"Motor endpoint {index}",
+            self,
+        )
+        stop.label_text = f"Stop {index}"
+
         super().add_param(step)
-        for param in [stop, step]:
+        super().add_param(stop)
+        for param in [step, stop]:
             param_layout = QVBoxLayout()
             label = QLabel(param.label_text)
             param_layout.addWidget(label)
@@ -103,6 +104,7 @@ class VariableStepParam(ParamGroupBase, QWidget):
             # Disable minus button if we're down to one pair
             if len(self.params) == 3:
                 self.minus_button.setEnabled(False)
+        self.editingFinished.emit()
 
     def get_params(self):
         params = {}
