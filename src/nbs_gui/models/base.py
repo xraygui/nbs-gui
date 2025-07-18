@@ -213,8 +213,8 @@ def requires_connection(func, default_value=None):
             print(
                 f"[{self.name}.{func.__name__}] Device {self.name} not connected for {func.__name__}"
             )
-            # Let _check_connection handle reconnection logic
-            self._check_connection()
+            # Schedule reconnection instead of immediate check to prevent blocking
+            self._schedule_reconnection()
             print(
                 f"[{self.name}.{func.__name__}] returning default value {default_value}"
             )
@@ -224,10 +224,10 @@ def requires_connection(func, default_value=None):
             return func(self, *args, **kwargs)
         except CONNECTION_ERRORS as e:
             print(
-                f"[{self.name}.{func.__name__}] Connection status  was {self.connected}, Connection error: {e}"
+                f"[{self.name}.{func.__name__}] Connection status was {self.connected}, Connection error: {e}"
             )
-            # Let _check_connection handle reconnection logic
-            self._check_connection()
+            # Schedule reconnection instead of immediate check to prevent blocking
+            self._schedule_reconnection()
             return default_value
 
     return wrapper
@@ -252,6 +252,8 @@ class BaseModel(QWidget, ModeManagedModel):
         self._reconnection_timer = QTimer()
         self._reconnection_timer.timeout.connect(self._check_connection)
         self._reconnection_timer.setSingleShot(True)
+        self._reconnection_scheduled = False  # Track if reconnection is scheduled
+        self._reconnection_attempts = 0  # Count attempts since last connection
         self._uninitialized_methods = set()
         # Set common attributes
         for key, value in kwargs.items():
@@ -261,8 +263,37 @@ class BaseModel(QWidget, ModeManagedModel):
         # to avoid calling derived class _initialize methods before they're ready
         BaseModel._initialize(self)
 
+        # Connect connection status changes to timer management
+        self.connectionStatusChanged.connect(self._handle_connection_change)
+
         self.destroyed.connect(lambda: self._cleanup)
         self.units = None
+
+    def _stop_timers(self):
+        """Stop all timers when device becomes disconnected."""
+        # Override in subclasses to stop specific timers
+        pass
+
+    def _start_timers(self):
+        """Start all timers when device becomes reconnected."""
+        # Override in subclasses to start specific timers
+        pass
+
+    def _handle_connection_change(self, connected):
+        """
+        Handle connection status changes by stopping/starting timers.
+
+        Parameters
+        ----------
+        connected : bool
+            Whether the device is now connected
+        """
+        if connected:
+            print(f"[{self.name}] Device connected, starting timers")
+            self._start_timers()
+        else:
+            print(f"[{self.name}] Device disconnected, stopping timers")
+            self._stop_timers()
 
     @property
     def initialized(self):
@@ -296,11 +327,29 @@ class BaseModel(QWidget, ModeManagedModel):
             self.connectionStatusChanged.emit(False)
             print(f"Connection error for {self.name} {context}: {error}")
 
+    def _schedule_reconnection(self):
+        """
+        Schedule a reconnection attempt if not already scheduled.
+        This prevents multiple simultaneous reconnection requests.
+        Uses exponential backoff: 10s * attempts, capped at 60s.
+        """
+        if not self._reconnection_scheduled and not self._reconnection_timer.isActive():
+            # Calculate backoff delay: 10s * attempts, capped at 60s
+            delay = min(10000 * (self._reconnection_attempts + 1), 60000)
+            print(
+                f"Starting reconnection timer for {self.name} (attempt {self._reconnection_attempts + 1}, delay: {delay/1000:.1f}s)"
+            )
+            self._reconnection_scheduled = True
+            self._reconnection_timer.start(delay)
+
     def _check_connection(self, retry_on_failure=True):
         """
         Check connection and handle reconnection attempts.
         All connection checking and reconnection logic lives here.
         """
+        # Clear the scheduled flag since we're now doing the check
+        self._reconnection_scheduled = False
+
         try:
             if "wait_for_connection" in dir(self.obj):
                 print(f"[{self.name}._check_connection] Waiting for connection")
@@ -314,6 +363,7 @@ class BaseModel(QWidget, ModeManagedModel):
             print(f"[{self.name}._check_connection] Error: {e}")
             connected = False
         print(f"[{self.name}._check_connection] Connected: {connected}")
+
         # Update connection state if changed
         if connected != self._connected:
             # If we aren't initialized, we can't be considered fully connected
@@ -325,11 +375,17 @@ class BaseModel(QWidget, ModeManagedModel):
                 self._connected = connected_and_initialized
                 self.connectionStatusChanged.emit(self._connected)
 
+            # Reset reconnection attempts on successful connection
+            if connected:
+                self._reconnection_attempts = 0
+                print(
+                    f"[{self.name}] Connection restored, resetting reconnection attempts"
+                )
+
             # If we're now connected, try initialization
             if not connected and retry_on_failure:
-                if not self._reconnection_timer.isActive():
-                    print(f"Starting reconnection timer for {self.name}")
-                    self._reconnection_timer.start(60000)
+                self._reconnection_attempts += 1
+                self._schedule_reconnection()
 
         return connected
 

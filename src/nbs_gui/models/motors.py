@@ -41,6 +41,32 @@ class BaseMotorModel(PVModel):
     movingStatusChanged = Signal(bool)
     setpointChanged = Signal(object)
 
+    def _stop_timers(self):
+        """Stop all timers when device becomes disconnected."""
+        # Override in subclasses to stop specific timers
+        pass
+
+    def _start_timers(self):
+        """Start all timers when device becomes reconnected."""
+        # Override in subclasses to start specific timers
+        pass
+
+    def _handle_connection_change(self, connected):
+        """
+        Handle connection status changes by stopping/starting timers.
+
+        Parameters
+        ----------
+        connected : bool
+            Whether the device is now connected
+        """
+        if connected:
+            print(f"[{self.name}] Device connected, starting timers")
+            self._start_timers()
+        else:
+            print(f"[{self.name}] Device disconnected, stopping timers")
+            self._stop_timers()
+
     @property
     def moving(self):
         return self._moving
@@ -74,11 +100,24 @@ class EPICSMotorModel(BaseMotorModel):
         super().__init__(name, obj, group, long_name, **kwargs)
         self.units = None
         self._obj_setpoint = None
+        self._obj_readback = None
         self._setpoint = None
         self._position = None
         self._moving = False
         self.checkValueTimer = QTimer(self)
         EPICSMotorModel._initialize(self)
+
+    def _stop_timers(self):
+        """Stop all timers when device becomes disconnected."""
+        if self.checkValueTimer.isActive():
+            self.checkValueTimer.stop()
+            print(f"[{self.name}] Stopped checkValueTimer")
+
+    def _start_timers(self):
+        """Start all timers when device becomes reconnected."""
+        if not self.checkValueTimer.isActive():
+            self.checkValueTimer.start()
+            print(f"[{self.name}] Started checkValueTimer")
 
     @initialize_with_retry
     def _initialize(self):
@@ -98,6 +137,13 @@ class EPICSMotorModel(BaseMotorModel):
         else:
             # print(f"Using obj for {self.name}._obj_setpoint")
             self._obj_setpoint = self.obj
+
+        if hasattr(self.obj, "user_readback"):
+            self._obj_readback = self.obj.user_readback
+        elif hasattr(self.obj, "readback"):
+            self._obj_readback = self.obj.readback
+        else:
+            self._obj_readback = self.obj
 
         if hasattr(self._obj_setpoint, "metadata"):
             self.units = self._obj_setpoint.metadata.get("units", None)
@@ -125,6 +171,7 @@ class EPICSMotorModel(BaseMotorModel):
         self._moving = value
         self.movingStatusChanged.emit(value)
 
+    @requires_connection
     def _check_value(self):
         """
         Override base class to handle readback value checking for EPICS motors.
@@ -143,16 +190,9 @@ class EPICSMotorModel(BaseMotorModel):
             elif new_sp != self._setpoint:
                 self._setpoint = new_sp
                 self.setpointChanged.emit(self._setpoint)
-            if value is not None:
-                self.checkValueTimer.setInterval(1000)
-                # self.checkValueTimer.start()
-            else:
-                self.checkValueTimer.setInterval(8000)
-                # self.checkValueTimer.start()
+            # Timer interval is managed by connection status now
         except (TypeError, ValueError) as e:
             self._handle_connection_error(e, "checking value")
-            self.checkValueTimer.setInterval(8000)
-            # self.checkValueTimer.start()
 
     @property
     def setpoint(self):
@@ -160,7 +200,13 @@ class EPICSMotorModel(BaseMotorModel):
 
     @requires_connection
     def _get_position(self):
-        return self.obj.position
+        try:
+            return self._obj_readback.get(connection_timeout=0.2)
+        except Exception as e:
+            print(
+                f"[EPICSMotorModel._get_position] Error getting position for {self.name}: {e}, using None"
+            )
+            raise e
 
     @requires_connection
     def _get_setpoint(self):
@@ -193,6 +239,30 @@ class PVPositionerModel(BaseMotorModel):
         self.checkValueTimer = QTimer(self)
         print(f"[{name}.__init__] about to call _initialize")
         PVPositionerModel._initialize(self)
+
+    def _stop_timers(self):
+        """Stop all timers when device becomes disconnected."""
+        if self.checkSPTimer.isActive():
+            self.checkSPTimer.stop()
+            print(f"[{self.name}] Stopped checkSPTimer")
+        if self.checkMovingTimer.isActive():
+            self.checkMovingTimer.stop()
+            print(f"[{self.name}] Stopped checkMovingTimer")
+        if self.checkValueTimer.isActive():
+            self.checkValueTimer.stop()
+            print(f"[{self.name}] Stopped checkValueTimer")
+
+    def _start_timers(self):
+        """Start all timers when device becomes reconnected."""
+        if not self.checkSPTimer.isActive():
+            self.checkSPTimer.start()
+            print(f"[{self.name}] Started checkSPTimer")
+        if not self.checkMovingTimer.isActive():
+            self.checkMovingTimer.start()
+            print(f"[{self.name}] Started checkMovingTimer")
+        if not self.checkValueTimer.isActive():
+            self.checkValueTimer.start()
+            print(f"[{self.name}] Started checkValueTimer")
 
     @initialize_with_retry
     def _initialize(self):
@@ -254,16 +324,19 @@ class PVPositionerModel(BaseMotorModel):
     @requires_connection
     def _get_position(self):
         try:
-            return self._obj_readback.get(timeout=0.2)
+            return self._obj_readback.get(timeout=0.2, connection_timeout=0.2)
         except Exception as e:
-            print(f"Error getting position for {self.name}: {e}, using None")
-            return None
+            print(
+                f"[PVPositionerModel._get_position] Error getting position for {self.name}: {e}, using None"
+            )
+            raise e
 
     @property
     def setpoint(self):
         """Get the current setpoint."""
         return self._setpoint
 
+    @requires_connection
     def _check_value(self):
         """
         Override base class to handle readback value checking for positioners.
@@ -272,13 +345,9 @@ class PVPositionerModel(BaseMotorModel):
         value = self.position
         self._value_changed(value)
         # print(f"[{self.name}] check_value: {value}")
-        if value is not None:
-            self.checkValueTimer.setInterval(1000)
-            # self.checkValueTimer.start()
-        else:
-            self.checkValueTimer.setInterval(8000)
-            # self.checkValueTimer.start()
+        # Timer interval is managed by connection status now
 
+    @requires_connection
     def _check_setpoint(self):
         """
         For pseudo-motors, we track both the target (where we want to go)
@@ -318,10 +387,9 @@ class PVPositionerModel(BaseMotorModel):
 
                     self.setpointChanged.emit(self.setpoint)
 
-            self.checkSPTimer.setInterval(2000)
+            # Timer interval is managed by connection status now
         except (TypeError, ValueError, AttributeError) as e:
             self._handle_connection_error(e, "checking setpoint")
-            self.checkSPTimer.setInterval(10000)
         # print(f"[{self.name}] done getting sp")
 
     @requires_connection
@@ -333,9 +401,10 @@ class PVPositionerModel(BaseMotorModel):
         # print(f"[{self.name}] getting move status")
         moving = self._check_moving()
         if moving is not None:
-            self.checkMovingTimer.setInterval(1000)
+            # Timer interval is managed by connection status now
+            pass
         else:
-            self.checkMovingTimer.setInterval(10000)
+            # Timer interval is managed by connection status now
             return
 
         if moving != self._moving and isinstance(moving, bool):
@@ -367,6 +436,8 @@ class PseudoSingleModel(PVPositionerModel):
 
         For pseudoaxes we need to check the connection of the parent object
         """
+        # Clear the scheduled flag since we're now doing the check
+        self._reconnection_scheduled = False
 
         try:
             if "wait_for_connection" in dir(self.obj.parent):
@@ -381,16 +452,29 @@ class PseudoSingleModel(PVPositionerModel):
             print(f"[{self.name}._check_connection] Error: {e}")
             connected = False
         print(f"[{self.name}._check_connection] Connected: {connected}")
+
         # Update connection state if changed
         if connected != self._connected:
-            self._connected = connected
-            self.connectionStatusChanged.emit(connected)
+            # If we aren't initialized, we can't be considered fully connected
+            # so we only emit the signal if we are both connected and initialized
+            # we still need to return the connected status so that initialization
+            # can happen
+            connected_and_initialized = connected and self.initialized
+            if self._connected != connected_and_initialized:
+                self._connected = connected_and_initialized
+                self.connectionStatusChanged.emit(self._connected)
+
+            # Reset reconnection attempts on successful connection
+            if connected:
+                self._reconnection_attempts = 0
+                print(
+                    f"[{self.name}] Connection restored, resetting reconnection attempts"
+                )
 
             # If we're now connected, try initialization
             if not connected and retry_on_failure:
-                if not self._reconnection_timer.isActive():
-                    print(f"Starting reconnection timer for {self.name}")
-                    self._reconnection_timer.start(60000)
+                self._reconnection_attempts += 1
+                self._schedule_reconnection()
 
         return connected
 
