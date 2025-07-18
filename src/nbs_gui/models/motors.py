@@ -336,8 +336,9 @@ class PVPositionerModel(BaseMotorModel):
             self.checkMovingTimer.setInterval(1000)
         else:
             self.checkMovingTimer.setInterval(10000)
+            return
 
-        if moving != self._moving:
+        if moving != self._moving and isinstance(moving, bool):
             self.movingStatusChanged.emit(moving)
             self._moving = moving
         # print(f"[{self.name}] Done getting move status, {moving}")
