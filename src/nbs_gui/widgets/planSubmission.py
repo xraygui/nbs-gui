@@ -13,23 +13,20 @@ from qtpy.QtWidgets import (
 )
 from ..plans.planLoaders import PlanLoaderWidgetBase
 from ..plans.base import PlanWidgetBase
-from qtpy.QtCore import Signal
+from qtpy.QtCore import Signal, QObject
 from nbs_gui.widgets.timeEstimators import TimeEstimator
 
 
-class PlanSubmissionWidget(QWidget):
+# Concepts of a plan submission model
+class PlanSubmissionBase(QWidget):
     def __init__(self, model, parent=None):
         super().__init__(parent)
-        print("[PlanSubmission] Initializing widget")
         self.model = model
         self.run_engine_client = model.run_engine
         self.user_status = model.user_status
         self.action_dict = {}
-        config = model.settings.gui_config
-
-        # Load time estimation functions
         self.time_estimator = TimeEstimator(model)
-
+        config = model.settings.gui_config
         plans_to_include = config.get("gui", {}).get("plans", {}).get("include", [])
         plans_to_exclude = config.get("gui", {}).get("plans", {}).get("exclude", [])
         explicit_inclusion = len(plans_to_include) > 0
@@ -64,20 +61,19 @@ class PlanSubmissionWidget(QWidget):
                     self.action_dict[display_name] = plan_widget
 
         print(f"[PlanSubmission] Loaded {len(self.action_dict)} plan widgets")
-        self.action_widget = QStackedWidget(self)
+        self.setup_submission_buttons()
+        self.setup_ui()
 
+    def setup_submission_buttons(self):
+        pass
+
+    def setup_ui(self):
+        self.action_widget = QStackedWidget(self)
         # Create and add the action selection combo box
         self.action_label = QLabel("Plan Type Selection", self)
         self.action_selection = QComboBox(self)
-        self.submit_button = QPushButton("Add to Queue", self)
-        self.submit_button.clicked.connect(self.submit_plan)
-        self.submit_button.setEnabled(False)
-        self.staging_button = QPushButton("Add to Staging", self)
-        self.staging_button.clicked.connect(self.stage_plan)
-        self.staging_button.setEnabled(False)
         self.reset_button = QPushButton("Reset", self)
         self.reset_button.clicked.connect(self.reset_plan)
-
         # Add time estimation label
         self.time_estimate_label = QLabel("Time Estimate: --", self)
         self.time_estimate_label.setStyleSheet("QLabel { color: gray; }")
@@ -91,8 +87,8 @@ class PlanSubmissionWidget(QWidget):
         h = QHBoxLayout()
         h.addWidget(self.action_label)
         h.addWidget(self.action_selection)
-        h.addWidget(self.submit_button)
-        h.addWidget(self.staging_button)
+        for button in self.submission_buttons:
+            h.addWidget(button)
         h.addWidget(self.reset_button)
         h.addWidget(self.time_estimate_label)
         self.layout.addLayout(h)
@@ -158,10 +154,8 @@ class PlanSubmissionWidget(QWidget):
             self.current_widget, PlanWidgetBase
         ):
             try:
-                self.current_widget.plan_ready.disconnect(self.submit_button.setEnabled)
-                self.current_widget.plan_ready.disconnect(
-                    self.staging_button.setEnabled
-                )
+                for button in self.submission_buttons:
+                    self.current_widget.plan_ready.disconnect(button.setEnabled)
                 self.current_widget.plan_ready.disconnect(self._update_time_estimate)
                 self.current_widget.editingFinished.disconnect(
                     self._update_time_estimate
@@ -172,14 +166,30 @@ class PlanSubmissionWidget(QWidget):
         # Connect new widget
         self.current_widget = self.action_widget.widget(index)
         if isinstance(self.current_widget, PlanWidgetBase):
-            self.current_widget.plan_ready.connect(self.submit_button.setEnabled)
-            self.current_widget.plan_ready.connect(self.staging_button.setEnabled)
+            for button in self.submission_buttons:
+                self.current_widget.plan_ready.connect(button.setEnabled)
             self.current_widget.plan_ready.connect(self._update_time_estimate)
             self.current_widget.editingFinished.connect(self._update_time_estimate)
         else:
             print("[PlanSubmission] Current widget is not a PlanWidgetBase")
 
         self.current_widget.check_plan_ready()
+
+    def reset_plan(self):
+        selected_widget = self.action_widget.currentWidget()
+        selected_widget.reset()
+
+
+class PlanSubmissionWidget(PlanSubmissionBase):
+
+    def setup_submission_buttons(self):
+        self.submit_button = QPushButton("Add to Queue", self)
+        self.submit_button.clicked.connect(self.submit_plan)
+        self.submit_button.setEnabled(False)
+        self.staging_button = QPushButton("Add to Staging", self)
+        self.staging_button.clicked.connect(self.stage_plan)
+        self.staging_button.setEnabled(False)
+        self.submission_buttons = [self.submit_button, self.staging_button]
 
     def submit_plan(self):
         selected_widget = self.action_widget.currentWidget()
@@ -188,10 +198,6 @@ class PlanSubmissionWidget(QWidget):
     def stage_plan(self):
         selected_widget = self.action_widget.currentWidget()
         selected_widget.stage_all_plans()
-
-    def reset_plan(self):
-        selected_widget = self.action_widget.currentWidget()
-        selected_widget.reset()
 
 
 class PlanLoadWidget(QWidget):

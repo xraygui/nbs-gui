@@ -302,21 +302,21 @@ class MotorParam(DynamicComboParam):
     def __init__(self, key, label, user_status, parent=None):
         super().__init__(key, label, dummy_text="Select a group", parent=parent)
         self.user_status = user_status
-        self.user_status.register_signal(
-            "MOTORS_DESCRIPTIONS", self.signal_update_options
-        )
+
         self.motors = {}
         self.groups = defaultdict(list)
 
         # Main group selector
-        self.group_combo = self.input_widget
-        self.group_combo.currentTextChanged.connect(self.update_submotor_list)
+        self.input_widget.currentTextChanged.connect(self.update_submotor_list)
 
         # Sub-motor selector
         self.submotor_combo = QComboBox()
         self.submotor_combo.setEnabled(False)
 
         self.layout.addWidget(self.submotor_combo)
+        self.user_status.register_signal(
+            "MOTORS_DESCRIPTIONS", self.signal_update_options
+        )
 
     def _group_motors(self, motor_dict):
         """Group motors based on prefix before underscore."""
@@ -350,9 +350,9 @@ class MotorParam(DynamicComboParam):
         self.groups = self._group_motors(inverted_dict)
 
         # Update group combo box
-        self.group_combo.clear()
-        self.group_combo.addItem("Select a motor")
-        self.group_combo.addItems(sorted(self.groups.keys()))
+        self.input_widget.clear()
+        self.input_widget.addItem("Select a motor")
+        self.input_widget.addItems(sorted(self.groups.keys()))
 
     def update_submotor_list(self, group_name):
         """Update the submotor combo box based on selected group."""
@@ -373,7 +373,7 @@ class MotorParam(DynamicComboParam):
 
     def get_params(self):
         """Get the selected motor parameter."""
-        group = self.group_combo.currentText()
+        group = self.input_widget.currentText()
         if group == "Select a motor":
             return {}
 

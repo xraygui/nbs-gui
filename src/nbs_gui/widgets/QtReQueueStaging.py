@@ -18,8 +18,11 @@ from .QtRePlanQueueBase import QtReActiveQueue
 
 class QtReQueueStaging(QtReActiveQueue):
 
-    def __init__(self, model, parent=None):
-        self.queue_model = model.queue_staging
+    def __init__(self, model, queue_model=None, parent=None):
+        if queue_model is None:
+            self.queue_model = model.queue_staging
+        else:
+            self.queue_model = queue_model
 
         print("DEBUG: QtReQueueStaging - __init__")
         super().__init__(model, parent=parent)

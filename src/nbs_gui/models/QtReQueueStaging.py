@@ -443,6 +443,17 @@ class QueueStagingModel(QObject):
         if sel_items:
             self.queue_item_add_batch(items=sel_items)
 
+    def _create_queue_item(self, item):
+        if hasattr(item, "to_dict") and callable(item.to_dict):
+            item = item.to_dict()
+        new_item = copy.deepcopy(item)
+        new_item["item_uid"] = str(uuid.uuid4())
+
+        # Add user information
+        new_item["user"] = "GUI Client"
+        new_item["user_group"] = "primary"
+        return new_item
+
     def queue_item_add(self, *, item, params=None):
         """
         Add item to queue. The new item is inserted after the selected item or to the back of the queue
@@ -456,8 +467,6 @@ class QueueStagingModel(QObject):
             Optional parameters to override default behavior
         """
         # Convert BPlan or similar objects to dict
-        if hasattr(item, "to_dict") and callable(item.to_dict):
-            item = item.to_dict()
 
         if self._selected_queue_item_uids:
             # Insert after the last item in the selected batch
@@ -475,13 +484,7 @@ class QueueStagingModel(QObject):
                 params = {"after_uid": sel_item_uid}
 
         # Create a copy of the item and assign a new UID
-        new_item = copy.deepcopy(item)
-        new_item["item_uid"] = str(uuid.uuid4())
-
-        # Add user information
-        new_item["user"] = "GUI Client"
-        new_item["user_group"] = "primary"
-
+        new_item = self._create_queue_item(item)
         # Insert the item
         if "after_uid" in params:
             after_uid = params["after_uid"]
@@ -553,10 +556,7 @@ class QueueStagingModel(QObject):
         # Create copies of items and assign new UIDs
         new_items = []
         for item in items:
-            new_item = copy.deepcopy(item)
-            new_item["item_uid"] = str(uuid.uuid4())
-            new_item["user"] = "GUI Client"
-            new_item["user_group"] = "primary"
+            new_item = self._create_queue_item(item)
             new_items.append(new_item)
 
         # Insert the items
