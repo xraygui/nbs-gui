@@ -129,20 +129,41 @@ class TextEditParam(BaseParam):
 
 class ComboBoxParam(BaseParam):
     def __init__(self, key, options, label, help_text="", parent=None, default=None):
+        print(
+            f"Setting up ComboBoxParam with {key}, {options}, {label}, {help_text}, {parent}, {default}"
+        )
         super().__init__(key, label, help_text, parent)
+        # print(f"Done setting up ComboBoxParam super init {self.label_text}")
         self.input_widget = ScrollingComboBox(max_visible_items=10)
+        # print("Adding widget to layout")
         self.layout.addWidget(self.input_widget)
+        # print("Done adding widget to layout")
+        self.default = default
+        # print(f"Before update_options for ComboBoxParam {self.label_text} to {options}")
+        self._update_options(options)
+        # print(f"Done updating options for ComboBoxParam {self.label_text}")
 
+    def _update_options(self, options):
         # Store original values and their string representations
+        # print(f"Updating options for ComboBoxParam {self.label_text} to {options}")
         self.options = options
-        self.options_map = {str(val): val for val in options}
 
+        if isinstance(options, dict):
+            self.options_map = options
+        elif isinstance(options, list):
+            self.options_map = {str(val): val for val in options}
+        elif options is None:
+            self.options_map = {}
+        else:
+            raise ValueError(
+                f"Unsupported options type for ComboBoxParam {self.label_text}: {type(options)}"
+            )
         # Add string representations to combo box
         self.input_widget.addItems([opt for opt in self.options_map.keys()])
         self.input_widget.currentIndexChanged.connect(self.editingFinished.emit)
 
-        if default is not None and default in options:
-            self.input_widget.setCurrentText(str(default))
+        if self.default is not None and self.default in options:
+            self.input_widget.setCurrentText(str(self.default))
         else:
             self.input_widget.setCurrentIndex(-1)
 
@@ -265,10 +286,11 @@ class DynamicComboParam(ComboBoxParam):
     def __init__(
         self, key, label, dummy_text="Select an option", help_text="", parent=None
     ):
-        # print(f"Setting up DynamicComboParam with {key}, {label}, {help_text}, {parent}")
-
-        super().__init__(key, [], label, help_text, parent)
+        # print(
+        #     f"Setting up DynamicComboParam with {key}, {label}, {help_text}, {parent}"
+        # )
         self.dummy_text = dummy_text
+        super().__init__(key, [], label, help_text, parent)
         self.reset()
         self.signal_update_options.connect(self.update_options)
         # print("Done setting up DynamicComboParam")
@@ -278,18 +300,15 @@ class DynamicComboParam(ComboBoxParam):
         self.input_widget.addItem(self.dummy_text)
 
     def update_options(self, options):
-        current_text = self.input_widget.currentText()
-        self.input_widget.clear()
-        self.input_widget.addItem(self.dummy_text)
+        # print("Updating options for DynamicComboParam")
 
-        if isinstance(options, dict):
-            for key, value in options.items():
-                self.input_widget.addItem(str(key), value)
-        elif isinstance(options, list):
-            self.input_widget.addItems(options)
-
-        index = self.input_widget.findText(current_text)
-        self.input_widget.setCurrentIndex(index if index >= 0 else 0)
+        if self.input_widget.count() > 0:
+            current_text = self.input_widget.currentText()
+            self.default = current_text
+        else:
+            self.default = None
+        self.reset()
+        self._update_options(options)
 
     def get_params(self):
         return {} if self.input_widget.currentIndex() == 0 else super().get_params()
