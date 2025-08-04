@@ -64,6 +64,11 @@ class QueueTableWidget(QTableWidget):
         mime_data = QMimeData()
         json_data = json.dumps(plans).encode("utf-8")
         mime_data.setData("application/x-bluesky-plan", json_data)
+
+        # Add standard Qt MIME types for compatibility
+        mime_data.setData("application/x-qabstractitemmodeldatalist", json_data)
+        mime_data.setText(str(selected_rows))
+
         return mime_data
 
     def dropEvent(self, event):
@@ -75,21 +80,30 @@ class QueueTableWidget(QTableWidget):
                 index = self.rootIndex()
             row = index.row()
             col = index.column()
-
         self.signal_drop_event.emit(row, col)
+
+    def dragEnterEvent(self, event):
+        if event.source() == self:
+            event.acceptProposedAction()
+        else:
+            event.ignore()
 
     def dragMoveEvent(self, event):
         # 'rowHeight(0)' will return 0 if the table is empty,
         #    but we don't need to scroll the empty table
-        scroll_activation_area = int(self.rowHeight(0) / 2)
+        if event.source() == self:
+            event.acceptProposedAction()
+            scroll_activation_area = int(self.rowHeight(0) / 2)
 
-        y = event.pos().y()
-        if y < scroll_activation_area:
-            self.activate_scroll("up")
-        elif y > self.viewport().height() - scroll_activation_area:
-            self.activate_scroll("down")
+            y = event.pos().y()
+            if y < scroll_activation_area:
+                self.activate_scroll("up")
+            elif y > self.viewport().height() - scroll_activation_area:
+                self.activate_scroll("down")
+            else:
+                self.deactivate_scroll()
         else:
-            self.deactivate_scroll()
+            event.ignore()
 
     def dragLeaveEvent(self, event):
         self.deactivate_scroll()
@@ -141,7 +155,6 @@ class BaseQueueWidget(QWidget):
         self.run_engine = model.run_engine
         self.model = model
         self._monitor_mode = False
-        print("DEBUG: BaseQueueWidget - __init__")
         self._table_column_labels = self.get_table_column_labels()
         self._table = QueueTableWidget()
         self._table.setColumnCount(len(self._table_column_labels))
@@ -157,6 +170,7 @@ class BaseQueueWidget(QWidget):
         self._table.setDragEnabled(True)
         self._table.setAcceptDrops(True)
         self._table.setDropIndicatorShown(True)
+        # self._table.setDragDropMode(QAbstractItemView.InternalMove)
         self._table.setShowGrid(True)
 
         # Prevents horizontal autoscrolling when clicking on an item (column) that
@@ -176,7 +190,6 @@ class BaseQueueWidget(QWidget):
         #   buttons), not to perform real operations.
         self._n_table_items = 0  # The number of items in the table
         self._selected_items_pos = []  # Selected items (table rows)
-        print("DEBUG: BaseQueueWidget - __init__ done")
 
     def get_table_column_labels(self):
         """Get the column labels for the table. Override in subclasses."""
@@ -220,8 +233,6 @@ class QtReActiveQueue(BaseQueueWidget):
         self._update_widgets()
 
     def _connect_signals(self):
-        print("DEBUG: QtReActiveQueue - connecting signals")
-
         self.run_engine.events.status_changed.connect(self.on_update_widgets)
         self.signal_update_widgets.connect(self.slot_update_widgets)
 
@@ -249,9 +260,8 @@ class QtReActiveQueue(BaseQueueWidget):
         if is_connected is None:
             is_connected = bool(self.run_engine.re_manager_connected)
 
-        # Disable drops if there is no connection to RE Manager
-        enable_drops = is_connected and not self._monitor_mode
-        # print(f"DEBUG: QtRePlanQueue - enable_drops: {enable_drops}")
+        # Enable drag and drop for local reordering (only disable if in monitor mode)
+        enable_drops = True
         self._table.setDragEnabled(enable_drops)
         self._table.setAcceptDrops(enable_drops)
 
@@ -413,7 +423,10 @@ class QtReActiveQueue(BaseQueueWidget):
                 except KeyError:
                     value = ""
                 table_item = QTableWidgetItem(value)
-                table_item.setFlags(table_item.flags() & ~Qt.ItemIsEditable)
+                # Make items draggable but not editable
+                table_item.setFlags(
+                    Qt.ItemIsEnabled | Qt.ItemIsSelectable | Qt.ItemIsDragEnabled
+                )
                 self._table.setItem(nr, nc, table_item)
 
         # Update the number of table items
@@ -554,7 +567,6 @@ class QtRePlanQueue(QtReActiveQueue):
         # Add total time estimate label
         self._total_time_label = QLabel("Total Est. Time: --")
         self._total_time_label.setStyleSheet("QLabel { color: gray; }")
-        print("DEBUG: QtRePlanQueue - creating layout")
         self._group_box = QGroupBox("Plan Queue")
         vbox = QVBoxLayout()
 
@@ -671,7 +683,6 @@ class QtRePlanHistory(BaseQueueWidget):
     signal_plan_history_changed = Signal(object, object)
 
     def __init__(self, model, parent=None):
-        print("DEBUG: QtRePlanHistory - __init__")
         super().__init__(model, parent=parent)
 
         # Set True to block processing of table selection change events
@@ -685,7 +696,6 @@ class QtRePlanHistory(BaseQueueWidget):
         self._pb_deselect_all.clicked.connect(self._pb_deselect_all_clicked)
         self._pb_clear_history.clicked.connect(self._pb_clear_history_clicked)
 
-        print("DEBUG: QtRePlanHistory - creating layout")
         vbox = QVBoxLayout()
         hbox = QHBoxLayout()
         hbox.addWidget(QLabel("HISTORY"))
@@ -697,7 +707,6 @@ class QtRePlanHistory(BaseQueueWidget):
         vbox.addLayout(hbox)
         vbox.addWidget(self._table)
         self.setLayout(vbox)
-        print("DEBUG: QtRePlanHistory - connecting signals")
         self.run_engine.events.status_changed.connect(self.on_update_widgets)
         self.signal_update_widgets.connect(self.slot_update_widgets)
 
@@ -721,7 +730,6 @@ class QtRePlanHistory(BaseQueueWidget):
         self._table.cellDoubleClicked.connect(self._on_table_cell_double_clicked)
 
         self._update_button_states()
-        print("DEBUG: QtRePlanHistory - __init__ done")
 
     def get_table_column_labels(self):
         """Get the column labels for the table. Override in subclasses."""
@@ -787,7 +795,10 @@ class QtRePlanHistory(BaseQueueWidget):
                 except KeyError:
                     value = ""
                 table_item = QTableWidgetItem(value)
-                table_item.setFlags(table_item.flags() & ~Qt.ItemIsEditable)
+                # Make items draggable but not editable
+                table_item.setFlags(
+                    Qt.ItemIsEnabled | Qt.ItemIsSelectable | Qt.ItemIsDragEnabled
+                )
                 self._table.setItem(nr, nc, table_item)
 
         # Update the number of table items
