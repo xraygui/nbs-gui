@@ -13,7 +13,7 @@ from qtpy.QtWidgets import (
 )
 from nbs_gui.plans.base import PlanWidgetBase
 from nbs_gui.plans.durationMetaPlan import DurationMetaPlan
-from nbs_gui.plans.conditionMetaPlan import ConditionMetaPlan
+from nbs_gui.plans.conditionMetaPlan import ConditionMetaPlan, UntilConditionMetaPlan
 
 
 class MetaPlanSubmissionWidget(QWidget):
@@ -78,10 +78,15 @@ class MetaPlanSubmissionWidget(QWidget):
         duration_widget = DurationMetaPlan(self.model, self)
         self.action_dict[duration_widget.display_name] = duration_widget
 
-        # Condition-based meta-plan
+        # Condition-based meta-plan (while condition)
         print("[MetaPlanSubmission] Creating condition meta-plan widget")
         condition_widget = ConditionMetaPlan(self.model, self)
         self.action_dict[condition_widget.display_name] = condition_widget
+
+        # Condition-based meta-plan (until condition)
+        print("[MetaPlanSubmission] Creating until condition meta-plan widget")
+        until_condition_widget = UntilConditionMetaPlan(self.model, self)
+        self.action_dict[until_condition_widget.display_name] = until_condition_widget
 
     def on_action_selection_changed(self, index):
         """Handler for action selection changes."""

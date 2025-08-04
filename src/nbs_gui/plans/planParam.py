@@ -150,7 +150,7 @@ class ComboBoxParam(BaseParam):
 
         if isinstance(options, dict):
             self.options_map = options
-        elif isinstance(options, list):
+        elif isinstance(options, (list, tuple)):
             self.options_map = {str(val): val for val in options}
         elif options is None:
             self.options_map = {}

@@ -21,7 +21,7 @@ from qtpy.QtWidgets import (
 )
 from qtpy.QtCore import Qt, Signal, Slot
 from qtpy.QtGui import QBrush, QColor
-
+from .qt_custom import ScrollingComboBox
 from bluesky_queueserver import construct_parameters, format_text_descriptions
 
 """
@@ -735,7 +735,7 @@ class _QtReEditor(QWidget):
         self._grp_item_type.addButton(self._rb_item_plan)
         self._grp_item_type.addButton(self._rb_item_instruction)
 
-        self._combo_item_list = QComboBox()
+        self._combo_item_list = ScrollingComboBox()
         self._combo_item_list.setSizeAdjustPolicy(QComboBox.AdjustToContents)
         # self._combo_item_list.setSizePolicy(QComboBox.AdjustToContents)
         self._combo_item_list.currentIndexChanged.connect(

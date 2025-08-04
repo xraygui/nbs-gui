@@ -27,9 +27,10 @@ class MetaPlanBase(PlanWidgetBase):
     - Converting plans to the required format for meta-plans
     """
 
-    def __init__(self, model, parent=None):
+    def __init__(self, model, plan_name, parent=None):
         super().__init__(model, parent)
         self.staged_plans = []  # Plans loaded from staging queue
+        self.plan_name = plan_name
         self.setup_common_ui()
         self.setup_plan_ui()
 
