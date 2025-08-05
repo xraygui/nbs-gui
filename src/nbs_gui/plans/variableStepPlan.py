@@ -149,7 +149,7 @@ class VariableStepWidget(NBSPlanWidget):
             layout_style=2,
         )
         self.scan_widget.add_param(VariableStepParam(self))
-        # print("Variable Scan Initialized")
+        print("Variable Scan Initialized")
 
     def check_plan_ready(self):
         params = self.get_params()

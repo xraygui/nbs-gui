@@ -261,7 +261,7 @@ class QtReActiveQueue(BaseQueueWidget):
             is_connected = bool(self.run_engine.re_manager_connected)
 
         # Enable drag and drop for local reordering (only disable if in monitor mode)
-        enable_drops = True
+        enable_drops = is_connected and not self._monitor_mode
         self._table.setDragEnabled(enable_drops)
         self._table.setAcceptDrops(enable_drops)
 

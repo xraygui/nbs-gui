@@ -71,7 +71,7 @@ class ConditionMetaPlan(MetaPlanBase):
 
         # Create stacked widget for condition parameters
         self.condition_params_stack = QStackedWidget()
-        self.condition_params_stack.setMinimumHeight(100)
+        self.condition_params_stack.setMinimumHeight(30)  # Start with minimal height
 
         # Add a placeholder widget
         placeholder = QLabel("Select a condition to configure its parameters")
@@ -95,8 +95,9 @@ class ConditionMetaPlan(MetaPlanBase):
         condition = condition_params.get("condition", "")
 
         if not condition:
-            # No condition selected, show placeholder
+            # No condition selected, show placeholder with minimal height
             self.condition_params_stack.setCurrentIndex(0)
+            self.condition_params_stack.setMinimumHeight(30)
             return
 
         # Check if we already have a widget for this condition
@@ -104,6 +105,9 @@ class ConditionMetaPlan(MetaPlanBase):
             widget = self.condition_params_stack.widget(i)
             if hasattr(widget, "plan_name") and widget.plan_name == condition:
                 self.condition_params_stack.setCurrentIndex(i)
+                # Set height based on the widget's requirements
+                required_height = widget.get_required_height()
+                self.condition_params_stack.setMinimumHeight(required_height)
                 return
 
         # Create new AutoPlanWidget for this condition
@@ -115,6 +119,10 @@ class ConditionMetaPlan(MetaPlanBase):
 
         self.condition_params_stack.addWidget(condition_widget)
         self.condition_params_stack.setCurrentWidget(condition_widget)
+
+        # Set height based on the widget's requirements
+        required_height = condition_widget.get_required_height()
+        self.condition_params_stack.setMinimumHeight(required_height)
 
     def check_plan_parameters(self):
         """Check if the condition parameters are ready."""

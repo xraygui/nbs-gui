@@ -6,6 +6,9 @@ from nbs_gui.plans.planParam import AutoParamGroup
 from nbs_gui.plans.base import PlanWidgetBase
 from bluesky_queueserver import construct_parameters
 import inspect
+from qtpy.QtWidgets import QSizePolicy
+from qtpy.QtCore import Slot, Signal
+from typing import Union, get_origin, get_args
 
 
 class AutoPlanWidget(PlanWidgetBase):
@@ -17,83 +20,101 @@ class AutoPlanWidget(PlanWidgetBase):
     Can be used standalone or as a parameter generator for meta-plans.
     """
 
+    signal_update_widgets = Signal()
+
     def __init__(self, model, plan_name, parent=None, title=None):
         super().__init__(model, parent)
         self.plan_name = plan_name
         self.title = title or f"Plan: {plan_name}"
         self.param_group = None
-        self.plan_parameters = None
+        self.parameters = []
+        self.raw_parameters = {}
 
-        self.setup_ui()
+        # Set size policy to allow expansion
+        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
+
         self.load_plan_parameters()
+        self.setup_widget()
+        self.run_engine_client.events.status_changed.connect(self.on_update_widgets)
+        self.signal_update_widgets.connect(self.slot_update_widgets)
 
-    def setup_ui(self):
-        """Set up the basic UI structure using existing layout."""
-        # Create parameter group using existing layout
-        self.param_group = AutoParamGroup(self.model, self, title=self.title)
-        self.layout.addWidget(self.param_group)
+    @Slot()
+    def slot_update_widgets(self):
+        if self.run_engine_client.re_manager_connected:
+            self.load_plan_parameters()
+            self.setup_widget()
 
-        # Connect parameter changes to plan ready signal
-        self.param_group.editingFinished.connect(self.check_plan_ready)
+    def on_update_widgets(self, event):
+        self.signal_update_widgets.emit()
 
     def load_plan_parameters(self):
         """Load and introspect plan parameters from the model."""
-        if not self.plan_name:
-            return
 
         try:
             # Get plan parameters using the same method as plan editor
-            self.plan_parameters = self.model.run_engine.get_allowed_plan_parameters(
+            is_connected = bool(self.run_engine_client.re_manager_connected)
+            if not is_connected:
+                print("Not connected to RE Manager")
+                return
+            self.raw_parameters = self.run_engine_client.get_allowed_plan_parameters(
                 name=self.plan_name
             )
-
-            if self.plan_parameters and "parameters" in self.plan_parameters:
-                self._build_parameter_widgets()
-            else:
-                # Fallback: create a simple text parameter
-                self._build_fallback_widget()
+            self.parameters = construct_parameters(
+                self.raw_parameters.get("parameters", {})
+            )
+            # print(f"Plan parameters: {self.parameters}")
 
         except Exception as e:
+            self.parameters = []
+            self.raw_parameters = {}
             print(f"Error loading plan parameters for {self.plan_name}: {e}")
-            self._build_fallback_widget()
 
-    def _build_parameter_widgets(self):
+    def setup_widget(self):
         """Build parameter widgets based on introspected parameters."""
-        if not self.param_group:
-            return
-
         # Clear existing parameters by recreating the param group
-        self.layout.removeWidget(self.param_group)
-        self.param_group.deleteLater()
+        if self.param_group:
+            self.layout.removeWidget(self.param_group)
+            self.param_group.deleteLater()
 
         self.param_group = AutoParamGroup(self.model, self, title=self.title)
         self.layout.addWidget(self.param_group)
         self.param_group.editingFinished.connect(self.check_plan_ready)
 
-        # Use the same parameter construction as plan editor
-        parameters = self.plan_parameters.get("parameters", {})
-
-        # Use construct_parameters to get proper parameter objects
-        param_objects = construct_parameters(parameters)
-
         # Create AutoParamGroup parameters from parameter objects
-        for p in param_objects:
+        for p in self.parameters:
             param_config = self._convert_parameter_to_config(p)
-            self.param_group.auto_param(p.name, param_config, p.name)
+            self.param_group.add_auto_param(p.name, param_config, p.name)
 
     def _convert_parameter_to_config(self, param):
         """Convert inspect.Parameter to AutoParamGroup configuration."""
-        # Default to text input
-        config = {"type": "text"}
+        # Default to no type specification (will use LineEditParam for strings)
+        config = {}
+        param_types = []
 
         # Try to infer type from annotation or default
         if param.annotation != inspect.Parameter.empty:
-            if param.annotation == int:
-                config = {"type": "spinbox", "args": {"value_type": int}}
-            elif param.annotation == float:
+            origin = get_origin(param.annotation)
+            if origin is not None:
+                # This is a generic type - check if it's a Union
+                if origin == Union:
+                    # Extract all non-None types from Union
+                    args = get_args(param.annotation)
+                    param_types = [arg for arg in args if arg is not type(None)]
+                else:
+                    # Handle other generic types if needed
+                    pass
+            else:
+                # Direct type annotation (not a generic)
+                param_types = [param.annotation]
+
+            # Set config based on param_types (check most restrictive first)
+            if float in param_types:
                 config = {"type": "spinbox", "args": {"value_type": float}}
-            elif param.annotation == bool:
+            elif int in param_types:
+                config = {"type": "spinbox", "args": {"value_type": int}}
+            elif bool in param_types:
                 config = {"type": "boolean"}
+            # For str annotation, don't specify type - will use LineEditParam by default
 
         # Add default value if available
         if param.default != inspect.Parameter.empty:
@@ -104,39 +125,41 @@ class AutoPlanWidget(PlanWidgetBase):
 
         return config
 
-    def _build_fallback_widget(self):
-        """Build a fallback widget when parameter introspection fails."""
-        if not self.param_group:
-            return
-
-        # Clear existing parameters by recreating the param group
-        self.layout.removeWidget(self.param_group)
-        self.param_group.deleteLater()
-
-        self.param_group = AutoParamGroup(self.model, self, title=self.title)
-        self.layout.addWidget(self.param_group)
-        self.param_group.editingFinished.connect(self.check_plan_ready)
-
-        # Create a simple text parameter for manual entry
-        self.param_group.auto_param(
-            "args",
-            {"type": "text", "help_text": "Plan arguments (comma-separated)"},
-            "Arguments",
-        )
-        self.param_group.auto_param(
-            "kwargs",
-            {
-                "type": "text",
-                "help_text": "Plan keyword arguments (key=value, comma-separated)",
-            },
-            "Keyword Arguments",
-        )
-
     def get_params(self):
         """Get the current parameter values."""
         if self.param_group:
             return self.param_group.get_params()
         return {}
+
+    def get_required_height(self):
+        """
+        Calculate the height needed based on number and types of parameters.
+
+        Returns
+        -------
+        int
+            Required height in pixels: 30px base + variable height per parameter
+        """
+        if not self.param_group:
+            return 30  # Minimum height for empty widget
+
+        # Count parameters and calculate height based on types
+        total_height = 30  # base height
+
+        for p in self.parameters:
+            param_config = self._convert_parameter_to_config(p)
+            param_type = param_config.get("type", "")
+
+            # AutoPlanWidget strings have no param_type, so they use LineEditParam (30px)
+            # Only explicit "text" or "multiline_text" types use TextEditParam (150px)
+            if param_type in ["text", "multiline_text"]:
+                total_height += 150  # TextEditParam needs more space
+            else:
+                total_height += (
+                    30  # Single-line inputs (LineEditParam, spinbox, combo, etc.)
+                )
+
+        return total_height
 
     def _check_ready(self):
         """Check if the plan is ready to be submitted."""
@@ -151,15 +174,6 @@ class AutoPlanWidget(PlanWidgetBase):
         """Reset all parameters to default values."""
         if self.param_group:
             self.param_group.reset()
-        self.check_plan_ready()
-
-    def update_plan_name(self, plan_name):
-        """Update the plan name and reload parameters."""
-        self.plan_name = plan_name
-        self.title = f"Plan: {plan_name}"
-        if self.param_group:
-            self.param_group.setTitle(self.title)
-        self.load_plan_parameters()
         self.check_plan_ready()
 
     def create_plan_items(self):

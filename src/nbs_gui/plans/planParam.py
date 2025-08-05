@@ -1,6 +1,5 @@
 from qtpy.QtWidgets import (
     QWidget,
-    QVBoxLayout,
     QComboBox,
     QLineEdit,
     QHBoxLayout,
@@ -12,7 +11,7 @@ from qtpy.QtWidgets import (
     QTextEdit,
 )
 from qtpy.QtGui import QDoubleValidator, QIntValidator
-from qtpy.QtCore import Signal, Qt
+from qtpy.QtCore import Signal
 from typing import Any
 from collections import defaultdict
 from ..widgets.qt_custom import ScrollingComboBox
@@ -517,9 +516,12 @@ class AutoParamGroup(ParamGroup):
                 label_str = key
                 param_info = value
             # print(f"Making AutoParam for {key}:{label_str}")
-            input_widget = self.auto_param(key, param_info, label_str)
-            self.add_param(input_widget)
+            self.add_auto_param(key, param_info, label_str)
             # print(f"Added AutoParam for {key}:{label_str}")
+
+    def add_auto_param(self, key: str, value: Any, label: str):
+        input_widget = self.auto_param(key, value, label)
+        self.add_param(input_widget)
 
     def auto_param(self, key: str, value: Any, label: str) -> BaseParam:
         if isinstance(value, dict):
@@ -550,6 +552,8 @@ class AutoParamGroup(ParamGroup):
                     default=value.get("default", None),
                 )
             elif param_type == "text":
+                return TextEditParam(key, label, help_text=help_text)
+            elif param_type == "multiline_text":
                 return TextEditParam(key, label, help_text=help_text)
             else:
                 return LineEditParam(key, param_type, label, help_text=help_text)
