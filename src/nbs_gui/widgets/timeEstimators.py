@@ -1,4 +1,4 @@
-import pkg_resources
+from importlib.metadata import entry_points
 
 
 def load_time_estimators():
@@ -24,9 +24,7 @@ def load_time_estimators():
         # Load additional estimators from entry points
         try:
 
-            for entry_point in pkg_resources.iter_entry_points(
-                "nbs_bl.time_estimators"
-            ):
+            for entry_point in entry_points(group="nbs_bl.time_estimators"):
                 estimator = entry_point.load()
                 if callable(estimator):
                     time_estimators[entry_point.name] = estimator

@@ -1,4 +1,3 @@
-import pkg_resources
 from qtpy.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -15,6 +14,7 @@ from ..plans.planLoaders import PlanLoaderWidgetBase
 from ..plans.base import PlanWidgetBase
 from qtpy.QtCore import Signal, QObject
 from nbs_gui.widgets.timeEstimators import TimeEstimator
+from importlib.metadata import entry_points
 
 
 # Concepts of a plan submission model
@@ -31,7 +31,7 @@ class PlanSubmissionBase(QWidget):
         plans_to_exclude = config.get("gui", {}).get("plans", {}).get("exclude", [])
         explicit_inclusion = len(plans_to_include) > 0
 
-        plans = pkg_resources.iter_entry_points("nbs_gui.plans")
+        plans = entry_points(group="nbs_gui.plans")
         print("[PlanSubmission] Loading plan entry points")
         for plan_entry_point in plans:
             if explicit_inclusion:
@@ -219,7 +219,7 @@ class PlanLoadWidget(QWidget):
         )
         explicit_inclusion = len(plans_to_include) > 0
 
-        plans = pkg_resources.iter_entry_points("nbs_gui.plan_loaders")
+        plans = entry_points(group="nbs_gui.plan_loaders")
         # Need to load only desired plans from config file!
         for plan_entry_point in plans:
             if explicit_inclusion:

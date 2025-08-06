@@ -1,5 +1,5 @@
 from qtpy.QtWidgets import QTabWidget
-import pkg_resources
+from importlib.metadata import entry_points
 from .settings import SETTINGS
 
 
@@ -18,7 +18,7 @@ class TabViewer(QTabWidget):
 
         explicit_inclusion = len(tabs_to_include) > 0
         self.tab_dict = {}
-        tabs = pkg_resources.iter_entry_points("nbs_gui.tabs")
+        tabs = entry_points(group="nbs_gui.tabs")
         for tab_entry_point in tabs:
             # Call the modifier function with model and self (as parent) to get the QWidget
             if explicit_inclusion:
