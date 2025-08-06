@@ -6,7 +6,7 @@ from .mainWidget import TabViewer
 from .confEdit import ConfigEditor
 from qtpy.QtWidgets import QVBoxLayout, QWidget, QAction
 
-import pkg_resources
+from importlib.metadata import entry_points
 
 
 class MainWindow(Window):
@@ -108,7 +108,7 @@ class MainWindow(Window):
     @staticmethod
     def load_header_from_entrypoint(entrypoint_name):
         """Load the header widget from an entry point"""
-        for entry_point in pkg_resources.iter_entry_points(group="nbs_gui.widgets"):
+        for entry_point in entry_points(group="nbs_gui.widgets"):
             if entry_point.name == entrypoint_name:
                 return entry_point.load()
         return Header

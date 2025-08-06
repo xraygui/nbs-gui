@@ -120,12 +120,25 @@ class QtReQueueControls(QWidget):
             )
 
     def _pb_queue_exec_one_clicked(self):
+        if self.model.re_manager_status.get("manager_state", None) != "idle":
+            QMessageBox.critical(
+                self,
+                "Queue Control Error",
+                "RE Manager is not idle. Please stop the queue before executing one plan.",
+                QMessageBox.Ok,
+            )
+            return
         try:
             resp = self.model._client.item_remove(pos="front")
             if resp["success"]:
                 self.model._client.item_execute(resp["item"])
         except Exception as ex:
-            print(f"Exception: {ex}")
+            QMessageBox.critical(
+                self,
+                "Queue Control Error",
+                f"Failed to execute one plan: {str(ex)}",
+                QMessageBox.Ok,
+            )
 
     def _cb_queue_autostart_state_changed(self, state):
         try:

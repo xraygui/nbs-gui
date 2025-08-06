@@ -4,6 +4,7 @@ from .queueControl import QtReQueueControls, QtReStatusMonitor
 from .serverControl import QueueServerControls
 from .planControl import PlanControls
 from ..views.motor import BeamlineMotorBars
+from ..views.status import StatusBox
 
 
 class MinimalHeader(QWidget):
@@ -33,6 +34,7 @@ class MinimalHeader(QWidget):
         # vbox.addLayout(hbox)
         layout.addLayout(vbox)
         running_plan = QtReRunningPlan(self.model.run_engine)
+
         layout.addWidget(running_plan)
 
         self.setLayout(layout)
@@ -67,5 +69,9 @@ class Header(QWidget):
         layout.addWidget(BeamlineMotorBars(self.model))
         running_plan = QtReRunningPlan(self.model.run_engine)
         layout.addWidget(running_plan)
+        plan_status = StatusBox(
+            self.model.user_status, "Plan Status", "PLAN_STATUS", ["status"]
+        )
+        layout.addWidget(plan_status)
 
         self.setLayout(layout)

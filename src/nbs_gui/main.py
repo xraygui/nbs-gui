@@ -134,20 +134,32 @@ def main(argv=None):
     SETTINGS.beamline_config_file = join(profile_dir, "beamline.toml")
 
     if exists(SETTINGS.gui_config_file):
-        with open(SETTINGS.gui_config_file, "r") as config_file:
-            SETTINGS.gui_config = toml.load(config_file)
+        try:
+            with open(SETTINGS.gui_config_file, "r") as config_file:
+                SETTINGS.gui_config = toml.load(config_file)
+        except Exception as e:
+            print(f"Error loading {SETTINGS.gui_config_file}:\n {e}")
+            raise e
     else:
         SETTINGS.gui_config = {}
 
     if not args.no_devices and exists(SETTINGS.object_config_file):
-        with open(SETTINGS.object_config_file, "r") as config_file:
-            SETTINGS.object_config = toml.load(config_file)
+        try:
+            with open(SETTINGS.object_config_file, "r") as config_file:
+                SETTINGS.object_config = toml.load(config_file)
+        except Exception as e:
+            print(f"Error loading {SETTINGS.object_config_file}:\n {e}")
+            raise e
     else:
         SETTINGS.object_config = {}
 
     if exists(SETTINGS.beamline_config_file):
-        with open(SETTINGS.beamline_config_file, "r") as config_file:
-            SETTINGS.beamline_config = toml.load(config_file)
+        try:
+            with open(SETTINGS.beamline_config_file, "r") as config_file:
+                SETTINGS.beamline_config = toml.load(config_file)
+        except Exception as e:
+            print(f"Error loading {SETTINGS.beamline_config_file}:\n {e}")
+            raise e
     else:
         SETTINGS.beamline_config = {}
 
