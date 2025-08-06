@@ -1,5 +1,5 @@
 from qtpy.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QSizePolicy
-from bluesky_widgets.qt.run_engine_client import QtReRunningPlan
+from .QtReRunningPlan import QtReRunningPlan
 from .queueControl import QtReQueueControls, QtReStatusMonitor
 from .serverControl import QueueServerControls
 from .planControl import PlanControls
@@ -33,7 +33,7 @@ class MinimalHeader(QWidget):
 
         # vbox.addLayout(hbox)
         layout.addLayout(vbox)
-        running_plan = QtReRunningPlan(self.model.run_engine)
+        running_plan = QtReRunningPlan(self.model)
 
         layout.addWidget(running_plan)
 
@@ -67,7 +67,7 @@ class Header(QWidget):
         # vbox.addLayout(hbox)
         layout.addLayout(vbox)
         layout.addWidget(BeamlineMotorBars(self.model))
-        running_plan = QtReRunningPlan(self.model.run_engine)
+        running_plan = QtReRunningPlan(self.model)
         layout.addWidget(running_plan)
 
         self.setLayout(layout)
