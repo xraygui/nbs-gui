@@ -1,12 +1,7 @@
-from qtpy.QtWidgets import (
-    QWidget,
-    QPushButton,
-    QVBoxLayout,
-    QHBoxLayout,
-    QLabel,
-    QGroupBox,
-)
-from qtpy.QtCore import Signal, Slot, Qt
+from qtpy.QtWidgets import QWidget, QPushButton, QGroupBox, QVBoxLayout, QMessageBox
+from qtpy.QtCore import Signal, Slot
+from qtpy.QtCore import Qt
+import time
 
 
 class QueueServerControls(QWidget):
@@ -25,13 +20,16 @@ class QueueServerControls(QWidget):
         # self._lb_status = QLabel("OFFLINE")
         self._pb_connect = QPushButton("Connect")
         self._pb_env = QPushButton("Open")
+        self._pb_destroy = QPushButton("Destroy")
 
-        # Disable environment button initially
+        # Disable environment and destroy buttons initially
         self._pb_env.setEnabled(False)
+        self._pb_destroy.setEnabled(False)
 
         # Connect signals
         self._pb_connect.clicked.connect(self._pb_connect_clicked)
         self._pb_env.clicked.connect(self._pb_env_clicked)
+        self._pb_destroy.clicked.connect(self._pb_destroy_clicked)
 
         # Create layout
         self._group_box = QGroupBox("Queue Server")
@@ -39,6 +37,7 @@ class QueueServerControls(QWidget):
         # vbox.addWidget(self._lb_status, alignment=Qt.AlignHCenter)
         vbox.addWidget(self._pb_connect)
         vbox.addWidget(self._pb_env)
+        vbox.addWidget(self._pb_destroy)
         self._group_box.setLayout(vbox)
 
         outer_vbox = QVBoxLayout()
@@ -84,6 +83,9 @@ class QueueServerControls(QWidget):
             self._pb_env.setText("Open")
             self._pb_env.setEnabled(is_connected and manager_state == "idle")
 
+        # Destroy button is always enabled when connected
+        self._pb_destroy.setEnabled(is_connected)
+
     def _pb_connect_clicked(self):
         """Handle connect/disconnect button clicks"""
         if not self.updates_activated:
@@ -106,6 +108,57 @@ class QueueServerControls(QWidget):
                 self.model.environment_close()
         except Exception as ex:
             print(f"Exception: {ex}")
+
+    def _pb_destroy_clicked(self):
+        """Handle destroy environment button clicks"""
+        # Show confirmation dialog
+        msg_box = QMessageBox()
+        msg_box.setIcon(QMessageBox.Warning)
+        msg_box.setWindowTitle("Confirm Environment Destruction")
+        msg_box.setText("Are you sure you want to destroy the RE Worker environment?")
+        msg_box.setInformativeText(
+            "This action will forcefully terminate the environment and may result "
+            "in data loss. This should only be used when the environment is "
+            "frozen or unresponsive."
+        )
+        msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        msg_box.setDefaultButton(QMessageBox.No)
+
+        if msg_box.exec() == QMessageBox.Yes:
+            try:
+                # Work around upstream bug: copy environment_destroy logic here
+                # Check if RE Worker environment already exists and RE manager is idle.
+                self.model.load_re_manager_status()
+                status = self.model.re_manager_status
+                if not status["worker_environment_exists"]:
+                    raise RuntimeError("RE Worker environment does not exist")
+
+                # Initiate destruction of RE Worker environment
+                try:
+                    self.model._client.environment_destroy()
+                except Exception as ex:
+                    raise RuntimeError(
+                        f"Failed to destroy RE Worker environment: {ex}"
+                    ) from ex
+
+                # Wait for the environment to be destroyed.
+                t_stop = time.time() + 30  # 30 second timeout
+                while True:
+                    self.model.load_re_manager_status()
+                    status2 = self.model.re_manager_status
+                    if (
+                        not status2["worker_environment_exists"]
+                        and status2["manager_state"] == "idle"
+                    ):
+                        break
+                    if time.time() > t_stop:
+                        raise RuntimeError(
+                            "Failed to destroy RE Worker: timeout occurred"
+                        )
+                    time.sleep(0.5)
+
+            except Exception as ex:
+                print(f"Exception destroying environment: {ex}")
 
     def _start_thread(self):
         """Start the status update thread"""

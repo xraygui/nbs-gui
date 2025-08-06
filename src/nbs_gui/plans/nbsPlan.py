@@ -36,7 +36,7 @@ class NBSPlanWidget(BasicPlanWidget):
         self.scan_widget.editingFinished.connect(self.check_plan_ready)
 
         if self.plan_setup:
-            self.scan_modifier = ScanModifierParam(self)
+            self.scan_modifier = ScanModifierParam(self.model, self)
             self.params.append(self.scan_modifier)
         if self.beamline_setup:
             self.bl_modifier = BeamlineModifierParam(self.model, self)

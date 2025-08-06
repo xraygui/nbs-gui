@@ -6,7 +6,7 @@ import toml
 from bluesky_widgets.qt import gui_qt
 from .window import MainWindow
 from .model import ViewerModel
-from .settings import SETTINGS, get_ipython_startup_dir
+from .settings import SETTINGS, get_ipython_startup_dir, set_top_level_model
 
 
 def add_communication_args(parser):
@@ -97,6 +97,7 @@ def minimal(argv=None):
     SETTINGS.beamline_config = {}
     with gui_qt("Minimal NBS Queue Monitor"):
         model = ViewerModel()
+        set_top_level_model(model)
         viewer = MainWindow(model)  # noqa: 401
 
 
@@ -152,6 +153,7 @@ def main(argv=None):
 
     with gui_qt("NBS Queue Monitor"):
         model = ViewerModel()
+        set_top_level_model(model)
         viewer = MainWindow(model)  # noqa: 401
 
 

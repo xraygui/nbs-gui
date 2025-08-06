@@ -2,6 +2,7 @@
 
 from bluesky_widgets.models.run_engine_client import RunEngineClient
 from .models import UserStatus
+from .models.QtReQueueStaging import QueueStagingModel
 from nbs_core.autoconf import generate_device_config
 from nbs_core.autoload import simpleResolver
 
@@ -14,6 +15,7 @@ class ViewerModel:
     def __init__(self):
         print("Initializing ViewerModel")
         self.init_beamline()
+        self.init_queue_staging()
 
     def init_beamline(self):
         """Initialize beamline model and connections."""
@@ -57,3 +59,8 @@ class ViewerModel:
             self.beamline = None
 
         self.settings = SETTINGS
+
+    def init_queue_staging(self):
+        """Initialize queue staging model."""
+        print("Initializing Queue Staging")
+        self.queue_staging = QueueStagingModel(self.run_engine)

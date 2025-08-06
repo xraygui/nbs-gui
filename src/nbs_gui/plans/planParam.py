@@ -1,6 +1,5 @@
 from qtpy.QtWidgets import (
     QWidget,
-    QVBoxLayout,
     QComboBox,
     QLineEdit,
     QHBoxLayout,
@@ -12,7 +11,7 @@ from qtpy.QtWidgets import (
     QTextEdit,
 )
 from qtpy.QtGui import QDoubleValidator, QIntValidator
-from qtpy.QtCore import Signal, Qt
+from qtpy.QtCore import Signal
 from typing import Any
 from collections import defaultdict
 from ..widgets.qt_custom import ScrollingComboBox
@@ -129,20 +128,41 @@ class TextEditParam(BaseParam):
 
 class ComboBoxParam(BaseParam):
     def __init__(self, key, options, label, help_text="", parent=None, default=None):
+        print(
+            f"Setting up ComboBoxParam with {key}, {options}, {label}, {help_text}, {parent}, {default}"
+        )
         super().__init__(key, label, help_text, parent)
+        # print(f"Done setting up ComboBoxParam super init {self.label_text}")
         self.input_widget = ScrollingComboBox(max_visible_items=10)
+        # print("Adding widget to layout")
         self.layout.addWidget(self.input_widget)
+        # print("Done adding widget to layout")
+        self.default = default
+        # print(f"Before update_options for ComboBoxParam {self.label_text} to {options}")
+        self._update_options(options)
+        # print(f"Done updating options for ComboBoxParam {self.label_text}")
 
+    def _update_options(self, options):
         # Store original values and their string representations
+        # print(f"Updating options for ComboBoxParam {self.label_text} to {options}")
         self.options = options
-        self.options_map = {str(val): val for val in options}
 
+        if isinstance(options, dict):
+            self.options_map = options
+        elif isinstance(options, (list, tuple)):
+            self.options_map = {str(val): val for val in options}
+        elif options is None:
+            self.options_map = {}
+        else:
+            raise ValueError(
+                f"Unsupported options type for ComboBoxParam {self.label_text}: {type(options)}"
+            )
         # Add string representations to combo box
         self.input_widget.addItems([opt for opt in self.options_map.keys()])
         self.input_widget.currentIndexChanged.connect(self.editingFinished.emit)
 
-        if default is not None and default in options:
-            self.input_widget.setCurrentText(str(default))
+        if self.default is not None and self.default in options:
+            self.input_widget.setCurrentText(str(self.default))
         else:
             self.input_widget.setCurrentIndex(-1)
 
@@ -265,10 +285,11 @@ class DynamicComboParam(ComboBoxParam):
     def __init__(
         self, key, label, dummy_text="Select an option", help_text="", parent=None
     ):
-        # print(f"Setting up DynamicComboParam with {key}, {label}, {help_text}, {parent}")
-
-        super().__init__(key, [], label, help_text, parent)
+        # print(
+        #     f"Setting up DynamicComboParam with {key}, {label}, {help_text}, {parent}"
+        # )
         self.dummy_text = dummy_text
+        super().__init__(key, [], label, help_text, parent)
         self.reset()
         self.signal_update_options.connect(self.update_options)
         # print("Done setting up DynamicComboParam")
@@ -278,18 +299,15 @@ class DynamicComboParam(ComboBoxParam):
         self.input_widget.addItem(self.dummy_text)
 
     def update_options(self, options):
-        current_text = self.input_widget.currentText()
-        self.input_widget.clear()
-        self.input_widget.addItem(self.dummy_text)
+        # print("Updating options for DynamicComboParam")
 
-        if isinstance(options, dict):
-            for key, value in options.items():
-                self.input_widget.addItem(str(key), value)
-        elif isinstance(options, list):
-            self.input_widget.addItems(options)
-
-        index = self.input_widget.findText(current_text)
-        self.input_widget.setCurrentIndex(index if index >= 0 else 0)
+        if self.input_widget.count() > 0:
+            current_text = self.input_widget.currentText()
+            self.default = current_text
+        else:
+            self.default = None
+        self.reset()
+        self._update_options(options)
 
     def get_params(self):
         return {} if self.input_widget.currentIndex() == 0 else super().get_params()
@@ -302,21 +320,21 @@ class MotorParam(DynamicComboParam):
     def __init__(self, key, label, user_status, parent=None):
         super().__init__(key, label, dummy_text="Select a group", parent=parent)
         self.user_status = user_status
-        self.user_status.register_signal(
-            "MOTORS_DESCRIPTIONS", self.signal_update_options
-        )
+
         self.motors = {}
         self.groups = defaultdict(list)
 
         # Main group selector
-        self.group_combo = self.input_widget
-        self.group_combo.currentTextChanged.connect(self.update_submotor_list)
+        self.input_widget.currentTextChanged.connect(self.update_submotor_list)
 
         # Sub-motor selector
         self.submotor_combo = QComboBox()
         self.submotor_combo.setEnabled(False)
 
         self.layout.addWidget(self.submotor_combo)
+        self.user_status.register_signal(
+            "MOTORS_DESCRIPTIONS", self.signal_update_options
+        )
 
     def _group_motors(self, motor_dict):
         """Group motors based on prefix before underscore."""
@@ -350,9 +368,9 @@ class MotorParam(DynamicComboParam):
         self.groups = self._group_motors(inverted_dict)
 
         # Update group combo box
-        self.group_combo.clear()
-        self.group_combo.addItem("Select a motor")
-        self.group_combo.addItems(sorted(self.groups.keys()))
+        self.input_widget.clear()
+        self.input_widget.addItem("Select a motor")
+        self.input_widget.addItems(sorted(self.groups.keys()))
 
     def update_submotor_list(self, group_name):
         """Update the submotor combo box based on selected group."""
@@ -373,7 +391,7 @@ class MotorParam(DynamicComboParam):
 
     def get_params(self):
         """Get the selected motor parameter."""
-        group = self.group_combo.currentText()
+        group = self.input_widget.currentText()
         if group == "Select a motor":
             return {}
 
@@ -498,9 +516,12 @@ class AutoParamGroup(ParamGroup):
                 label_str = key
                 param_info = value
             # print(f"Making AutoParam for {key}:{label_str}")
-            input_widget = self.auto_param(key, param_info, label_str)
-            self.add_param(input_widget)
+            self.add_auto_param(key, param_info, label_str)
             # print(f"Added AutoParam for {key}:{label_str}")
+
+    def add_auto_param(self, key: str, value: Any, label: str):
+        input_widget = self.auto_param(key, value, label)
+        self.add_param(input_widget)
 
     def auto_param(self, key: str, value: Any, label: str) -> BaseParam:
         if isinstance(value, dict):
@@ -531,6 +552,8 @@ class AutoParamGroup(ParamGroup):
                     default=value.get("default", None),
                 )
             elif param_type == "text":
+                return TextEditParam(key, label, help_text=help_text)
+            elif param_type == "multiline_text":
                 return TextEditParam(key, label, help_text=help_text)
             else:
                 return LineEditParam(key, param_type, label, help_text=help_text)

@@ -13,6 +13,18 @@ class EnumControl(QWidget):
     """Widget for controlling enum values with fixed-width styling."""
 
     def __init__(self, model, parent_model=None, orientation="v", **kwargs):
+        """
+        Initialize the enum widget.
+
+        Parameters
+        ----------
+        model : object
+            The model to monitor/control.
+        parent_model : object, optional
+            The direct parent of the model in the widget/model hierarchy, if any. Defaults to None.
+        orientation : str, optional
+            The orientation of the widget ('h' or 'v').
+        """
         super().__init__(**kwargs)
         print(f"Initializing EnumControl for model: {model.label}")
         self.model = model
@@ -101,6 +113,18 @@ class EnumMonitor(QWidget):
     """Widget for monitoring enum values with fixed-width styling."""
 
     def __init__(self, model, parent_model=None, orientation="v", **kwargs):
+        """
+        Initialize the enum widget.
+
+        Parameters
+        ----------
+        model : object
+            The model to monitor/control.
+        parent_model : object, optional
+            The direct parent of the model in the widget/model hierarchy, if any. Defaults to None.
+        orientation : str, optional
+            The orientation of the widget ('h' or 'v').
+        """
         super().__init__(**kwargs)
         print(f"Initializing EnumMonitor for model: {model.label}")
         self.model = model

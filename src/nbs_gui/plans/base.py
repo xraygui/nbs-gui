@@ -108,6 +108,31 @@ class PlanWidgetBase(QWidget):
             if not self.submit_plan(item):
                 break
 
+    def stage_plan(self, item):
+        """
+        Stage a plan item.
+        """
+        try:
+            self.model.queue_staging.queue_item_add(item=item)
+            return True
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                "Plan Staging Error",
+                f"Failed to stage plan: {str(e)}",
+                QMessageBox.Ok,
+            )
+            return False
+
+    def stage_all_plans(self):
+        """
+        Create and stage all plan items.
+        """
+        plan_items = self.create_plan_items()
+        for item in plan_items:
+            if not self.stage_plan(item):
+                break  # Stop staging if an error occurs
+
 
 class BasicPlanWidget(PlanWidgetBase):
     """
@@ -181,32 +206,6 @@ class BasicPlanWidget(PlanWidgetBase):
             params.update(widget.get_params())
         return params
 
-    def submit_plan(self, item):
-        """
-        Submit a plan item to the run engine client.
-
-        Parameters
-        ----------
-        item : BPlan
-            The plan item to be submitted.
-
-        Returns
-        -------
-        bool
-            True if the submission was successful, False otherwise.
-        """
-        try:
-            self.run_engine_client.queue_item_add(item=item)
-            return True
-        except Exception as e:
-            QMessageBox.critical(
-                self,
-                "Plan Submission Error",
-                f"Failed to submit plan: {str(e)}",
-                QMessageBox.Ok,
-            )
-            return False
-
     def create_plan_items(self):
         """
         Create and return a list of plan items to be submitted.
@@ -218,15 +217,6 @@ class BasicPlanWidget(PlanWidgetBase):
             A list of BPlan items to be submitted.
         """
         raise NotImplementedError("This method should be implemented by child classes.")
-
-    def submit_all_plans(self):
-        """
-        Create and submit all plan items.
-        """
-        plan_items = self.create_plan_items()
-        for item in plan_items:
-            if not self.submit_plan(item):
-                break  # Stop submitting if an error occurs
 
 
 class AutoPlanWidget(BasicPlanWidget):

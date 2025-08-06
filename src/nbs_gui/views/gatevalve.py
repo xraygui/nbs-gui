@@ -14,7 +14,7 @@ class GVMonitor(QWidget):
     Widget to monitor a GVModel, with an open/closed indicator
     """
 
-    def __init__(self, model, parent_model, *args, orientation=None, **kwargs):
+    def __init__(self, model, *args, orientation=None, parent_model=None, **kwargs):
         super().__init__(*args, **kwargs)
         print(f"Initializing GVMonitor for model: {model.label}")
         self.model = model
@@ -53,7 +53,7 @@ class GVControlBox(QGroupBox):
     It provides a control interface for each GVModel in the 'shutters' dictionary.
     """
 
-    def __init__(self, shutters, parent_model, *args, **kwargs):
+    def __init__(self, shutters, *args, parent_model=None, orientation=None, **kwargs):
         """
         Initializes the GVControlBox widget.
         Args:
@@ -65,5 +65,7 @@ class GVControlBox(QGroupBox):
         print("In GVControlBox")
         hbox = QHBoxLayout()
         for s in shutters.values():
-            hbox.addWidget(GVControl(s))
+            hbox.addWidget(
+                GVControl(s, parent_model=parent_model, orientation=orientation)
+            )
         self.setLayout(hbox)

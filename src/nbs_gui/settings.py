@@ -46,3 +46,19 @@ class Settings:
 
 
 SETTINGS = Settings()
+
+_top_level_model = None
+
+
+def set_top_level_model(model):
+    """
+    Set the top-level beamline model for global access.
+    """
+    global _top_level_model
+    _top_level_model = model
+    print("Top level model set to: ", model)
+
+
+def get_top_level_model():
+    """Get the top-level beamline model."""
+    return _top_level_model

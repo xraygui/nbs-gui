@@ -21,7 +21,7 @@ class PVControl(QWidget):
         model : PVModel
             Model containing the PV to control
         parent_model : object, optional
-            Parent model for additional context
+            The direct parent of the model in the widget/model hierarchy, if any. Defaults to None.
         orientation : str, optional
             Layout orientation ('v' for vertical, 'h' for horizontal)
         **kwargs : dict
@@ -117,6 +117,18 @@ class PVMonitor(QWidget):
     """Monitor a generic PV with fixed-width styling."""
 
     def __init__(self, model, parent_model=None, orientation="v", **kwargs):
+        """
+        Initialize the monitor widget.
+
+        Parameters
+        ----------
+        model : object
+            The model to monitor.
+        parent_model : object, optional
+            The direct parent of the model in the widget/model hierarchy, if any. Defaults to None.
+        orientation : str, optional
+            The orientation of the monitor ('h' or 'v').
+        """
         super().__init__(**kwargs)
         print(f"Initializing PVMonitor for model: {model.label}")
         self.model = model
@@ -177,3 +189,64 @@ class PVMonitorV(PVMonitor):
 class PVMonitorH(PVMonitor):
     def __init__(self, model, **kwargs):
         super().__init__(model, orientation="h", **kwargs)
+
+
+SI_PREFIXES = [
+    ("p", 1e-12),
+    ("n", 1e-9),
+    ("u", 1e-6),
+    ("m", 1e-3),
+    ("", 1),
+    ("k", 1e3),
+    ("M", 1e6),
+    ("G", 1e9),
+]
+
+PREFIX_INDEX = {p: i for i, (p, _) in enumerate(SI_PREFIXES)}
+
+
+class SIPVMonitor(PVMonitor):
+    """
+    PVMonitor that formats values with SI prefixes.
+
+    Parameters
+    ----------
+    model : PVModel
+        The model to monitor
+    base_unit : str
+        The base unit (e.g., 'A', 'V')
+    min_prefix : str, optional
+        Minimum SI prefix (e.g., 'n', 'm', ''), default is ''
+    max_prefix : str, optional
+        Maximum SI prefix (e.g., 'A', ''), default is ''
+    """
+
+    def __init__(
+        self, model, *args, base_unit="", min_prefix="", max_prefix="", **kwargs
+    ):
+        super().__init__(model, *args, **kwargs)
+        self.base_unit = base_unit
+        self.min_prefix = min_prefix
+        self.max_prefix = max_prefix
+
+    def setText(self, value):
+        try:
+            val = float(value)
+            text = self.format_si(val)
+        except Exception:
+            text = str(value)
+        super().setText(text)
+
+    def format_si(self, value):
+        abs_val = abs(value)
+        # Find the best prefix within min/max
+        min_idx = PREFIX_INDEX.get(self.min_prefix, 0)
+        max_idx = PREFIX_INDEX.get(self.max_prefix, len(SI_PREFIXES) - 1)
+        best_idx = min_idx
+        for i in range(min_idx, max_idx + 1):
+            prefix, factor = SI_PREFIXES[i]
+            if abs_val < factor * 1000 or i == max_idx:
+                best_idx = i
+                break
+        prefix, factor = SI_PREFIXES[best_idx]
+        return f"{value / factor:.3g} {prefix}{self.base_unit}"
