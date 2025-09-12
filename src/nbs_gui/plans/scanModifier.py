@@ -81,7 +81,9 @@ class ReferenceComboParam(QWidget):
         # print(f"RefComboParam: Adding {len(self.samples)} samples to QComboBox")
         self.input_widget.addItems(self.samples.keys())
         # print("RefComboParam: Connecting currentIndexChanged signal")
-        self.input_widget.currentIndexChanged.connect(self.editingFinished.emit)
+        self.input_widget.currentIndexChanged.connect(
+            lambda x: self.editingFinished.emit()
+        )
         # print("RefComboParam: Setting up layout")
         self.layout = QVBoxLayout(self)
         self.layout.setAlignment(Qt.AlignTop)  # Align widgets to the top

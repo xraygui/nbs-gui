@@ -98,7 +98,7 @@ class QtReQueueControls(QWidget):
         cb_enabled = is_connected and worker_exists
         cb_checked = cb_enabled and queue_autostart_enabled
         self._cb_queue_autostart.setEnabled(cb_enabled)
-        self._cb_queue_autostart.setChecked(Qt.Checked if cb_checked else Qt.Unchecked)
+        self._cb_queue_autostart.setChecked(True if cb_checked else False)
 
     def _pb_queue_start_stop_clicked(self):
         """Handle Start/Stop button clicks"""
