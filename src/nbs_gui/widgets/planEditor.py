@@ -543,7 +543,7 @@ class _QtReViewer(QWidget):
         self._wd_editor = _QtRePlanEditorTable(
             self.model, editable=False, detailed=True
         )
-        self._cb_show_optional.setChecked(
+        self._cb_show_optional.setCheckState(
             Qt.Checked if self._wd_editor.detailed else Qt.Unchecked
         )
 
@@ -568,7 +568,7 @@ class _QtReViewer(QWidget):
 
         self.setLayout(vbox)
 
-        self._cb_show_optional.stateChanged.connect(
+        self._cb_show_optional.checkStateChanged.connect(
             self._cb_show_optional_state_changed
         )
         self._pb_copy_to_queue.clicked.connect(self._pb_copy_to_queue_clicked)

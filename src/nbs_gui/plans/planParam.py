@@ -159,7 +159,9 @@ class ComboBoxParam(BaseParam):
             )
         # Add string representations to combo box
         self.input_widget.addItems([opt for opt in self.options_map.keys()])
-        self.input_widget.currentIndexChanged.connect(self.editingFinished.emit)
+        self.input_widget.currentIndexChanged.connect(
+            lambda x: self.editingFinished.emit()
+        )
 
         if self.default is not None and self.default in options:
             self.input_widget.setCurrentText(str(self.default))
@@ -232,7 +234,7 @@ class SpinBoxParam(BaseParam):
         elif default is not None:
             self.input_widget.setValue(default)
 
-        self.input_widget.valueChanged.connect(self.editingFinished.emit)
+        self.input_widget.valueChanged.connect(lambda x: self.editingFinished.emit())
 
     def reset(self):
         """

@@ -128,7 +128,9 @@ class SampleComboParam(QWidget):
         # print(f"SampleComboParam: Adding {len(self.samples)} samples to QComboBox")
         self.input_widget.addItems(self.samples.keys())
         # print("SampleComboParam: Connecting currentIndexChanged signal")
-        self.input_widget.currentIndexChanged.connect(self.editingFinished.emit)
+        self.input_widget.currentIndexChanged.connect(
+            lambda x: self.editingFinished.emit()
+        )
         # print("SampleComboParam: Setting up layout")
         self.layout = QVBoxLayout(self)
         self.layout.setAlignment(Qt.AlignTop)  # Align widgets to the top
@@ -292,7 +294,9 @@ class SampleSelectWidget(QGroupBox):
             self.sample_selection.setCurrentIndex
         )
         self.sample_option.currentIndexChanged.connect(self.clear_sample_selection)
-        self.sample_selection.currentChanged.connect(self.editingFinished.emit)
+        self.sample_selection.currentChanged.connect(
+            lambda x: self.editingFinished.emit()
+        )
         h = QHBoxLayout()
         h.addWidget(self.sample_label)
         h.addWidget(self.sample_option)
