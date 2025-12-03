@@ -26,7 +26,7 @@ homepage = "https://github.com/xraygui/nbs-gui"  # Replace with your project's h
 nbs-gui = "nbs_gui.main:main"
 nbs-minimal-gui = "nbs_gui.main:minimal"
 nbs-gui-test = "nbs_gui.testScaffolding:main"
-nbs-edit-config = "nbs_gui.confEdit:main"
+nbs-edit-xas = "nbs_gui.widgets.xasPlanEditor:main"
 
 [project.optional-dependencies]
 

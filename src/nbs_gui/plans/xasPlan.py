@@ -3,11 +3,13 @@ from qtpy.QtWidgets import (
     QLabel,
     QMessageBox,
     QFileDialog,
+    QHBoxLayout,
 )
 from qtpy.QtCore import Signal, Qt
 from bluesky_queueserver_api import BPlan, BFunc
 from .planParam import DynamicComboParam
 from .nbsPlan import NBSPlanWidget
+from ..widgets.xasPlanEditor import XASPlanEditorWidget
 
 
 class XASParam(DynamicComboParam):
@@ -74,9 +76,20 @@ class XASPlanWidget(NBSPlanWidget):
         print("XAS Initialized")
 
         # Add Load XAS button
+        button_layout = QHBoxLayout()
+
         self.load_xas_button = QPushButton("Load XAS regions from file", self)
         self.load_xas_button.clicked.connect(self.load_xas_file)
-        self.basePlanLayout.addWidget(self.load_xas_button)
+        button_layout.addWidget(self.load_xas_button)
+
+        self.edit_xas_button = QPushButton("Edit XAS regions", self)
+        self.edit_xas_button.clicked.connect(self.edit_xas_file)
+        button_layout.addWidget(self.edit_xas_button)
+        self.basePlanLayout.addLayout(button_layout)
+
+    def edit_xas_file(self):
+        editor = XASPlanEditorWidget(self)
+        editor.exec_()
 
     def setup_widget(self):
         super().setup_widget()
