@@ -35,10 +35,10 @@ class StatusBox(QGroupBox):
         print(f"Initializing StatusBox {title}")
         self.model = status_model
         self.display_keys = display_keys
-        self.signal_update_widget.connect(self.update_md)
-        self.model.register_signal(key, self.signal_update_widget)
         self.vbox = QVBoxLayout()
         self.setLayout(self.vbox)
+        self.signal_update_widget.connect(self.update_md)
+        self.model.register_signal(key, self.signal_update_widget)
 
     @Slot(object)
     def update_md(self, user_md):

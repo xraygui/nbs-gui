@@ -186,7 +186,8 @@ class GUIBeamlineModel(CoreBeamlineModel):
 
     def reload_for_mode(self, mode):
         """
-        Reload devices in place for a new mode.
+        Reload devices in place for a new mode without reinstantiating
+        already-loaded devices when possible.
 
         Parameters
         ----------
@@ -197,32 +198,8 @@ class GUIBeamlineModel(CoreBeamlineModel):
         -------
         None
         """
-        old_devices = dict(self.devices)
-        removed = set(old_devices.keys())
-        try:
-            devices_new, groups_new, roles_new = loadFromConfig(
-                self.config, instantiateGUIDevice, load_pass="auto", mode=mode
-            )
-        except Exception as exc:
-            print(f"Reload failed during loadFromConfig for mode {mode}: {exc}")
-            return None
-
-        merged_devices = {}
-        for name, device in devices_new.items():
-            if name in old_devices:
-                merged_devices[name] = old_devices[name]
-            else:
-                merged_devices[name] = device
-        removed = removed.difference(devices_new.keys())
-
-        for name in removed:
-            device = old_devices.get(name)
-            if hasattr(device, "set_available"):
-                try:
-                    device.set_available(False)
-                except Exception as exc:
-                    print(f"Failed to disable removed device {name}: {exc}")
-
+        existing_devices = dict(self.devices)
+        existing_keys = set(existing_devices.keys())
         if self.mode_model is not None:
             try:
                 self.mode_model.mode_changed.disconnect(self._on_mode_change)
@@ -230,13 +207,45 @@ class GUIBeamlineModel(CoreBeamlineModel):
                 pass
         self.mode_model = None
 
+        try:
+            _, filtered_config, _ = _find_deferred_devices(self.config, mode=mode)
+        except Exception as exc:
+            print(f"Failed to filter config for mode {mode}: {exc}")
+            return None
+
+        def instantiate_or_reuse(name, device_config, **kwargs):
+            if name in existing_devices:
+                return existing_devices[name]
+            return instantiateGUIDevice(name, device_config, **kwargs)
+
+        try:
+            devices_new, groups_new, roles_new = loadFromConfig(
+                filtered_config,
+                instantiate_or_reuse,
+                load_pass="auto",
+                filter_deferred=False,
+                mode=mode,
+            )
+        except Exception as exc:
+            print(f"Reload failed during loadFromConfig for mode {mode}: {exc}")
+            return None
+
+        removed = existing_keys.difference(devices_new.keys())
+        for name in removed:
+            device = existing_devices.get(name)
+            if hasattr(device, "set_available"):
+                try:
+                    device.set_available(False)
+                except Exception as exc:
+                    print(f"Failed to disable removed device {name}: {exc}")
+
         self.devices = {}
         self.groups = list(self.default_groups)
         for group in self.default_groups:
             setattr(self, group, {})
         self.roles = ["energy", "primary_manipulator", "default_shutter"]
 
-        self.loadDevices(merged_devices, groups_new, roles_new)
+        self.loadDevices(devices_new, groups_new, roles_new)
         try:
             self._update_device_availability(mode)
         except Exception as exc:
