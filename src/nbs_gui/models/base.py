@@ -492,7 +492,6 @@ class PVModelRO(BaseModel):
 
     def _check_value(self):
         value = self._get_value()
-        print(f"[{self.name}] _check_value: {value}")
         self._stash_value(value)
         QTimer.singleShot(10000, self._check_value)
 
