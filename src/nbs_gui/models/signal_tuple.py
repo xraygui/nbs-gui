@@ -14,6 +14,17 @@ class SignalTupleModel(BaseModel):
         self.signals = [PVModel(comp, getattr(obj, comp), group, f"{long_name}.{comp}") for comp in names]
         self.keys = list(names)
 
+    def iter_models(self):
+        """
+        Yield contained signal models for traversal.
+
+        Yields
+        ------
+        BaseModel
+            Contained signal models.
+        """
+        yield from self.signals
+
 class MaybeTupleModel(BaseModel):
     """Wrapper model for a collection of signal models."""
 
@@ -25,3 +36,14 @@ class MaybeTupleModel(BaseModel):
         names = getattr(obj, "component_names", []) or []
         self.signals = [PVModel(comp, getattr(obj, comp), group, f"{long_name}.{comp}") for comp in names]
         self.keys = list(names)
+
+    def iter_models(self):
+        """
+        Yield contained signal models for traversal.
+
+        Yields
+        ------
+        BaseModel
+            Contained signal models.
+        """
+        yield from self.signals

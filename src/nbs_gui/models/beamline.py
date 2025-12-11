@@ -98,7 +98,7 @@ class GUIBeamlineModel(CoreBeamlineModel):
         roles.update(extra_roles)
 
         super().__init__(devices, groups, roles, *args, **kwargs)
-        self.update_interval_ms = 50
+        self.update_interval_ms = 100
         self.drain_budget_ms = 20
         self._drain_cursor = 0
         self._update_timer = QTimer()
@@ -268,7 +268,7 @@ class GUIBeamlineModel(CoreBeamlineModel):
         -------
         None
         """
-        devices = list(self.devices.values())
+        devices = list(self._iter_all_models())
         total = len(devices)
         if total == 0:
             return
@@ -294,3 +294,27 @@ class GUIBeamlineModel(CoreBeamlineModel):
                 break
 
         self._drain_cursor = idx
+
+    def _iter_all_models(self):
+        """
+        Yield all models including nested sub-models.
+
+        Yields
+        ------
+        BaseModel
+            Each model to be drained.
+        """
+        seen = set()
+
+        def walk(obj):
+            if id(obj) in seen:
+                return
+            seen.add(id(obj))
+            if hasattr(obj, "drain_pending") and callable(obj.drain_pending):
+                yield obj
+            if hasattr(obj, "iter_models") and callable(obj.iter_models):
+                for sub in obj.iter_models() or ():
+                    yield from walk(sub)
+
+        for device in self.devices.values():
+            yield from walk(device)

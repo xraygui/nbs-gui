@@ -41,6 +41,17 @@ class EnergyModel:
         for key, value in kwargs.items():
             setattr(self, key, value)
 
+    def iter_models(self):
+        """
+        Yield contained energy-related models for traversal.
+
+        Yields
+        ------
+        BaseModel
+            Contained models.
+        """
+        yield from (self.energy, self.grating_motor)
+
 
 class GVModel(BaseModel):
     default_controller = GVControl
