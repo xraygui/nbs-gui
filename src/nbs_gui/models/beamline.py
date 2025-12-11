@@ -1,8 +1,10 @@
 """GUI-specific beamline model with mode management."""
 
+import time
+
 from nbs_core.beamline import BeamlineModel as CoreBeamlineModel
 from nbs_core.autoload import loadFromConfig, _find_deferred_devices
-from qtpy.QtCore import Signal
+from qtpy.QtCore import Signal, QTimer
 
 from ..load import instantiateGUIDevice
 from .redis import RedisStatusProvider
@@ -96,6 +98,13 @@ class GUIBeamlineModel(CoreBeamlineModel):
         roles.update(extra_roles)
 
         super().__init__(devices, groups, roles, *args, **kwargs)
+        self.update_interval_ms = 50
+        self.drain_budget_ms = 20
+        self._drain_cursor = 0
+        self._update_timer = QTimer()
+        self._update_timer.setInterval(self.update_interval_ms)
+        self._update_timer.timeout.connect(self._drain_all_devices)
+        self._update_timer.start()
 
 
     def loadDevices(self, devices, groups, roles):
@@ -250,3 +259,38 @@ class GUIBeamlineModel(CoreBeamlineModel):
             self._update_device_availability(mode)
         except Exception as exc:
             print(f"Availability update failed for mode {mode}: {exc}")
+
+    def _drain_all_devices(self):
+        """
+        Deliver pending updates from all devices within a time budget.
+
+        Returns
+        -------
+        None
+        """
+        devices = list(self.devices.values())
+        total = len(devices)
+        if total == 0:
+            return
+
+        if self._drain_cursor >= total:
+            self._drain_cursor = 0
+
+        start = time.perf_counter()
+        budget = self.drain_budget_ms / 1000.0
+
+        processed = 0
+        idx = self._drain_cursor
+        while processed < total:
+            device = devices[idx]
+            if hasattr(device, "drain_pending") and callable(device.drain_pending):
+                try:
+                    device.drain_pending()
+                except Exception as exc:
+                    print(f"Drain failed for {getattr(device, 'name', 'unknown')}: {exc}")
+            processed += 1
+            idx = (idx + 1) % total
+            if (time.perf_counter() - start) >= budget:
+                break
+
+        self._drain_cursor = idx

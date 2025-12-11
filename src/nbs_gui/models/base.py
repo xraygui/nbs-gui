@@ -248,6 +248,8 @@ class BaseModel(QWidget, ModeManagedModel):
         self.enabled = True
         self._connected = False  # Start as disconnected
         self._value = None
+        self._latest_value = None
+        self._has_update = False
         # Create reconnection timer
         self._reconnection_timer = QTimer()
         self._reconnection_timer.timeout.connect(self._check_connection)
@@ -394,6 +396,35 @@ class BaseModel(QWidget, ModeManagedModel):
         """Whether the device is currently connected."""
         return self._connected
 
+    def _stash_value(self, value, **_):
+        """
+        Store the latest value from a subscription callback.
+
+        Parameters
+        ----------
+        value : any
+            Latest value from the device.
+        """
+        self._latest_value = value
+        self._has_update = True
+
+    def drain_pending(self):
+        """
+        Emit a pending update if one exists.
+
+        Returns
+        -------
+        bool
+            True if an update was emitted, otherwise False.
+        """
+        if not self._has_update:
+            return False
+        value = self._latest_value
+        self._latest_value = None
+        self._has_update = False
+        self._value_changed(value)
+        return True
+
 
 class PVModelRO(BaseModel):
     valueChanged = Signal(str)
@@ -433,9 +464,9 @@ class PVModelRO(BaseModel):
             print(f"[{self.name}] Error in _initialize value_type: {e}")
             self.value_type = None
         # print(f"[{self.name}] value_type: {self.value_type}")
-        self.sub_key = self.obj.subscribe(self._value_changed, run=False)
+        self.sub_key = self.obj.subscribe(self._stash_value, run=False)
         initial_value = self._get_value(check_connection=False)
-        self._value_changed(initial_value)
+        self._stash_value(initial_value)
         # print(f"[{self.name}] Initial value: {initial_value}")
         QTimer.singleShot(5000, self._check_value)
         # print(f"[{self.name}] PVModelRO Initialized")
@@ -450,7 +481,7 @@ class PVModelRO(BaseModel):
 
     def _check_value(self):
         value = self._get_value()
-        self._value_changed(value)
+        self._stash_value(value)
         QTimer.singleShot(10000, self._check_value)
 
     def _value_changed(self, value, print_value=False, **kwargs):
