@@ -40,6 +40,7 @@ class QtReConsoleMonitor(QWidget):
         self.setAttribute(Qt.WA_DeleteOnClose)
         print("New QtReConsoleMonitor with QPlainTextEdit")
         self._max_lines = 1000
+        self._thread = None
 
         self._text_edit = QPlainTextEdit()
         self._text_edit.setReadOnly(True)
@@ -107,6 +108,8 @@ class QtReConsoleMonitor(QWidget):
         result : tuple
             Tuple of (time, msg) where time is a timestamp and msg is the console output
         """
+        if not result or not isinstance(result, tuple) or len(result) != 2:
+            return
         time, msg = result
 
         msg = msg.rstrip()
@@ -177,3 +180,26 @@ class QtReConsoleMonitor(QWidget):
         """
         if not self._stop:
             self._start_thread()
+
+    def teardown(self):
+        """
+        Stop monitoring and disconnect callbacks for reload.
+
+        Returns
+        -------
+        None
+        """
+        self._stop = True
+        try:
+            self.model.stop_console_output_monitoring()
+        except Exception:
+            pass
+        if self._thread is not None:
+            try:
+                self._thread.returned.disconnect(self._process_new_console_output)
+            except Exception:
+                pass
+            try:
+                self._thread.finished.disconnect(self._finished_receiving_console_output)
+            except Exception:
+                pass

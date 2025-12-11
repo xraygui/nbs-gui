@@ -1,10 +1,14 @@
 """GUI-specific beamline model with mode management."""
 
 from nbs_core.beamline import BeamlineModel as CoreBeamlineModel
-from nbs_core.autoload import loadFromConfig
+from nbs_core.autoload import loadFromConfig, _find_deferred_devices
 from qtpy.QtCore import Signal
 
 from ..load import instantiateGUIDevice
+from .redis import RedisStatusProvider
+from .signal_tuple import SignalTupleModel
+from .base import PVModel
+from ..views.signal_tuple import SignalTupleMonitor, SignalTupleControl
 
 
 class GUIBeamlineModel(CoreBeamlineModel):
@@ -16,7 +20,7 @@ class GUIBeamlineModel(CoreBeamlineModel):
 
     # Signal emitted when mode changes
 
-    def __init__(self, config, *args, **kwargs):
+    def __init__(self, config, *args, mode_override=None, **kwargs):
         """Initialize with raw config.
 
         Parameters
@@ -24,16 +28,75 @@ class GUIBeamlineModel(CoreBeamlineModel):
         config : dict
             Raw configuration dictionary from devices.toml
         """
-        # Store raw config for mode info
         self.config = config
+        self.mode_model = None
 
-        # Load devices from config
-        devices, groups, roles = loadFromConfig(
-            config, instantiateGUIDevice, load_pass="auto"
+        default_mode = "default"
+        if mode_override is not None:
+            default_mode = mode_override
+        print("Beamline loadFromConfig")
+        # First pass: load devices available in default mode only
+        print(f"Beamline config: {config}")
+        base_devices, base_groups, base_roles = loadFromConfig(
+            config, instantiateGUIDevice, load_pass="auto", mode=default_mode
         )
 
+
+        # Determine current mode value if mode device exists
+        target_mode = default_mode
+        print("Beamline target_mode", target_mode)
+        if "mode" in base_roles:
+            mode_device = base_devices.get(base_roles["mode"])
+            if mode_device is not None:
+                try:
+                    raw = mode_device.obj.get()
+                    if hasattr(mode_device, "enum_strs") and mode_device.enum_strs:
+                        if isinstance(raw, (int, float)) and 0 <= int(raw) < len(
+                            mode_device.enum_strs
+                        ):
+                            target_mode = mode_device.enum_strs[int(raw)]
+                        else:
+                            target_mode = str(raw)
+                    else:
+                        target_mode = str(raw)
+                except Exception as e:
+                    print(f"Error reading initial mode from mode device: {e}")
+
+        # Identify deferred devices from the default-mode perspective
+        deferred_devices, _, deferred_config = _find_deferred_devices(
+            config, mode=default_mode
+        )
+
+        # Second pass: load only deferred devices that are active in target_mode
+        extra_devices = {}
+        extra_groups = {}
+        extra_roles = {}
+        # Only perform second pass if the mode changed and there is deferred config
+        if deferred_config and target_mode != default_mode:
+            extra_devices, extra_groups, extra_roles = loadFromConfig(
+                deferred_config,
+                instantiateGUIDevice,
+                load_pass="auto",
+                mode=target_mode,
+                filter_deferred=True,
+            )
+
+        # Merge devices, groups, and roles
+        devices = dict(base_devices)
+        devices.update(extra_devices)
+
+        groups = dict(base_groups)
+        for g, devs in extra_groups.items():
+            if g in groups:
+                groups[g].extend(devs)
+            else:
+                groups[g] = list(devs)
+
+        roles = dict(base_roles)
+        roles.update(extra_roles)
+
         super().__init__(devices, groups, roles, *args, **kwargs)
-        self.mode_model = None
+
 
     def loadDevices(self, devices, groups, roles):
         """Load devices and handle mode configuration."""
@@ -120,3 +183,61 @@ class GUIBeamlineModel(CoreBeamlineModel):
         else:
             # Mode not allowed
             return False
+
+    def reload_for_mode(self, mode):
+        """
+        Reload devices in place for a new mode.
+
+        Parameters
+        ----------
+        mode : str
+            Target mode name.
+
+        Returns
+        -------
+        None
+        """
+        old_devices = dict(self.devices)
+        removed = set(old_devices.keys())
+        try:
+            devices_new, groups_new, roles_new = loadFromConfig(
+                self.config, instantiateGUIDevice, load_pass="auto", mode=mode
+            )
+        except Exception as exc:
+            print(f"Reload failed during loadFromConfig for mode {mode}: {exc}")
+            return None
+
+        merged_devices = {}
+        for name, device in devices_new.items():
+            if name in old_devices:
+                merged_devices[name] = old_devices[name]
+            else:
+                merged_devices[name] = device
+        removed = removed.difference(devices_new.keys())
+
+        for name in removed:
+            device = old_devices.get(name)
+            if hasattr(device, "set_available"):
+                try:
+                    device.set_available(False)
+                except Exception as exc:
+                    print(f"Failed to disable removed device {name}: {exc}")
+
+        if self.mode_model is not None:
+            try:
+                self.mode_model.mode_changed.disconnect(self._on_mode_change)
+            except Exception:
+                pass
+        self.mode_model = None
+
+        self.devices = {}
+        self.groups = list(self.default_groups)
+        for group in self.default_groups:
+            setattr(self, group, {})
+        self.roles = ["energy", "primary_manipulator", "default_shutter"]
+
+        self.loadDevices(merged_devices, groups_new, roles_new)
+        try:
+            self._update_device_availability(mode)
+        except Exception as exc:
+            print(f"Availability update failed for mode {mode}: {exc}")

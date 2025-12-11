@@ -15,6 +15,7 @@ class QueueServerControls(QWidget):
     def __init__(self, model, parent=None):
         super().__init__(parent)
         self.model = model
+        self._stop = False
 
         # Create widgets
         # self._lb_status = QLabel("OFFLINE")
@@ -56,6 +57,7 @@ class QueueServerControls(QWidget):
         # Connect model signals
         self.model.events.status_changed.connect(self.on_update_widgets)
         self.signal_update_widget.connect(self.slot_update_widgets)
+        self.destroyed.connect(self._cleanup)
 
     def on_update_widgets(self, event):
         is_connected = bool(event.is_connected)
@@ -168,6 +170,19 @@ class QueueServerControls(QWidget):
         self._thread.finished.connect(self._reload_complete)
         self._thread.start()
 
+    def _cleanup(self, *args):
+        """Disconnect callbacks to avoid emitting into deleted Qt objects."""
+        self._stop = True
+        self._deactivate_updates = True
+        try:
+            self.model.events.status_changed.disconnect(self.on_update_widgets)
+        except Exception:
+            pass
+        try:
+            self.signal_update_widget.disconnect(self.slot_update_widgets)
+        except Exception:
+            pass
+
     def _reload_complete(self):
         """Handle completion of status update thread"""
         if not self._deactivate_updates:
@@ -183,3 +198,26 @@ class QueueServerControls(QWidget):
         import time
 
         time.sleep(self.update_period)
+
+    def teardown(self):
+        """
+        Disconnect callbacks and stop updates for reload.
+
+        Returns
+        -------
+        None
+        """
+        self._stop = True
+        self._deactivate_updates = True
+        try:
+            self.model.events.status_changed.disconnect(self.on_update_widgets)
+        except Exception:
+            pass
+        try:
+            self.signal_update_widget.disconnect(self.slot_update_widgets)
+        except Exception:
+            pass
+        try:
+            self.destroyed.disconnect(self._cleanup)
+        except Exception:
+            pass

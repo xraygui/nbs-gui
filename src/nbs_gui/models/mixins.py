@@ -33,3 +33,8 @@ class ModeManagedModel:
     def is_available(self):
         """Whether model is currently available."""
         return self._is_available
+
+    @property
+    def available(self):
+        """Alias for is_available."""
+        return self._is_available

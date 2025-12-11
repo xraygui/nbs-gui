@@ -1,7 +1,7 @@
 """Model for beamline mode control."""
 
 from qtpy.QtCore import Signal
-from .base import EnumModel, initialize_with_retry, requires_connection
+from .base import EnumModel, PVModel, initialize_with_retry, requires_connection
 
 
 class ModeModel(EnumModel):
@@ -86,7 +86,11 @@ class ModeModel(EnumModel):
                 else:
                     raise ValueError(f"Invalid mode: {mode}")
 
-            self.obj.put(mode)
+            # For Redis-backed devices, prefer put; for enum PVs, set also works
+            if hasattr(self.obj, "put"):
+                self.obj.put(mode)
+            else:
+                self.obj.set(mode).wait()
         except Exception as e:
             print(f"Error setting mode for {self.name}: {e}")
 
@@ -99,3 +103,49 @@ class ModeModel(EnumModel):
     def available_modes(self):
         """List of available mode names."""
         return self.enum_strs or [self.current_mode]
+
+
+class RedisModeModel(PVModel):
+    """Mode model for Redis-backed mode signals (free-form strings)."""
+
+    mode_changed = Signal(str)
+
+    def __init__(self, name, obj, group, long_name,  **kwargs):
+        super().__init__(name, obj.mode, group, long_name, **kwargs)
+        self._current_mode = "Unknown"
+        self._initialize_redis_mode()
+
+    def _initialize_redis_mode(self):
+        try:
+            self.valueChanged.connect(self._on_value_changed)
+            initial = None
+            try:
+                initial = self.obj.get()
+            except Exception as e:
+                print(f"Error reading initial redis mode for {self.name}: {e}")
+            if initial is not None:
+                self._on_value_changed(str(initial))
+        except Exception as e:
+            print(f"{self.name} redis mode init failed: {e}")
+
+    def _on_value_changed(self, value):
+        mode = str(value)
+        self._current_mode = mode
+        self.mode_changed.emit(mode)
+
+    def set_mode(self, mode):
+        try:
+            if hasattr(self.obj, "put"):
+                self.obj.put(mode)
+            else:
+                self.obj.set(mode).wait()
+        except Exception as e:
+            print(f"Error setting redis mode for {self.name}: {e}")
+
+    @property
+    def current_mode(self):
+        return self._current_mode
+
+    @property
+    def available_modes(self):
+        return [self._current_mode]

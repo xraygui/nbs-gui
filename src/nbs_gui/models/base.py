@@ -352,17 +352,17 @@ class BaseModel(QWidget, ModeManagedModel):
 
         try:
             if "wait_for_connection" in dir(self.obj):
-                print(f"[{self.name}._check_connection] Waiting for connection")
+                # print(f"[{self.name}._check_connection] Waiting for connection")
                 self.obj.wait_for_connection(timeout=0.2)
                 connected = True
             else:
-                print(f"[{self.name}._check_connection] Getting value")
+                # print(f"[{self.name}._check_connection] Getting value")
                 self.obj.get(timeout=0.2, connection_timeout=0.2)
                 connected = True
         except Exception as e:
             print(f"[{self.name}._check_connection] Error: {e}")
             connected = False
-        print(f"[{self.name}._check_connection] Connected: {connected}")
+        # print(f"[{self.name}._check_connection] Connected: {connected}")
 
         # Update connection state if changed
         if connected != self._connected:
@@ -399,14 +399,14 @@ class PVModelRO(BaseModel):
     valueChanged = Signal(str)
 
     def __init__(self, name, obj, group, long_name, **kwargs):
-        print(f"[{name}.__init__] Initializing PVModelRO")
+        # print(f"[{name}.__init__] Initializing PVModelRO")
         super().__init__(name, obj, group, long_name, **kwargs)
-        print(f"[{name}.__init__] about to call _initialize")
+        # print(f"[{name}.__init__] about to call _initialize")
         PVModelRO._initialize(self)
 
     @initialize_with_retry
     def _initialize(self):
-        print(f"[{self.name}._initialize] Initializing PVModelRO")
+        # print(f"[{self.name}._initialize] Initializing PVModelRO")
         if not super()._initialize():
             self.value_type = None
             self.units = None
@@ -414,10 +414,10 @@ class PVModelRO(BaseModel):
 
         if hasattr(self.obj, "metadata"):
             self.units = self.obj.metadata.get("units", None)
-            print(f"{self.name} has units {self.units}")
+            # print(f"{self.name} has units {self.units}")
         else:
             self.units = None
-            print(f"{self.name} has no metadata")
+            # print(f"{self.name} has no metadata")
 
         try:
             _value_type = self.obj.describe().get("dtype", None)
@@ -432,13 +432,13 @@ class PVModelRO(BaseModel):
         except Exception as e:
             print(f"[{self.name}] Error in _initialize value_type: {e}")
             self.value_type = None
-        print(f"[{self.name}] value_type: {self.value_type}")
+        # print(f"[{self.name}] value_type: {self.value_type}")
         self.sub_key = self.obj.subscribe(self._value_changed, run=False)
         initial_value = self._get_value(check_connection=False)
         self._value_changed(initial_value)
-        print(f"[{self.name}] Initial value: {initial_value}")
+        # print(f"[{self.name}] Initial value: {initial_value}")
         QTimer.singleShot(5000, self._check_value)
-        print(f"[{self.name}] PVModelRO Initialized")
+        # print(f"[{self.name}] PVModelRO Initialized")
         return True
 
     def _cleanup(self):
@@ -552,7 +552,7 @@ class EnumModel(PVModel):
 
     @initialize_with_retry
     def _initialize(self):
-        print(f"Initializing EnumModel for {self.name}")
+        # print(f"Initializing EnumModel for {self.name}")
         if not super()._initialize():
             return False
 
