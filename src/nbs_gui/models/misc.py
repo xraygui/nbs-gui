@@ -117,7 +117,7 @@ class ScalarModel(BaseModel):
 
         self.value_type = None
         self._value = "Disconnected"
-        self.sub_key = self.obj.target.subscribe(self._value_changed, run=True)
+        self.sub_key = self.obj.target.subscribe(self._stash_value, run=True)
         QTimer.singleShot(5000, self._check_value)
         return True
 
@@ -134,7 +134,7 @@ class ScalarModel(BaseModel):
 
     def _check_value(self):
         value = self._get_value()
-        self._value_changed(value)
+        self._stash_value(value)
         QTimer.singleShot(100000, self._check_value)
 
     def _value_changed(self, value, **kwargs):

@@ -98,7 +98,7 @@ class GUIBeamlineModel(CoreBeamlineModel):
         roles.update(extra_roles)
 
         super().__init__(devices, groups, roles, *args, **kwargs)
-        self.update_interval_ms = 100
+        self.update_interval_ms = 200
         self.drain_budget_ms = 20
         self._drain_cursor = 0
         self._update_timer = QTimer()
