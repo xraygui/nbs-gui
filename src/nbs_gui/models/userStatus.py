@@ -109,7 +109,7 @@ class UserStatus(QObject):
             response = self.REClientModel._client.function_execute(
                 function, run_in_background=True
             )
-            print("Reloading status")
+            # print("Reloading status")
             self.REClientModel._client.wait_for_completed_task(response["task_uid"])
             reply = self.REClientModel._client.task_result(response["task_uid"])
             task_status = reply["status"]
@@ -122,10 +122,10 @@ class UserStatus(QObject):
             # print(f"Signal registry: {self._signal_registry}")
             dead_keys = []
             for key, signal_list in list(self._signal_registry.items()):
-                print(f"Reloading status for {key}")
+                # print(f"Reloading status for {key}")
                 new_uid = user_status.get(key, "")
                 if new_uid != self._uid_registry.get(key, ""):
-                    print(f"Updating {key}")
+                    # print(f"Updating {key}")
                     update = self.get_update(key)
                     alive = []
                     for sig in list(signal_list):
@@ -139,10 +139,10 @@ class UserStatus(QObject):
                     else:
                         dead_keys.append(key)
                     new_uids[key] = new_uid
-                print(f"Done with {key}")
+                # print(f"Done with {key}")
             for key in dead_keys:
                 self._signal_registry.pop(key, None)
-            print("Done reloading status")
+            # print("Done reloading status")
             self._uid_registry.update(new_uids)
         except Exception as e:
             print(f"Error reloading status: {e}")
@@ -162,7 +162,7 @@ class UserStatus(QObject):
                 signal.emit(value)
 
     def on_status_update(self, event):
-        print("UserStatus update event received")
+        #print("UserStatus update event received")
         if self._is_reloading:
             return
         is_connected = bool(event.is_connected)
