@@ -359,6 +359,7 @@ class MotorParam(DynamicComboParam):
     def update_options(self, plan_dict):
         """Update the available motor options and organize them hierarchically."""
         # Create inverted dictionary (display name -> motor name)
+        print("Updating motor options")
         inverted_dict = {}
         for key, value in plan_dict.items():
             if value != "":

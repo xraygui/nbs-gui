@@ -1,11 +1,12 @@
 from bluesky_widgets.qt.threading import FunctionWorker
-from qtpy.QtCore import QObject
+from qtpy.QtCore import QObject, QTimer
 from bluesky_queueserver_api import BFunc
 import time
 
 
 class UserStatus(QObject):
     def __init__(self, runEngineClient, redis_settings=None, *args, **kwargs):
+        print("Initializing UserStatus")
         super().__init__(*args, **kwargs)
         self.REClientModel = runEngineClient
         self.REClientModel.events.status_changed.connect(self.on_status_update)
@@ -13,6 +14,8 @@ class UserStatus(QObject):
         self._uid_registry = {}
         self._item_cache = {}
         self._thread = None
+        self._is_reloading = False
+        self._deactivate_updates = False
         self.updates_activated = False
         self.update_period = 1
         self._redis_settings = redis_settings
@@ -61,17 +64,25 @@ class UserStatus(QObject):
         )
 
     def _start_thread(self):
+        if self._is_reloading:
+            return
+        if self._thread is not None:
+            try:
+                if callable(getattr(self._thread, "isRunning", None)) and self._thread.isRunning():
+                    return
+            except Exception:
+                pass
         self._thread = FunctionWorker(self._reload_status)
         self._thread.finished.connect(self._reload_complete)
         self.updates_activated = True
         self._thread.start()
 
     def _reload_complete(self):
-        if not self._deactivate_updates:
-            self._start_thread()
-        else:
+        if self._deactivate_updates or not self._signal_registry:
             self.updates_activated = False
             self._deactivate_updates = False
+            return
+        QTimer.singleShot(int(self.update_period * 1000), self._start_thread)
 
     def get_update(self, key):
         function = BFunc("request_update", key)
@@ -92,29 +103,52 @@ class UserStatus(QObject):
         return self._item_cache.get(key, default)
 
     def _reload_status(self):
-        function = BFunc("get_status")
-        response = self.REClientModel._client.function_execute(
-            function, run_in_background=True
-        )
-        self.REClientModel._client.wait_for_completed_task(response["task_uid"])
-        reply = self.REClientModel._client.task_result(response["task_uid"])
-        task_status = reply["status"]
-        task_result = reply["result"]
-        if task_status == "completed" and task_result.get("success", False):
-            user_status = task_result["return_value"]
-        else:
-            raise ValueError("Status did not load successfully")
-        new_uids = {}
-
-        for key, signal_list in self._signal_registry.items():
-            new_uid = user_status.get(key, "")
-            if new_uid != self._uid_registry.get(key, ""):
-                update = self.get_update(key)
-                for sig in signal_list:
-                    sig.emit(update)
-                new_uids[key] = new_uid
-        self._uid_registry.update(new_uids)
-        time.sleep(self.update_period)
+        self._is_reloading = True
+        try:
+            function = BFunc("get_status")
+            response = self.REClientModel._client.function_execute(
+                function, run_in_background=True
+            )
+            print("Reloading status")
+            self.REClientModel._client.wait_for_completed_task(response["task_uid"])
+            reply = self.REClientModel._client.task_result(response["task_uid"])
+            task_status = reply["status"]
+            task_result = reply["result"]
+            if task_status == "completed" and task_result.get("success", False):
+                user_status = task_result["return_value"]
+            else:
+                raise ValueError("Status did not load successfully")
+            new_uids = {}
+            # print(f"Signal registry: {self._signal_registry}")
+            dead_keys = []
+            for key, signal_list in list(self._signal_registry.items()):
+                print(f"Reloading status for {key}")
+                new_uid = user_status.get(key, "")
+                if new_uid != self._uid_registry.get(key, ""):
+                    print(f"Updating {key}")
+                    update = self.get_update(key)
+                    alive = []
+                    for sig in list(signal_list):
+                        try:
+                            sig.emit(update)
+                            alive.append(sig)
+                        except Exception as emit_exc:
+                            print(f"Signal emit failed for {key}: {emit_exc}")
+                    if alive:
+                        self._signal_registry[key] = alive
+                    else:
+                        dead_keys.append(key)
+                    new_uids[key] = new_uid
+                print(f"Done with {key}")
+            for key in dead_keys:
+                self._signal_registry.pop(key, None)
+            print("Done reloading status")
+            self._uid_registry.update(new_uids)
+        except Exception as e:
+            print(f"Error reloading status: {e}")
+        finally:
+            self._is_reloading = False
+        self._is_reloading = False
 
     def register_signal(self, key, signal, emit_cached=True):
         if key in self._signal_registry:
@@ -128,6 +162,9 @@ class UserStatus(QObject):
                 signal.emit(value)
 
     def on_status_update(self, event):
+        print("UserStatus update event received")
+        if self._is_reloading:
+            return
         is_connected = bool(event.is_connected)
         status = event.status
         worker_exists = status.get("worker_environment_exists", False)

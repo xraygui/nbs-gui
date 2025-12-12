@@ -33,7 +33,7 @@ class MotorMonitor(QWidget):
             The orientation of the widget ('h' or 'v').
         """
         super().__init__(*args, **kwargs)
-        print(f"[{model.label}] Initializing MotorMonitor")
+        # print(f"[{model.label}] Initializing MotorMonitor")
         self.model = model
         if orientation == "h":
             self.box = QHBoxLayout()
@@ -58,7 +58,7 @@ class MotorMonitor(QWidget):
         self.position.setFixedWidth(100)
         self.position.setFixedHeight(20)
         self.position.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        print(f"[{self.model.label}] Position: {self.model.value}")
+        # print(f"[{self.model.label}] Position: {self.model.value}")
         self.box.addWidget(self.position)
 
         # Status indicator
@@ -87,7 +87,7 @@ class MotorMonitor(QWidget):
 
 class MotorControl(MotorMonitor):
     def __init__(self, model, *args, **kwargs):
-        print(f"[{model.label}] Initializing MotorControl")
+        # print(f"[{model.label}] Initializing MotorControl")
         super().__init__(model, *args, **kwargs)
         # Fixed-width input field
         self.lineEdit = QLineEdit()
@@ -96,7 +96,7 @@ class MotorControl(MotorMonitor):
         self.lineEdit.setAlignment(Qt.AlignRight)
         initial_sp = self.model.setpoint
         if initial_sp is not None:
-            print(f"[{self.model.label}] Initial setpoint: {initial_sp}")
+            # print(f"[{self.model.label}] Initial setpoint: {initial_sp}")
             self.lineEdit.setText("{:2f}".format(initial_sp))
         else:
             self.lineEdit.setText("Disconnected")
