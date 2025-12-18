@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
@@ -18,7 +18,6 @@ dependencies = [
     "qtpy", 
     "ophyd",
     'tomli ; python_version < "3.11"',
-    "livetable",
     "nbs-core>=0.1",
     "nbs-bl>=0.2"]
 
@@ -28,6 +27,9 @@ classifiers = [
     "Operating System :: OS Independent",
     "Intended Audience :: Science/Research"
 ]
+
+[tool.hatch.version]
+source = "vcs"
 
 [tool.pixi.workspace]
 channels = ["conda-forge"]
@@ -66,6 +68,15 @@ pyside6 = "*"
 livetable = { git="https://github.com/xraygui/livetable" }
 nbs-gui = { path = ".", editable = true }
 qtconsole = "*"
+
+[tool.pixi.feature.build.dependencies]
+hatch = "*"
+
+[tool.pixi.feature.build.tasks]
+build = "hatch build"
+
+[tool.pixi.environments]
+build = { features = ["build"], solve-group = "default" }
 
 [project.urls]
 homepage = "https://github.com/xraygui/nbs-gui"  # Replace with your project's homepage
