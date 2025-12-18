@@ -75,6 +75,7 @@ hatch = "*"
 
 [tool.pixi.feature.build.tasks]
 build = "hatch build"
+test-release = "hatch publish -r test"
 
 [tool.pixi.environments]
 build = { features = ["build"], solve-group = "default" }
