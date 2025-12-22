@@ -9,13 +9,52 @@ from nbs_bl.redisDevice import _RedisSignal
 
 from .settings import SETTINGS
 from .models.redis import RedisStatusProvider
+from os.path import join, exists
+try:
+    import tomllib
+except ModuleNotFoundError:
+    import tomli as tomllib
 
 
 class ViewerModel:
     """This encapsulates all the models in the application."""
 
-    def __init__(self):
+    def __init__(self, profile_dir, no_devices=False):
         print("Initializing ViewerModel")
+        self.no_devices = no_devices
+        SETTINGS.object_config_file = join(profile_dir, "devices.toml")
+        SETTINGS.gui_config_file = join(profile_dir, "gui_config.toml")
+        SETTINGS.beamline_config_file = join(profile_dir, "beamline.toml")
+
+        if exists(SETTINGS.gui_config_file):
+            try:
+                with open(SETTINGS.gui_config_file, "rb") as config_file:
+                    SETTINGS.gui_config = tomllib.load(config_file)
+            except Exception as e:
+                print(f"Error loading {SETTINGS.gui_config_file}:\n {e}")
+                raise e
+        else:
+            SETTINGS.gui_config = {}
+
+        if not no_devices and exists(SETTINGS.object_config_file):
+            try:
+                with open(SETTINGS.object_config_file, "rb") as config_file:
+                    SETTINGS.object_config = tomllib.load(config_file)
+            except Exception as e:
+                print(f"Error loading {SETTINGS.object_config_file}:\n {e}")
+                raise e
+        else:
+            SETTINGS.object_config = {}
+
+        if exists(SETTINGS.beamline_config_file):
+            try:
+                with open(SETTINGS.beamline_config_file, "rb") as config_file:
+                    SETTINGS.beamline_config = tomllib.load(config_file)
+            except Exception as e:
+                print(f"Error loading {SETTINGS.beamline_config_file}:\n {e}")
+                raise e
+        else:
+            SETTINGS.beamline_config = {}
         self._mode_override = None
         self.init_beamline()
         self.init_queue_staging()
@@ -47,7 +86,7 @@ class ViewerModel:
         except Exception as e:
             print(f"Could not set RedisDevice status provider: {e}")
 
-        if SETTINGS.object_config_file is not None:
+        if SETTINGS.object_config_file is not None and not self.no_devices:
             # Get beamline model class
             bl_model_path = (
                 SETTINGS.gui_config.get("models", {})

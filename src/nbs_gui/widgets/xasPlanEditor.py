@@ -14,12 +14,16 @@ from qtpy.QtWidgets import (
     QTextEdit,
 )
 from qtpy.QtCore import Qt, Signal
-import toml
 
 try:
     import tomllib
 except ModuleNotFoundError:
     import tomli as tomllib
+
+try:
+    import tomli_w as toml
+except ModuleNotFoundError:
+    import tomli_w as toml
 
 
 class XASPlanEditorWidget(QDialog):

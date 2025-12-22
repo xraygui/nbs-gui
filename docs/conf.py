@@ -25,6 +25,7 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 # HTML output options
 html_theme = "sphinx_rtd_theme"
 html_static_path = ["_static"]
+html_css_files = ["custom.css"]
 
 # Intersphinx mapping
 intersphinx_mapping = {

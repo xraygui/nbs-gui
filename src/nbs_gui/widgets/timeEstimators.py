@@ -106,7 +106,8 @@ class TimeEstimator:
         if hasattr(plan_item, "to_dict"):
             plan_item = plan_item.to_dict()
         plan_name = plan_item.get("name")
-        plan_args = plan_item.get("kwargs", {})
+        plan_args = {}
+        plan_args.update(plan_item.get("kwargs", {}))
         if "args" in plan_item:
             plan_args["args"] = plan_item["args"]
 

@@ -24,7 +24,8 @@ def get_ipython_startup_dir(profile_name="default", ipython_dir=None):
     if ipython_app is None:
         # If called outside of an IPython environment, create an application instance
         return join(IPython.paths.locate_profile(profile_name), "startup")
-    ipython_app.initialize(argv=[])
+    if not ipython_app.initialized():
+        ipython_app.initialize(argv=[])
 
     # Access the profile directory through the application's configuration
     startup_dir = join(

@@ -395,6 +395,7 @@ class QtReActiveQueue(BaseQueueWidget):
 
         # Create local copy of the plan queue items for operations performed locally
         #   within the widget without involving the model.
+
         self._plan_queue_items = copy.deepcopy(plan_queue_items)
 
         # Update the custom table widget with the plan queue items
@@ -416,7 +417,7 @@ class QtReActiveQueue(BaseQueueWidget):
             resize_mode = QHeaderView.Stretch
         self._table.horizontalHeader().setSectionResizeMode(resize_mode)
 
-        for nr, item in enumerate(plan_queue_items):
+        for nr, item in enumerate(self._plan_queue_items):
             for nc, col_name in enumerate(self._table_column_labels):
                 try:
                     value = self.get_item_value_for_label(item=item, label=col_name)
@@ -428,6 +429,7 @@ class QtReActiveQueue(BaseQueueWidget):
                     Qt.ItemIsEnabled | Qt.ItemIsSelectable | Qt.ItemIsDragEnabled
                 )
                 self._table.setItem(nr, nc, table_item)
+
 
         # Update the number of table items
         self._n_table_items = len(plan_queue_items)
@@ -442,10 +444,10 @@ class QtReActiveQueue(BaseQueueWidget):
         self.slot_change_selection(selected_item_uids)
         self._update_button_states()
 
+
     @Slot(object)
     def slot_change_selection(self, selected_item_uids):
         rows = [self.queue_model.queue_item_uid_to_pos(_) for _ in selected_item_uids]
-
         # Keep horizontal scroll value while the selection is changed (more consistent behavior)
         scroll_value = self._table.horizontalScrollBar().value()
 

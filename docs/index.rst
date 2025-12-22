@@ -9,35 +9,81 @@ The NSLS-II Beamline GUI Framework (nbs-gui) provides a flexible and extensible 
 * Plan execution
 * Mode-based device management
 
+.. image:: _static/screenshots/gui_overview.png
+   :alt: nbs-gui main interface
+   :align: center
+
 Getting Started
 ---------------
 
-To install nbs-gui:
+New to nbs-gui? Start here:
 
-.. code-block:: bash
+.. toctree::
+   :maxdepth: 1
 
-   pip install -e .
+   getting_started
+   configuration
+   workflows
 
-Features
---------
+User Guide
+----------
+
+Learn how to use nbs-gui effectively:
+
+Standard Tabs
+~~~~~~~~~~~~~
+
+.. toctree::
+   :maxdepth: 1
+
+   tabs/index
+
+Advanced Features
+~~~~~~~~~~~~~~~~~
+
+.. toctree::
+   :maxdepth: 1
+
+   mode_management
+
+Developer Guide
+---------------
+
+Extend and customize nbs-gui:
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: Development
 
-   mode_management
+   architecture
+   development/models
+   development/views
+   development/tabs
+   development/plans
+   development/plugins
+
+API Reference
+-------------
+
+Complete API documentation:
+
+.. toctree::
+   :maxdepth: 2
+   :caption: API
+
    api
+
+Troubleshooting
+---------------
+
+Having issues? Check the troubleshooting guide:
+
+.. toctree::
+   :maxdepth: 1
+
+   troubleshooting
 
 Development
 -----------
 
 This project is part of the `xraygui <https://github.com/xraygui>`_ organization on GitHub.
-
-Dependencies
-------------
-
-* Python 3.8+
-* Qt (via qtpy)
-* Redis
-* Bluesky
-* Ophyd

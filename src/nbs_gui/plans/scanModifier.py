@@ -36,9 +36,13 @@ class DefaultScanModifierParam(ParamGroup):
 
 
 # Check settings for custom scan modifier
-scan_modifier_name = (
-    SETTINGS.gui_config.get("gui", {}).get("plans", {}).get("scan_modifier", None)
-)
+try:
+    scan_modifier_name = (
+        SETTINGS.gui_config.get("gui", {}).get("plans", {}).get("scan_modifier", None)
+    )
+except Exception as e:
+    print(f"Error getting scan modifier name: {e}")
+    scan_modifier_name = None
 
 # Default to DefaultScanModifierParam
 ScanModifierParam = DefaultScanModifierParam
@@ -149,10 +153,13 @@ class DefaultBeamlineModifierParam(ParamGroup):
         # All parameters optional, so return True
         return True
 
-
-beamline_modifier_name = (
-    SETTINGS.gui_config.get("gui", {}).get("plans", {}).get("beamline_modifier", None)
-)
+try:
+    beamline_modifier_name = (
+        SETTINGS.beamline_config.get("configuration", {}).get("beamline_modifier", None)
+    )
+except Exception as e:
+    print(f"Error getting beamline modifier name: {e}")
+    beamline_modifier_name = None
 
 # Default to DefaultBeamlineModifierParam
 BeamlineModifierParam = DefaultBeamlineModifierParam
