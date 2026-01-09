@@ -11,7 +11,7 @@ for the motor selection, and a named input field for the position, which has a "
 
 .. card::
 
-    .. image:: ../../_static/screenshots/move_plan_widget.png
+    .. image:: /_static/screenshots/move_plan_widget.png
         :alt: Move plan widget
 
 
@@ -20,7 +20,7 @@ There is no guidance or validation for the input, so the user must very carefull
 
 .. card::
 
-    .. image:: ../../_static/screenshots/move_plan_editor.png
+    .. image:: /_static/screenshots/move_plan_editor.png
         :alt: Move plan editor
 
 Running a Plan
@@ -28,7 +28,7 @@ Running a Plan
 
 .. card::
 
-    .. image:: ../../_static/screenshots/plan_editor_overview.png
+    .. image:: /_static/screenshots/plan_editor_overview.png
         :alt: Plan editor overview
 
 The Plan Editor tab is divided into a plan selection bar, and the parameter table. The plan selection drop-down contains
@@ -78,7 +78,7 @@ parameters into the Plan Editor tab.
 
 .. card::
 
-    .. image:: ../../_static/screenshots/plan_editor_edit.png
+    .. image:: /_static/screenshots/plan_editor_edit.png
         :alt: Plan editor edit
 
 

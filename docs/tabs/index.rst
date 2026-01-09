@@ -1,25 +1,44 @@
 Standard Tabs
 =============
 
-nbs-gui organizes functionality into tabs, each providing a specific aspect of beamline control. The tabs available depend on your :doc:`../configuration` settings.
+nbs-gui organizes functionality into tabs, each providing a specific aspect of beamline control. 
+The tabs available depend on your :doc:`../configuration` settings. Each standard tab is described in the links below.
 
 .. toctree::
    :maxdepth: 1
+   :hidden:
 
    queue_control
    monitor
    console
    samples
 
-Tab Organization
------------------
+.. grid:: 1 2 4 4
 
-Tabs are designed to work together in a workflow:
+   .. grid-item-card:: Queue Control Tab
+      :link: queue_control
+      :link-type: doc
 
-1. **Queue Control** - Plan and execute measurements
-2. **Beamline Status** - Observe real-time device states
-3. **IPython Console** - Advanced control and scripting
-4. **Samples** - Manage sample information
+      Plan and execute measurements
+
+   .. grid-item-card:: Monitor Tab
+      :link: monitor
+      :link-type: doc
+
+      Observe real-time device states
+
+   .. grid-item-card:: Console Tab
+      :link: console
+      :link-type: doc
+
+      Advanced control and scripting
+
+   .. grid-item-card:: Samples Tab
+      :link: samples
+      :link-type: doc
+
+      Manage sample information
+
 
 Custom Tabs
 -----------
