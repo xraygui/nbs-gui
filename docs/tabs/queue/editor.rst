@@ -9,25 +9,27 @@ A "direct" interface for creating and editing plans. It will be instructive to f
 The "Movement" plan in the Plan Widgets tab is shown below. The interface is simple, and contains a drop-down menu
 for the motor selection, and a named input field for the position, which has a "float" type, and will not allow incorrect input, i.e, strings.
 
-.. image:: ../../_static/screenshots/move_plan_widget.png
-   :alt: Move plan widget
-   :align: center
+.. card::
 
-------
+    .. image:: ../../_static/screenshots/move_plan_widget.png
+        :alt: Move plan widget
+
 
 The same plan in the Plan Editor tab is shown below. The interface is more complex, and contains a table of parameters, which is automatically generated from the plan signature.
 There is no guidance or validation for the input, so the user must very carefully enter exactly the motor name desired, and then the position, as a list of arguments.
 
-.. image:: ../../_static/screenshots/move_plan_editor.png
-   :alt: Move plan editor
-   :align: center
+.. card::
+
+    .. image:: ../../_static/screenshots/move_plan_editor.png
+        :alt: Move plan editor
 
 Running a Plan
 ~~~~~~~~~~~~~~
 
-.. image:: ../../_static/screenshots/plan_editor_overview.png
-   :alt: Plan editor overview
-   :align: center
+.. card::
+
+    .. image:: ../../_static/screenshots/plan_editor_overview.png
+        :alt: Plan editor overview
 
 The Plan Editor tab is divided into a plan selection bar, and the parameter table. The plan selection drop-down contains
 all selectable plans, organized into four Categories
@@ -74,9 +76,11 @@ It is possible to edit plans already in the Queue, which is useful for making sm
 The easiest way to edit a plan is to double-click on it in the Plan Queue tab, which should automatically load all of the plan
 parameters into the Plan Editor tab.
 
-.. image:: ../../_static/screenshots/plan_editor_edit.png
-   :alt: Plan editor edit
-   :align: center
+.. card::
+
+    .. image:: ../../_static/screenshots/plan_editor_edit.png
+        :alt: Plan editor edit
+
 
 From here, the plan parameters can be edited as desired. Once editing is complete, hit "Save" to update the plan in the Queue.
 

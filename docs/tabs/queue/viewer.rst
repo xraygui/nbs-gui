@@ -1,9 +1,10 @@
 Plan Viewer Tab
 ---------------
 
-.. image:: ../../_static/screenshots/plan_viewer_widget.png
-   :alt: Plan viewer widget
-   :align: center
+.. card::
+
+    .. image:: ../../_static/screenshots/plan_viewer_widget.png
+      :alt: Plan viewer widget
 
 The Plan Viewer tab shows the details of a plan that has been selected in the queue, including the parameters and the metadata.
 Unlike the user-friendly Plan Widgets view, the Plan Viewer shows the raw parameters that will be sent to the QueueServer, and

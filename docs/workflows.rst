@@ -8,12 +8,12 @@ Basic Motor Movement
 
 Moving a single motor is the most fundamental operation.
 
+.. card::
 
-.. image:: _static/screenshots/motor_control_detail.png
-   :alt: Detailed motor control interface
-   :align: center
+   .. image:: _static/screenshots/motor_control_detail.png
+      :alt: Detailed motor control interface
+      :align: center
 
-**Via Beamline Status Tab:**
 
 1. Open the **Beamline Status** tab
 2. Locate the desired motor in the motor drop-down menu
@@ -24,7 +24,8 @@ Moving a single motor is the most fundamental operation.
 7. The indicator will turn grey when the motor has stopped moving.
 
 
-**Tips:**
+.. tip::
+
    * Many motors have limits. The GUI cannot yet display these limits, but EPICS should reject moves that are outside the limits.
    * Use relative moves for fast adjustments. The step size can be adjusted using the input between the < and > buttons.
    * An individual motor can be gracefully stopped by clicking the "Stop" button.
@@ -33,12 +34,13 @@ Moving a single motor is the most fundamental operation.
 Simple Scan Setup
 -----------------
 
-Creating and running a basic motor step scan.
+**Creating and running a basic motor step scan**
 
+.. card::
 
-.. image:: _static/screenshots/step_scan_widget.png
-   :alt: Step scan widget
-   :align: center
+   .. image:: _static/screenshots/step_scan_widget.png
+      :alt: Step scan widget
+      :align: center
 
 1. Open the **Queue Control** tab
 2. In the Plan Editor (left panel), select **Plan Widgets** tab
@@ -57,7 +59,8 @@ Creating and running a basic motor step scan.
 
 There are many more options in the Step Scan widget, which are common to most plans. They are covered in greater detail in the :doc:`tabs/queue_control` guide.
 
-**Note:** All active detectors will be recorded automatically for each step.
+.. note:: 
+   All active detectors will be recorded automatically for each step of the scan.
 
 **Console Alternative:**
 
@@ -73,9 +76,11 @@ Energy Scan Experiment
 
 NBS-GUI has been designed for X-ray Absorption Spectroscopy beamlines, so XAS plans have a built-in widget for step scans with pre-set regions, assuming that XAS plans have been loaded into nbs-bl.
 
-.. image:: _static/screenshots/xas_widget.png
-   :alt: XAS widget
-   :align: center
+.. card::
+   
+   .. image:: _static/screenshots/xas_widget.png
+      :alt: XAS widget
+      :align: center
 
 1. Select "XAS" from the Plan Type Selection drop-down menu
 2. Select the XAS scan region from the XAS Scan drop-down. The scan steps will be displayed below. 
@@ -119,39 +124,41 @@ Troubleshooting Common Issues
 Device Connection Problems
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-**Symptoms:** Red status indicators, "Disconnected" messages
+Symptoms:
+   Red status indicators, "Disconnected" messages
 
-**Solutions:**
+Solutions:
+   1. Check EPICS server status
+   2. Verify network connectivity
+   3. Restart IOCs if necessary
+   4. Check device configuration in devices.toml
 
-1. Check EPICS server status
-2. Verify network connectivity
-3. Restart IOCs if necessary
-4. Check device configuration in devices.toml
-
-Devices that temporarily disconnect, or are restarted, should automatically reconnect after a few minutes. If this does not happen, check the IOC, or restart the GUI.
+.. note::
+   
+   Devices that temporarily disconnect, or are restarted, should automatically reconnect after a few minutes. If this does not happen, check the IOC, or restart the GUI.
 
 Motor Movement Failures
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-**Symptoms:** Motor doesn't move, timeout errors
+Symptoms: 
+   Motor doesn't move, timeout errors
 
-**Solutions:**
-
-1. Verify position is within limits using CSS/Phoebus
-2. Check for hardware faults
-3. Ask Beamline Staff for help
+Solutions:
+   1. Verify position is within limits using CSS/Phoebus
+   2. Check for hardware faults
+   3. Ask Beamline Staff for help
 
 Plan Execution Errors
 ~~~~~~~~~~~~~~~~~~~~~
 
-**Symptoms:** Plan fails with error messages
+Symptoms:
+   Plan fails with error messages
 
-**Solutions:**
-
-1. Check plan parameters are valid
-2. Verify all required devices are connected
-3. Review error messages in console
-4. Test simpler plans first
+Solutions:
+   1. Check plan parameters are valid
+   2. Verify all required devices are connected
+   3. Review error messages in console
+   4. Test simpler plans first
 
 Advanced Scripting
 ------------------
@@ -174,7 +181,7 @@ For custom operations, use the **Console** tab:
 The defined scan can then be used in the console:
 
 .. code-block:: python
-   
+
    RE(iron_scan_with_shutters())
 
 Or, if "update environment" is clicked in the **Running Plan** box, the plan can be added to a queue via the **Plan Editor** widget (see :doc:`tabs/queue_control`)

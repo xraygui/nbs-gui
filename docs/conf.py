@@ -17,6 +17,7 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx_rtd_theme",
     "myst_parser",  # For markdown support
+    "sphinx_design",
 ]
 
 templates_path = ["_templates"]
