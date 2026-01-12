@@ -79,45 +79,6 @@ This has the following benefits
 
 See :doc:`queue_control` for more information on how to use samples in measurement plans.
 
-Workflow Examples
------------------
-
-Sample Preparation
-~~~~~~~~~~~~~~~~~~
-
-1. Define sample in database
-2. Record sample position
-3. Set experimental conditions
-4. Create associated measurement plan
-
-Batch Measurements
-~~~~~~~~~~~~~~~~~~
-
-1. Define multiple samples
-2. Create position set for each
-3. Build measurement sequence
-4. Execute automated sample changes
-
-Data Organization
-~~~~~~~~~~~~~~~~~
-
-1. Associate samples with data collections
-2. Add metadata automatically
-3. Search and filter by sample properties
-4. Generate sample reports
-
-Troubleshooting
----------------
-
-**Position not saving**
-   Check manipulator device connections.
-
-**Sample data not persisting**
-   Verify database connectivity.
-
-**Plan integration issues**
-   Ensure sample references are correctly configured.
-
 See Also
 --------
 

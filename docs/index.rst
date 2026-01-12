@@ -52,15 +52,11 @@ Developer Guide
 Extend and customize nbs-gui:
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Development
 
    architecture
-   development/models
-   development/views
-   development/tabs
-   development/plans
-   development/plugins
+
 
 API Reference
 -------------
@@ -72,16 +68,6 @@ Complete API documentation:
    :caption: API
 
    api
-
-Troubleshooting
----------------
-
-Having issues? Check the troubleshooting guide:
-
-.. toctree::
-   :maxdepth: 1
-
-   troubleshooting
 
 Development
 -----------

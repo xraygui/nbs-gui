@@ -396,7 +396,10 @@ class BaseModel(QWidget, ModeManagedModel):
         """Whether the device is currently connected."""
         return self._connected
 
-    def _stash_value(self, value, **_):
+    def _value_changed(self, value, **kwargs):
+        raise NotImplementedError("Subclasses must implement _value_changed")
+
+    def _stash_value(self, value, **kwargs):
         """
         Store the latest value from a subscription callback.
 
