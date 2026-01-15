@@ -19,6 +19,7 @@ class MainWindow(Window):
     def __init__(self, model, *, show=True):
         super().__init__(TabViewer(model), show=show)
         self.model = model
+        self._mode_model = None
 
         # Initialize main widget container
         self.main_widget = QWidget()
@@ -36,6 +37,7 @@ class MainWindow(Window):
 
         # Connect model events
         self.model.run_engine.events.status_changed.connect(self.on_update_widgets)
+        self._attach_mode_listener()
 
     def setup_menus(self):
         """Setup the application menu bar"""
@@ -90,6 +92,7 @@ class MainWindow(Window):
         self.model.init_beamline()
         new_widget = TabViewer(self.model)
         self.update_widget(new_widget, self.model)
+        self._attach_mode_listener()
 
     def _update_action_env_destroy_state(self):
         """Update the state of the environment destroy action"""
@@ -105,6 +108,31 @@ class MainWindow(Window):
         """Handle widget updates when model changes"""
         self._update_action_env_destroy_state()
 
+    def _attach_mode_listener(self):
+        """Connect to mode change signal to rebuild UI on mode switch."""
+        if self._mode_model is not None:
+            try:
+                self._mode_model.mode_changed.disconnect(self._handle_mode_change)
+            except Exception:
+                pass
+            self._mode_model = None
+
+        beamline = getattr(self.model, "beamline", None)
+        mode_model = getattr(beamline, "mode_model", None)
+        if mode_model is not None:
+            try:
+                mode_model.mode_changed.connect(self._handle_mode_change)
+                self._mode_model = mode_model
+            except Exception as e:
+                print(f"Failed to connect mode change listener: {e}")
+
+    def _handle_mode_change(self, mode):
+        """Rebuild beamline and UI when mode changes."""
+        try:
+            self._reload_in_place(mode)
+        except Exception as e:
+            print(f"Error handling mode change rebuild: {e}")
+
     @staticmethod
     def load_header_from_entrypoint(entrypoint_name):
         """Load the header widget from an entry point"""
@@ -112,3 +140,18 @@ class MainWindow(Window):
             if entry_point.name == entrypoint_name:
                 return entry_point.load()
         return Header
+
+    def _reload_in_place(self, mode):
+        """
+        Reload beamline devices and refresh reloadable tabs.
+
+        Parameters
+        ----------
+        mode : str
+            Target mode.
+        """
+        self.model.reload_beamline_for_mode_inplace(mode)
+        if hasattr(self.qt_widget, "reload_tabs"):
+            self.qt_widget.reload_tabs(self.model)
+        self._attach_mode_listener()
+        self._update_action_env_destroy_state()

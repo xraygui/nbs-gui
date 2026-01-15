@@ -12,6 +12,7 @@ import time
 
 class MotorTab(QWidget):
     name = "Motor Control"
+    reloadable = True
 
     def __init__(self, model, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -50,3 +51,13 @@ class MotorTab(QWidget):
         # vbox.addLayout(hbox)
         vbox.addStretch()
         self.setLayout(vbox)
+
+    def teardown(self):
+        """
+        Release resources before tab reload.
+
+        Returns
+        -------
+        None
+        """
+        return None

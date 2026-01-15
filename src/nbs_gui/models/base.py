@@ -248,6 +248,8 @@ class BaseModel(QWidget, ModeManagedModel):
         self.enabled = True
         self._connected = False  # Start as disconnected
         self._value = None
+        self._latest_value = None
+        self._has_update = False
         # Create reconnection timer
         self._reconnection_timer = QTimer()
         self._reconnection_timer.timeout.connect(self._check_connection)
@@ -352,17 +354,17 @@ class BaseModel(QWidget, ModeManagedModel):
 
         try:
             if "wait_for_connection" in dir(self.obj):
-                print(f"[{self.name}._check_connection] Waiting for connection")
+                # print(f"[{self.name}._check_connection] Waiting for connection")
                 self.obj.wait_for_connection(timeout=0.2)
                 connected = True
             else:
-                print(f"[{self.name}._check_connection] Getting value")
+                # print(f"[{self.name}._check_connection] Getting value")
                 self.obj.get(timeout=0.2, connection_timeout=0.2)
                 connected = True
         except Exception as e:
             print(f"[{self.name}._check_connection] Error: {e}")
             connected = False
-        print(f"[{self.name}._check_connection] Connected: {connected}")
+        # print(f"[{self.name}._check_connection] Connected: {connected}")
 
         # Update connection state if changed
         if connected != self._connected:
@@ -394,19 +396,62 @@ class BaseModel(QWidget, ModeManagedModel):
         """Whether the device is currently connected."""
         return self._connected
 
+    def _value_changed(self, value, **kwargs):
+        raise NotImplementedError("Subclasses must implement _value_changed")
+
+    def _stash_value(self, value, **kwargs):
+        """
+        Store the latest value from a subscription callback.
+
+        Parameters
+        ----------
+        value : any
+            Latest value from the device.
+        """
+        self._latest_value = value
+        self._has_update = True
+
+    def drain_pending(self):
+        """
+        Emit a pending update if one exists.
+
+        Returns
+        -------
+        bool
+            True if an update was emitted, otherwise False.
+        """
+        if not self._has_update:
+            return False
+        value = self._latest_value
+        self._latest_value = None
+        self._has_update = False
+        self._value_changed(value)
+        return True
+
+    def iter_models(self):
+        """
+        Yield contained models for traversal.
+
+        Yields
+        ------
+        BaseModel
+            Contained models.
+        """
+        return ()
+
 
 class PVModelRO(BaseModel):
     valueChanged = Signal(str)
 
     def __init__(self, name, obj, group, long_name, **kwargs):
-        print(f"[{name}.__init__] Initializing PVModelRO")
+        # print(f"[{name}.__init__] Initializing PVModelRO")
         super().__init__(name, obj, group, long_name, **kwargs)
-        print(f"[{name}.__init__] about to call _initialize")
+        # print(f"[{name}.__init__] about to call _initialize")
         PVModelRO._initialize(self)
 
     @initialize_with_retry
     def _initialize(self):
-        print(f"[{self.name}._initialize] Initializing PVModelRO")
+        # print(f"[{self.name}._initialize] Initializing PVModelRO")
         if not super()._initialize():
             self.value_type = None
             self.units = None
@@ -414,10 +459,10 @@ class PVModelRO(BaseModel):
 
         if hasattr(self.obj, "metadata"):
             self.units = self.obj.metadata.get("units", None)
-            print(f"{self.name} has units {self.units}")
+            # print(f"{self.name} has units {self.units}")
         else:
             self.units = None
-            print(f"{self.name} has no metadata")
+            # print(f"{self.name} has no metadata")
 
         try:
             _value_type = self.obj.describe().get("dtype", None)
@@ -432,13 +477,13 @@ class PVModelRO(BaseModel):
         except Exception as e:
             print(f"[{self.name}] Error in _initialize value_type: {e}")
             self.value_type = None
-        print(f"[{self.name}] value_type: {self.value_type}")
-        self.sub_key = self.obj.subscribe(self._value_changed, run=False)
+        # print(f"[{self.name}] value_type: {self.value_type}")
+        self.sub_key = self.obj.subscribe(self._stash_value, run=False)
         initial_value = self._get_value(check_connection=False)
-        self._value_changed(initial_value)
-        print(f"[{self.name}] Initial value: {initial_value}")
+        self._stash_value(initial_value)
+        # print(f"[{self.name}] Initial value: {initial_value}")
         QTimer.singleShot(5000, self._check_value)
-        print(f"[{self.name}] PVModelRO Initialized")
+        # print(f"[{self.name}] PVModelRO Initialized")
         return True
 
     def _cleanup(self):
@@ -450,7 +495,7 @@ class PVModelRO(BaseModel):
 
     def _check_value(self):
         value = self._get_value()
-        self._value_changed(value)
+        self._stash_value(value)
         QTimer.singleShot(10000, self._check_value)
 
     def _value_changed(self, value, print_value=False, **kwargs):
@@ -552,7 +597,7 @@ class EnumModel(PVModel):
 
     @initialize_with_retry
     def _initialize(self):
-        print(f"Initializing EnumModel for {self.name}")
+        # print(f"Initializing EnumModel for {self.name}")
         if not super()._initialize():
             return False
 

@@ -636,7 +636,6 @@ class _QtReViewer(QWidget):
             item = copy.deepcopy(self.model._plan_queue_items[sel_item_pos])
         else:
             item = None
-
         default_name = self._lb_item_name_default
         self._queue_item_name = item.get("name", default_name) if item else default_name
         self._queue_item_type = item.get("item_type", None) if item else None

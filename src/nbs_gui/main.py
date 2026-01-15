@@ -1,7 +1,11 @@
 import argparse
 import os
 from os.path import join, dirname, exists
-import toml
+
+try:
+    import tomllib
+except ModuleNotFoundError:
+    import tomli as tomllib
 
 from bluesky_widgets.qt import gui_qt
 from .window import MainWindow
@@ -129,42 +133,10 @@ def main(argv=None):
     configure_communication_settings(args)
 
     profile_dir = get_ipython_startup_dir(args.profile, args.ipython_dir)
-    SETTINGS.object_config_file = join(profile_dir, "devices.toml")
-    SETTINGS.gui_config_file = join(profile_dir, "gui_config.toml")
-    SETTINGS.beamline_config_file = join(profile_dir, "beamline.toml")
 
-    if exists(SETTINGS.gui_config_file):
-        try:
-            with open(SETTINGS.gui_config_file, "r") as config_file:
-                SETTINGS.gui_config = toml.load(config_file)
-        except Exception as e:
-            print(f"Error loading {SETTINGS.gui_config_file}:\n {e}")
-            raise e
-    else:
-        SETTINGS.gui_config = {}
-
-    if not args.no_devices and exists(SETTINGS.object_config_file):
-        try:
-            with open(SETTINGS.object_config_file, "r") as config_file:
-                SETTINGS.object_config = toml.load(config_file)
-        except Exception as e:
-            print(f"Error loading {SETTINGS.object_config_file}:\n {e}")
-            raise e
-    else:
-        SETTINGS.object_config = {}
-
-    if exists(SETTINGS.beamline_config_file):
-        try:
-            with open(SETTINGS.beamline_config_file, "r") as config_file:
-                SETTINGS.beamline_config = toml.load(config_file)
-        except Exception as e:
-            print(f"Error loading {SETTINGS.beamline_config_file}:\n {e}")
-            raise e
-    else:
-        SETTINGS.beamline_config = {}
 
     with gui_qt("NBS Queue Monitor"):
-        model = ViewerModel()
+        model = ViewerModel(profile_dir, no_devices=args.no_devices)
         set_top_level_model(model)
         viewer = MainWindow(model)  # noqa: 401
 
