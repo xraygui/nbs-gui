@@ -252,7 +252,12 @@ class GUIBeamlineModel(CoreBeamlineModel):
         self.groups = list(self.default_groups)
         for group in self.default_groups:
             setattr(self, group, {})
-        self.roles = ["energy", "primary_manipulator", "default_shutter"]
+
+        for role in self.roles:
+            if hasattr(self, role):
+                delattr(self, role)
+
+        self.roles = []
 
         self.loadDevices(devices_new, groups_new, roles_new)
         try:
