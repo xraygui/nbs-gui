@@ -29,7 +29,7 @@ class RedisWatcherThread(QThread):
                 event = message["data"].decode()
                 if key.startswith(self.prefix):
                     self.change_detected.emit(key, event)
-            self.msleep(10)  # Small delay to prevent CPU hogging
+            self.msleep(100)  # Small delay to prevent CPU hogging
 
     def stop(self):
         self._running = False
