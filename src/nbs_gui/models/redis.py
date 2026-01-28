@@ -2,7 +2,7 @@
 
 from qtpy.QtCore import Signal
 
-from .base import BaseModel, PVModel
+from .base import BaseModel
 
 
 class RedisStatusProvider:
