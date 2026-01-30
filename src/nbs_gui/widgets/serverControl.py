@@ -166,9 +166,36 @@ class QueueServerControls(QWidget):
         """Start the status update thread"""
         from bluesky_widgets.qt.threading import FunctionWorker
 
-        self._thread = FunctionWorker(self._reload_status)
-        self._thread.finished.connect(self._reload_complete)
-        self._thread.start()
+        if self._thread is not None:
+            self._cleanup_worker(self._thread)
+        worker = FunctionWorker(self._reload_status)
+        self._thread = worker
+        worker.finished.connect(lambda: self._reload_complete(worker))
+        worker.start()
+
+    def _cleanup_worker(self, worker):
+        """
+        Disconnect and schedule deletion for a worker.
+
+        Parameters
+        ----------
+        worker : object
+            Worker instance to clean up.
+
+        Returns
+        -------
+        None
+        """
+        try:
+            worker.finished.disconnect()
+        except Exception:
+            pass
+        try:
+            worker.deleteLater()
+        except Exception:
+            pass
+        if self._thread is worker:
+            self._thread = None
 
     def _cleanup(self, *args):
         """Disconnect callbacks to avoid emitting into deleted Qt objects."""
@@ -182,9 +209,12 @@ class QueueServerControls(QWidget):
             self.signal_update_widget.disconnect(self.slot_update_widgets)
         except Exception:
             pass
+        if self._thread is not None:
+            self._cleanup_worker(self._thread)
 
-    def _reload_complete(self):
+    def _reload_complete(self, worker):
         """Handle completion of status update thread"""
+        self._cleanup_worker(worker)
         if not self._deactivate_updates:
             self._start_thread()
         else:
@@ -221,3 +251,5 @@ class QueueServerControls(QWidget):
             self.destroyed.disconnect(self._cleanup)
         except Exception:
             pass
+        if self._thread is not None:
+            self._cleanup_worker(self._thread)

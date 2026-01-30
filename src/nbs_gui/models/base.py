@@ -268,7 +268,7 @@ class BaseModel(QWidget, ModeManagedModel):
         # Connect connection status changes to timer management
         self.connectionStatusChanged.connect(self._handle_connection_change)
 
-        self.destroyed.connect(lambda: self._cleanup)
+        self.destroyed.connect(lambda: self._cleanup())
         self.units = None
 
     def _stop_timers(self):

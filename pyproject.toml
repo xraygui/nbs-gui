@@ -129,6 +129,7 @@ nbs-gui-queue = "nbs_gui.tabs.queueControlTab:QueueControlTab"
 nbs-gui-console = "nbs_gui.tabs.consoleTab:IPythonConsoleTab"
 nbs-gui-samples = "nbs_gui.tabs.sampleTab:SampleTab"
 nbs-gui-monitor = "nbs_gui.tabs.monitorTab:MonitorTab"
+nbs-gui-debug = "nbs_gui.tabs.debugTab:DebugTab"
 
 [project.entry-points."nbs_gui.widgets"]
 nbs-gui-header = "nbs_gui.widgets.header:Header"

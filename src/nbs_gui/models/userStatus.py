@@ -72,12 +72,40 @@ class UserStatus(QObject):
                     return
             except Exception:
                 pass
-        self._thread = FunctionWorker(self._reload_status)
-        self._thread.finished.connect(self._reload_complete)
+        if self._thread is not None:
+            self._cleanup_worker(self._thread)
+        worker = FunctionWorker(self._reload_status)
+        self._thread = worker
+        worker.finished.connect(lambda: self._reload_complete(worker))
         self.updates_activated = True
-        self._thread.start()
+        worker.start()
 
-    def _reload_complete(self):
+    def _cleanup_worker(self, worker):
+        """
+        Disconnect and schedule deletion for a worker.
+
+        Parameters
+        ----------
+        worker : object
+            Worker instance to clean up.
+
+        Returns
+        -------
+        None
+        """
+        try:
+            worker.finished.disconnect()
+        except Exception:
+            pass
+        try:
+            worker.deleteLater()
+        except Exception:
+            pass
+        if self._thread is worker:
+            self._thread = None
+
+    def _reload_complete(self, worker):
+        self._cleanup_worker(worker)
         if self._deactivate_updates or not self._signal_registry:
             self.updates_activated = False
             self._deactivate_updates = False
