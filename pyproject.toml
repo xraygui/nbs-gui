@@ -13,14 +13,18 @@ readme = "README.md"
 keywords = ["bluesky", "nsls-ii", "gui"]
 requires-python = ">=3.8"
 dependencies = [
-    "bluesky-widgets>=0.0.17, <0.0.18",
+    "bluesky-widgets @ git+https://github.com/cjtitus/bluesky-widgets@worker_weakref",
+    "bluesky-queueserver",
     "bluesky-queueserver-api",
     "qtpy",
     "ophyd",
     'tomli ; python_version < "3.11"',
     "tomli_w",
     "nbs-core>=0.1",
-    "nbs-bl>=0.2"]
+    "nbs-bl>=0.2",
+    "qtconsole",
+    "livetable @ git+https://github.com/xraygui/livetable",
+]
 
 classifiers = [
     "Programming Language :: Python :: 3",
@@ -61,13 +65,12 @@ databroker = ">=2.0.0b67"
 bluesky-tiled-plugins = ">=2.0.0b67"
 
 asteval = ">=1.0.6,<2"
-bluesky-widgets = ">=0.0.17,<0.0.18"
 bluesky-live = ">=0.0.8,<0.0.9"
 qt6-wayland = "*"
 pyside6 = "*"
 
 [tool.pixi.pypi-dependencies]
-livetable = { git="https://github.com/xraygui/livetable" }
+
 nbs-gui = { path = ".", editable = true }
 qtconsole = "*"
 
@@ -134,4 +137,3 @@ nbs-gui-debug = "nbs_gui.tabs.debugTab:DebugTab"
 [project.entry-points."nbs_gui.widgets"]
 nbs-gui-header = "nbs_gui.widgets.header:Header"
 nbs-gui-minimal-header = "nbs_gui.widgets.header:MinimalHeader"
-[tool.setuptools_scm]

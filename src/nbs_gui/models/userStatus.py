@@ -1,7 +1,7 @@
 from bluesky_widgets.qt.threading import FunctionWorker
 from qtpy.QtCore import QObject, QTimer
 from bluesky_queueserver_api import BFunc
-import time
+import weakref
 
 
 class UserStatus(QObject):
@@ -16,7 +16,6 @@ class UserStatus(QObject):
         self._thread = None
         self._is_reloading = False
         self._deactivate_updates = False
-        self.updates_activated = False
         self.update_period = 1
         self._redis_settings = redis_settings
         self._status_dicts = {}
@@ -75,9 +74,13 @@ class UserStatus(QObject):
         if self._thread is not None:
             self._cleanup_worker(self._thread)
         worker = FunctionWorker(self._reload_status)
+        worker_ref = weakref.ref(worker)
+        def on_finished():
+            w = worker_ref()
+            if w is not None:
+                self._reload_complete(w)
         self._thread = worker
-        worker.finished.connect(lambda: self._reload_complete(worker))
-        self.updates_activated = True
+        worker.finished.connect(on_finished)
         worker.start()
 
     def _cleanup_worker(self, worker):
@@ -106,11 +109,8 @@ class UserStatus(QObject):
 
     def _reload_complete(self, worker):
         self._cleanup_worker(worker)
-        if self._deactivate_updates or not self._signal_registry:
-            self.updates_activated = False
-            self._deactivate_updates = False
-            return
-        QTimer.singleShot(int(self.update_period * 1000), self._start_thread)
+        if not self._deactivate_updates:
+            QTimer.singleShot(int(self.update_period * 1000), self._start_thread)
 
     def get_update(self, key):
         function = BFunc("request_update", key)
@@ -190,12 +190,14 @@ class UserStatus(QObject):
                 signal.emit(value)
 
     def on_status_update(self, event):
-        #print("UserStatus update event received")
+        print("UserStatus update event received")
         if self._is_reloading:
+            print("UserStatus update event received, but reloading")
             return
         is_connected = bool(event.is_connected)
         status = event.status
         worker_exists = status.get("worker_environment_exists", False)
         self._deactivate_updates = not is_connected or not worker_exists
-        if not self._deactivate_updates and not self.updates_activated:
+        if not self._deactivate_updates:
+            print("Starting thread")
             self._start_thread()
