@@ -33,6 +33,9 @@ classifiers = [
     "Intended Audience :: Science/Research"
 ]
 
+[tool.hatch.metadata]
+allow-direct-references = true
+
 [tool.hatch.version]
 source = "vcs"
 
@@ -72,7 +75,6 @@ pyside6 = "*"
 [tool.pixi.pypi-dependencies]
 
 nbs-gui = { path = ".", editable = true }
-qtconsole = "*"
 
 [tool.pixi.feature.build.dependencies]
 hatch = "*"
