@@ -190,14 +190,11 @@ class UserStatus(QObject):
                 signal.emit(value)
 
     def on_status_update(self, event):
-        print("UserStatus update event received")
         if self._is_reloading:
-            print("UserStatus update event received, but reloading")
             return
         is_connected = bool(event.is_connected)
         status = event.status
         worker_exists = status.get("worker_environment_exists", False)
         self._deactivate_updates = not is_connected or not worker_exists
         if not self._deactivate_updates:
-            print("Starting thread")
             self._start_thread()

@@ -13,7 +13,7 @@ readme = "README.md"
 keywords = ["bluesky", "nsls-ii", "gui"]
 requires-python = ">=3.8"
 dependencies = [
-    "bluesky-widgets @ git+https://github.com/cjtitus/bluesky-widgets@worker_weakref",
+    "bluesky-widgets",
     "bluesky-queueserver",
     "bluesky-queueserver-api",
     "qtpy",
@@ -23,7 +23,7 @@ dependencies = [
     "nbs-core>=0.1",
     "nbs-bl>=0.2",
     "qtconsole",
-    "livetable @ git+https://github.com/xraygui/livetable",
+    "nbs-livetable",
 ]
 
 classifiers = [
@@ -32,9 +32,6 @@ classifiers = [
     "Operating System :: OS Independent",
     "Intended Audience :: Science/Research"
 ]
-
-[tool.hatch.metadata]
-allow-direct-references = true
 
 [tool.hatch.version]
 source = "vcs"
