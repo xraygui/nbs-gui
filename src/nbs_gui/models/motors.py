@@ -124,7 +124,7 @@ class EPICSMotorModel(BaseMotorModel):
         if not super()._initialize():
             return False
 
-        print(f"Initializing EPICSMotorModel for {self.name}")
+        # print(f"Initializing EPICSMotorModel for {self.name}")
         self.obj.motor_is_moving.subscribe(self._update_moving_status)
 
         # print(f"Setting up setpoint for {self.name}")
@@ -226,7 +226,7 @@ class EPICSMotorModel(BaseMotorModel):
 class PVPositionerModel(BaseMotorModel):
 
     def __init__(self, name, obj, group, long_name, **kwargs):
-        print(f"[{name}.__init__] Initializing PVPositionerModel")
+        # print(f"[{name}.__init__] Initializing PVPositionerModel")
         super().__init__(name, obj, group, long_name, **kwargs)
         self._setpoint = None
         self._target = None
@@ -237,7 +237,7 @@ class PVPositionerModel(BaseMotorModel):
         self.checkSPTimer = QTimer(self)
         self.checkMovingTimer = QTimer(self)
         self.checkValueTimer = QTimer(self)
-        print(f"[{name}.__init__] about to call _initialize")
+        # print(f"[{name}.__init__] about to call _initialize")
         PVPositionerModel._initialize(self)
 
     def _stop_timers(self):
@@ -266,7 +266,7 @@ class PVPositionerModel(BaseMotorModel):
 
     @initialize_with_retry
     def _initialize(self):
-        print(f"[{self.name}._initialize] Initializing PVPositionerModel")
+        # print(f"[{self.name}._initialize] Initializing PVPositionerModel")
         if not super()._initialize():
             return False
 
