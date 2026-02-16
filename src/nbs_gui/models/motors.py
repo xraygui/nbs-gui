@@ -125,7 +125,7 @@ class EPICSMotorModel(BaseMotorModel):
             return False
 
         # print(f"Initializing EPICSMotorModel for {self.name}")
-        self.obj.motor_is_moving.subscribe(self._update_moving_status)
+        self.sub_key = self.obj.motor_is_moving.subscribe(self._update_moving_status)
 
         # print(f"Setting up setpoint for {self.name}")
         if "user_setpoint" in self.obj.__dir__():

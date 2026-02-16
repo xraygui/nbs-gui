@@ -1,7 +1,7 @@
-from qtpy.QtWidgets import QFrame, QMessageBox
+from qtpy.QtWidgets import QFrame, QMessageBox, QPushButton
 from qtpy.QtWidgets import QWidget, QSizePolicy
+from qtpy.QtCore import Qt, QSize
 from qtpy.QtGui import QPainter, QColor
-from qtpy.QtCore import QSize
 
 
 def submit_plan(parent, item):
@@ -71,6 +71,62 @@ class HLine(QFrame):
         super().__init__(*args, **kwargs)
         self.setFrameShape(QFrame.HLine)
         self.setFrameShadow(QFrame.Sunken)
+
+
+class ConfirmationButton(QPushButton):
+    """
+    A QPushButton that shows a confirmation dialog before emitting clicked.
+
+    Use as a drop-in replacement for QPushButton. The clicked signal is emitted
+    only when the user confirms in the "Are you sure?" dialog.
+
+    Parameters
+    ----------
+    *args
+        Positional arguments passed to QPushButton (e.g., text, parent).
+    confirmation_title : str, optional
+        Title of the confirmation dialog. Default is "Are you sure?".
+    confirmation_text : str, optional
+        Message in the confirmation dialog. Default is "Are you sure?".
+    **kwargs
+        Keyword arguments passed to QPushButton.
+    """
+
+    def __init__(
+        self,
+        *args,
+        confirmation_title="Are you sure?",
+        confirmation_text="Are you sure?",
+        **kwargs,
+    ):
+        super().__init__(*args, **kwargs)
+        self._confirmation_title = confirmation_title
+        self._confirmation_text = confirmation_text
+
+    def _confirm_and_emit_if_accepted(self):
+        reply = QMessageBox.question(
+            self,
+            self._confirmation_title,
+            self._confirmation_text,
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if reply == QMessageBox.Yes:
+            self.clicked.emit()
+
+    def mouseReleaseEvent(self, event):
+        if self.hitButton(event.pos()):
+            self._confirm_and_emit_if_accepted()
+            self.setDown(False)
+        event.accept()
+
+    def keyReleaseEvent(self, event):
+        if event.key() in (Qt.Key_Space, Qt.Key_Return, Qt.Key_Enter):
+            self._confirm_and_emit_if_accepted()
+            self.setDown(False)
+            event.accept()
+        else:
+            super().keyReleaseEvent(event)
 
 
 class ByteIndicator(QWidget):

@@ -257,6 +257,7 @@ class BaseModel(QWidget, ModeManagedModel):
         self._reconnection_scheduled = False  # Track if reconnection is scheduled
         self._reconnection_attempts = 0  # Count attempts since last connection
         self._uninitialized_methods = set()
+        self.sub_key = None
         # Set common attributes
         for key, value in kwargs.items():
             setattr(self, key, value)
@@ -488,7 +489,9 @@ class PVModelRO(BaseModel):
         return True
 
     def _cleanup(self):
-        self.obj.unsubscribe(self.sub_key)
+        if self.sub_key is not None:
+            self.obj.unsubscribe(self.sub_key)
+            self.sub_key = None
 
     @requires_connection
     def _get_value(self):

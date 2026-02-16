@@ -7,7 +7,7 @@ from qtpy.QtWidgets import (
     QGroupBox,
 )
 from ..widgets.utils import ByteIndicator
-
+from ..widgets.utils import ConfirmationButton
 
 class GVMonitor(QWidget):
     """
@@ -45,6 +45,20 @@ class GVControl(GVMonitor):
         self.vbox.insertWidget(1, self.opn)
         self.vbox.insertWidget(3, self.close)
 
+class GVControlConfirmation(GVMonitor):
+    """
+    Widget to control a GVModel, with an open/closed indicator
+    """
+
+    def __init__(self, model, *args, **kwargs):
+        super().__init__(model, *args, **kwargs)
+        print(f"Initializing GVControl for model: {model.label}")
+        self.opn = ConfirmationButton("Open")
+        self.opn.clicked.connect(lambda x: self.model.open())
+        self.close = ConfirmationButton("Close")
+        self.close.clicked.connect(lambda x: self.model.close())
+        self.vbox.insertWidget(1, self.opn)
+        self.vbox.insertWidget(3, self.close)
 
 class GVControlBox(QGroupBox):
     """

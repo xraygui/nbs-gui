@@ -54,9 +54,9 @@ class EnumControl(QWidget):
         self.combo.setFixedWidth(100)
         self.combo.setFixedHeight(20)
 
-        box.addWidget(self.value)
         box.addWidget(self.combo)
-
+        box.addWidget(self.value)
+        
         if orientation == "h":
             box.setAlignment(Qt.AlignVCenter)
 
@@ -79,13 +79,17 @@ class EnumControl(QWidget):
         if val is None:
             val = "Disconnected"
             self.value.setText(val)
+            self.combo.blockSignals(True)
             self.combo.setCurrentIndex(-1)
+            self.combo.blockSignals(False)
             return
         else:
             self.value.setText(val)
+            self.combo.blockSignals(True)
             index = self.combo.findText(val)
             if index >= 0:
                 self.combo.setCurrentIndex(index)
+            self.combo.blockSignals(False)
 
     def updateCombo(self, enum_strs):
         """Update the combo box items.
@@ -95,8 +99,15 @@ class EnumControl(QWidget):
         enum_strs : tuple
             Tuple of strings to populate the combo box
         """
+        current_val = getattr(self.model, "_value", None)
+        self.combo.blockSignals(True)
         self.combo.clear()
         self.combo.addItems(enum_strs)
+        if current_val is not None:
+            index = self.combo.findText(current_val)
+            if index >= 0:
+                self.combo.setCurrentIndex(index)
+        self.combo.blockSignals(False)
 
     def setValue(self, value):
         """Set the model value.

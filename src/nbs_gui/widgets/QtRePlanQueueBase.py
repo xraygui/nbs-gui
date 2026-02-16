@@ -15,7 +15,7 @@ from qtpy.QtWidgets import (
 from qtpy.QtCore import Signal, Slot, Qt, QMimeData, QTimer
 from bluesky_widgets.qt.run_engine_client import PushButtonMinimumWidth
 from nbs_gui.widgets.timeEstimators import TimeEstimator
-
+from nbs_gui.widgets.utils import ConfirmationButton
 
 class QueueTableWidget(QTableWidget):
     signal_drop_event = Signal(int, int)
@@ -550,7 +550,7 @@ class QtRePlanQueue(QtReActiveQueue):
         self._pb_move_to_bottom = PushButtonMinimumWidth("Bottom")
         self._pb_delete_plan = PushButtonMinimumWidth("Delete")
         self._pb_duplicate_plan = PushButtonMinimumWidth("Duplicate")
-        self._pb_clear_queue = PushButtonMinimumWidth("Clear")
+        self._pb_clear_queue = ConfirmationButton("Clear")
         self._pb_deselect = PushButtonMinimumWidth("Deselect")
         self._pb_loop_on = PushButtonMinimumWidth("Loop")
         self._pb_loop_on.setCheckable(True)
@@ -692,7 +692,7 @@ class QtRePlanHistory(BaseQueueWidget):
 
         self._pb_copy_to_queue = PushButtonMinimumWidth("Copy to Queue")
         self._pb_deselect_all = PushButtonMinimumWidth("Deselect All")
-        self._pb_clear_history = PushButtonMinimumWidth("Clear History")
+        self._pb_clear_history = ConfirmationButton("Clear History")
 
         self._pb_copy_to_queue.clicked.connect(self._pb_copy_to_queue_clicked)
         self._pb_deselect_all.clicked.connect(self._pb_deselect_all_clicked)
