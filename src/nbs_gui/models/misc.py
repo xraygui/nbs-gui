@@ -1,7 +1,7 @@
 from qtpy.QtCore import Signal, QTimer
 import numpy as np
 
-from ..views.gatevalve import GVControl, GVMonitor
+from ..views.gatevalve import GVControl, GVMonitor, GVControlConfirmation
 from ..views.energy import EnergyControl, EnergyMonitor
 from ..views.manipulator_monitor import RealManipulatorControl, RealManipulatorMonitor
 
@@ -96,6 +96,9 @@ class GVModel(BaseModel):
         elif value == self.obj.closeval:
             self.gvStatusChanged.emit("closed")
 
+class GVModelConfirmation(GVModel):
+    default_controller = GVControlConfirmation
+    default_monitor = GVMonitor
 
 class ScalarModel(BaseModel):
     valueChanged = Signal(str)

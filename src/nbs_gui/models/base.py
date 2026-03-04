@@ -239,7 +239,7 @@ class BaseModel(QWidget, ModeManagedModel):
     connectionStatusChanged = Signal(bool)
 
     def __init__(self, name, obj, group, long_name, **kwargs):
-        print(f"[{name}.__init__] Initializing BaseModel")
+        # print(f"[{name}.__init__] Initializing BaseModel")
         super().__init__()
         self.name = name
         self.obj = obj
@@ -257,6 +257,7 @@ class BaseModel(QWidget, ModeManagedModel):
         self._reconnection_scheduled = False  # Track if reconnection is scheduled
         self._reconnection_attempts = 0  # Count attempts since last connection
         self._uninitialized_methods = set()
+        self.sub_key = None
         # Set common attributes
         for key, value in kwargs.items():
             setattr(self, key, value)
@@ -268,7 +269,7 @@ class BaseModel(QWidget, ModeManagedModel):
         # Connect connection status changes to timer management
         self.connectionStatusChanged.connect(self._handle_connection_change)
 
-        self.destroyed.connect(lambda: self._cleanup)
+        self.destroyed.connect(lambda: self._cleanup())
         self.units = None
 
     def _stop_timers(self):
@@ -304,10 +305,11 @@ class BaseModel(QWidget, ModeManagedModel):
     @initialize_with_retry
     def _initialize(self):
         """Base initialization"""
-        print(f"[{self.name}._initialize] Initializing BaseModel")
+        #print(f"[{self.name}._initialize] Initializing BaseModel")
         result = self._check_connection(retry_on_failure=False)
         if result:
-            print(f"[{self.name}._initialize] Initialized BaseModel")
+            # print(f"[{self.name}._initialize] Initialized BaseModel")
+            pass
         return result
 
     def _cleanup(self):
@@ -380,9 +382,9 @@ class BaseModel(QWidget, ModeManagedModel):
             # Reset reconnection attempts on successful connection
             if connected:
                 self._reconnection_attempts = 0
-                print(
-                    f"[{self.name}] Connection restored, resetting reconnection attempts"
-                )
+                #print(
+                #    f"[{self.name}] Connection restored, resetting reconnection attempts"
+                # )
 
             # If we're now connected, try initialization
             if not connected and retry_on_failure:
@@ -487,7 +489,9 @@ class PVModelRO(BaseModel):
         return True
 
     def _cleanup(self):
-        self.obj.unsubscribe(self.sub_key)
+        if self.sub_key is not None:
+            self.obj.unsubscribe(self.sub_key)
+            self.sub_key = None
 
     @requires_connection
     def _get_value(self):
@@ -527,7 +531,7 @@ class PVModelRO(BaseModel):
                     self.value_type = int
                 else:
                     self.value_type = str
-                print(f"[{self.name}] new value_type: {self.value_type}")
+                # print(f"[{self.name}] new value_type: {self.value_type}")
 
             # Format based on type
             if self.value_type is float:

@@ -1,6 +1,8 @@
 """Model for beamline mode control."""
 
 from qtpy.QtCore import Signal
+
+from nbs_gui.views.mode import ModeControl
 from .base import EnumModel, PVModel, initialize_with_retry, requires_connection
 
 
@@ -23,7 +25,8 @@ class ModeModel(EnumModel):
     mode_info : dict
         Dictionary of mode metadata from config
     """
-
+    default_controller = ModeControl
+    default_monitor = ModeControl
     # Additional signals specific to mode changes
     mode_changed = Signal(str)  # Emits mode name
 
@@ -63,36 +66,6 @@ class ModeModel(EnumModel):
         except Exception as e:
             print(f"Error handling mode change for {self.name}: {e}")
 
-    @requires_connection
-    def set_mode(self, mode):
-        """Set the beamline mode.
-
-        Parameters
-        ----------
-        mode : str or int
-            Mode to set. Can be mode name or enum index.
-        """
-        try:
-            if isinstance(mode, str):
-                if mode in self.enum_strs:
-                    # Convert mode name to enum index
-                    mode = self.enum_strs.index(mode)
-                elif mode.startswith("Mode_"):
-                    # Convert Mode_N back to integer
-                    try:
-                        mode = int(mode.split("_")[1])
-                    except (IndexError, ValueError):
-                        raise ValueError(f"Invalid mode format: {mode}")
-                else:
-                    raise ValueError(f"Invalid mode: {mode}")
-
-            # For Redis-backed devices, prefer put; for enum PVs, set also works
-            if hasattr(self.obj, "put"):
-                self.obj.put(mode)
-            else:
-                self.obj.set(mode).wait()
-        except Exception as e:
-            print(f"Error setting mode for {self.name}: {e}")
 
     @property
     def current_mode(self):

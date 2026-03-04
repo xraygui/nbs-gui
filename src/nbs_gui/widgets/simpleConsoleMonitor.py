@@ -1,3 +1,5 @@
+import weakref
+
 from qtpy.QtCore import Qt, QTimer
 from qtpy.QtGui import (
     QFont,
@@ -35,7 +37,7 @@ class PushButtonMinimumWidth(QPushButton):
 
 
 class QtReConsoleMonitor(QWidget):
-    def __init__(self, model, parent=None):
+    def __init__(self, model, parent=None, start_monitoring=True):
         super().__init__(parent)
         self.setAttribute(Qt.WA_DeleteOnClose)
         print("New QtReConsoleMonitor with QPlainTextEdit")
@@ -90,10 +92,11 @@ class QtReConsoleMonitor(QWidget):
         self.setLayout(vbox)
 
         self.model = model
-        self.model.start_console_output_monitoring()
-        self._start_thread()
-        self._start_timer()
-        self._stop = False
+        self._stop = not bool(start_monitoring)
+        if start_monitoring:
+            self.model.start_console_output_monitoring()
+            self._start_thread()
+            self._start_timer()
 
     def __del__(self):
         self.model.stop_console_output_monitoring()
@@ -120,14 +123,15 @@ class QtReConsoleMonitor(QWidget):
 
         # Strip any trailing newlines to prevent doubles
 
-        # Add newline only if there's existing text and the message doesn't end with one
+        cursor = QTextCursor(self._text_edit.document())
+        cursor.movePosition(QTextCursor.End)
         if self._text_edit.document().isEmpty():
-            self._text_edit.insertPlainText(msg)
+            cursor.insertText(msg)
         else:
-            self._text_edit.insertPlainText("\n" + msg)
-            # self._text_edit.insertPlainText(msg)
+            cursor.insertText("\n" + msg)
         if self._autoscroll_enabled and not self._is_slider_pressed:
-            self._text_edit.moveCursor(QTextCursor.End)
+            self._text_edit.setTextCursor(cursor)
+            self._text_edit.ensureCursorVisible()
 
     def _update_console_output(self):
         """
@@ -167,17 +171,66 @@ class QtReConsoleMonitor(QWidget):
 
     def _start_thread(self):
         """
-        Start a new thread to monitor console output
+        Start a new thread to monitor console output.
         """
-        self._thread = FunctionWorker(self.model.console_monitoring_thread)
-        self._thread.returned.connect(self._process_new_console_output)
-        self._thread.finished.connect(self._finished_receiving_console_output)
-        self._thread.start()
+        if self._thread is not None:
+            self._cleanup_worker(self._thread)
+        worker = FunctionWorker(self.model.console_monitoring_thread)
+        self._thread = worker
+        worker.returned.connect(self._process_new_console_output)
 
-    def _finished_receiving_console_output(self):
+        worker_ref = weakref.ref(worker)
+
+        def on_finished():
+            w = worker_ref()
+            if w is not None:
+                self._finished_receiving_console_output(w)
+
+        worker.finished.connect(on_finished)
+        worker.start()
+
+    def _cleanup_worker(self, worker):
         """
-        Callback when thread finishes - starts a new thread if not stopped
+        Disconnect and schedule deletion for a worker.
+
+        Parameters
+        ----------
+        worker : object
+            Worker instance to clean up.
+
+        Returns
+        -------
+        None
         """
+        try:
+            worker.returned.disconnect(self._process_new_console_output)
+        except Exception:
+            pass
+        try:
+            worker.finished.disconnect()
+        except Exception:
+            pass
+        try:
+            worker.deleteLater()
+        except Exception:
+            pass
+        if self._thread is worker:
+            self._thread = None
+
+    def _finished_receiving_console_output(self, worker):
+        """
+        Callback when thread finishes.
+
+        Parameters
+        ----------
+        worker : object
+            Worker instance that finished.
+
+        Returns
+        -------
+        None
+        """
+        self._cleanup_worker(worker)
         if not self._stop:
             self._start_thread()
 
@@ -195,11 +248,4 @@ class QtReConsoleMonitor(QWidget):
         except Exception:
             pass
         if self._thread is not None:
-            try:
-                self._thread.returned.disconnect(self._process_new_console_output)
-            except Exception:
-                pass
-            try:
-                self._thread.finished.disconnect(self._finished_receiving_console_output)
-            except Exception:
-                pass
+            self._cleanup_worker(self._thread)

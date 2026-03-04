@@ -4,36 +4,73 @@ import orjson
 
 
 class RedisWatcherThread(QThread):
-    change_detected = Signal(str, str)  # key, event
+    """
+    Thread that watches for Redis keyspace notifications and emits signals on changes.
 
-    def __init__(self, redis_client, prefix, topic):
+    Parameters
+    ----------
+    redis_client : redis.Redis
+        Redis client instance
+    prefix : str
+        Prefix to watch for changes (watches prefix*)
+    """
+
+    _watchers = {}
+    change_detected = Signal(str, str)
+
+    @classmethod
+    def get_or_create(cls, redis_client, prefix):
+        """
+        Get an existing watcher or create a new one for this Redis server and prefix.
+
+        Parameters
+        ----------
+        redis_client : redis.Redis
+            Redis client instance
+        prefix : str
+            Prefix to watch for changes
+
+        Returns
+        -------
+        RedisWatcherThread
+            Shared watcher instance for this server/prefix combination
+        """
+        conn_kwargs = redis_client.connection_pool.connection_kwargs
+        cache_key = (
+            conn_kwargs.get("host", "localhost"),
+            conn_kwargs.get("port", 6379),
+            conn_kwargs.get("db", 0),
+            prefix,
+        )
+        if cache_key not in cls._watchers:
+            watcher = cls(redis_client, prefix)
+            watcher.start()
+            cls._watchers[cache_key] = watcher
+        return cls._watchers[cache_key]
+
+    def __init__(self, redis_client, prefix):
         super().__init__()
-        self.redis = redis_client
-        self.pubsub = self.redis.pubsub()
-        self.prefix = f"{prefix}{topic}"
-        # Get db number directly from redis client
-        self.db = redis_client.connection_pool.connection_kwargs["db"]
+        self._redis = redis_client
+        self._pubsub = self._redis.pubsub()
+        self._prefix = prefix
+        self._db = redis_client.connection_pool.connection_kwargs.get("db", 0)
         self._running = True
 
     def run(self):
-        # Enable keyspace notifications
-        self.redis.config_set("notify-keyspace-events", "KEA")
-        # Subscribe to pattern with prefix, using correct db number
-        self.pubsub.psubscribe(f"__keyspace@{self.db}__:{self.prefix}*")
+        self._redis.config_set("notify-keyspace-events", "KEA")
+        self._pubsub.psubscribe(f"__keyspace@{self._db}__:{self._prefix}*")
 
         while self._running:
-            message = self.pubsub.get_message()
+            message = self._pubsub.get_message(timeout=1.0)
             if message and message["type"] == "pmessage":
-                # Extract key from channel, accounting for db number
-                key = message["channel"].decode().split(f"@{self.db}__:")[1]
+                key = message["channel"].decode().split(f"@{self._db}__:")[1]
                 event = message["data"].decode()
-                if key.startswith(self.prefix):
+                if key.startswith(self._prefix):
                     self.change_detected.emit(key, event)
-            self.msleep(10)  # Small delay to prevent CPU hogging
 
     def stop(self):
         self._running = False
-        self.pubsub.unsubscribe()
+        self._pubsub.unsubscribe()
         self.wait()
 
 
@@ -54,8 +91,8 @@ class QtRedisJSONDict(QObject):
         Parent Qt object
     """
 
-    changed = Signal()  # Emitted when any value changes
-    key_changed = Signal(str)  # Emitted with the specific key that changed
+    changed = Signal()
+    key_changed = Signal(str)
 
     @classmethod
     def from_settings(cls, settings, topic="", parent=None):
@@ -91,23 +128,21 @@ class QtRedisJSONDict(QObject):
         return cls(redis_client, prefix, topic, parent)
 
     def __init__(self, redis_client, prefix, topic="", parent=None):
-        # print("Initializing QtRedisJSONDict")
-        super().__init__()
-        # print("After QtRJD super init")
+        super().__init__(parent)
         self._redis = redis_client
-        self._prefix = f"{prefix}{topic}"
-        # print(f"Redis dict with {self._prefix}")
-        self._cache = {}  # Local cache
-        self._watcher = RedisWatcherThread(redis_client, prefix, topic)
+        self._prefix = prefix
+        self._topic = topic
+        self._redis_key = f"{prefix}{topic}"
+        self._cache = {}
+
+        self._watcher = RedisWatcherThread.get_or_create(redis_client, prefix)
         self._watcher.change_detected.connect(self._on_redis_change)
-        self._watcher.start()
-        # Initial load of cache
+
         self._refresh_cache()
 
     def _refresh_cache(self):
-        """Load all data from Redis into the cache"""
-        keys = self._redis.keys(f"{self._prefix}*")
-        # print(f"Refresh, get {keys}")
+        """Load all data from Redis into the cache."""
+        keys = self._redis.keys(f"{self._redis_key}*")
         pipe = self._redis.pipeline()
         for key in keys:
             pipe.get(key)
@@ -116,28 +151,27 @@ class QtRedisJSONDict(QObject):
         self._cache.clear()
         for key, value in zip(keys, values):
             if value is not None:
-                stripped_key = key.decode()[len(self._prefix) :]
+                stripped_key = key.decode()[len(self._redis_key) :]
                 try:
                     self._cache[stripped_key] = orjson.loads(value)
                 except Exception:
-                    # If we can't decode the JSON, skip this key
                     continue
 
     def _on_redis_change(self, key, event):
-        """Handle Redis key change events"""
-        stripped_key = key[len(self._prefix) :]
+        """Handle Redis key change events."""
+        if not key.startswith(self._redis_key):
+            return
+
+        stripped_key = key[len(self._redis_key) :]
 
         if event in ["set", "hset"]:
-            # Update cache from Redis
             value = self._redis.get(key)
             if value is not None:
                 try:
                     self._cache[stripped_key] = orjson.loads(value)
                 except Exception:
-                    # If we can't decode the JSON, remove from cache
                     self._cache.pop(stripped_key, None)
         elif event in ["del", "hdel", "expired"]:
-            # Remove from cache
             self._cache.pop(stripped_key, None)
 
         self.key_changed.emit(stripped_key)
@@ -147,16 +181,12 @@ class QtRedisJSONDict(QObject):
         return self._cache[key]
 
     def __setitem__(self, key, value):
-        # Update Redis
         json_data = orjson.dumps(value)
-        self._redis.set(f"{self._prefix}{key}", json_data)
-        # Update cache immediately
+        self._redis.set(f"{self._redis_key}{key}", json_data)
         self._cache[key] = value
 
     def __delitem__(self, key):
-        # Delete from Redis
-        self._redis.delete(f"{self._prefix}{key}")
-        # Delete from cache immediately
+        self._redis.delete(f"{self._redis_key}{key}")
         del self._cache[key]
 
     def __iter__(self):
@@ -178,87 +208,90 @@ class QtRedisJSONDict(QObject):
         return self._cache.get(key, default)
 
     def clear(self):
-        # Clear Redis
-        keys = self._redis.keys(f"{self._prefix}*")
+        keys = self._redis.keys(f"{self._redis_key}*")
         if keys:
             self._redis.delete(*keys)
-        # Clear cache
         self._cache.clear()
 
     def update(self, other):
-        # Update Redis in a pipeline
         pipe = self._redis.pipeline()
         for key, value in other.items():
             json_data = orjson.dumps(value)
-            pipe.set(f"{self._prefix}{key}", json_data)
+            pipe.set(f"{self._redis_key}{key}", json_data)
         pipe.execute()
-        # Update cache
         self._cache.update(other)
 
     def cleanup(self):
-        """Stop the watcher thread when done"""
-        self._watcher.stop()
+        """Disconnect from the shared watcher thread."""
+        try:
+            self._watcher.change_detected.disconnect(self._on_redis_change)
+        except (TypeError, RuntimeError):
+            pass
 
     def refresh(self):
-        """Force a refresh of the cache from Redis"""
+        """Force a refresh of the cache from Redis."""
         self._refresh_cache()
         self.changed.emit()
 
 
 class NestedRedisTableModel(QAbstractTableModel):
+    """
+    A table model for displaying nested Redis dictionary data.
+
+    Parameters
+    ----------
+    redis_dict : QtRedisJSONDict
+        The Redis dictionary to model
+    parent : QObject, optional
+        Parent Qt object
+    """
+
     def __init__(self, redis_dict, parent=None):
-        """
-        Parameters
-        ----------
-        redis_dict : QtRedisJSONDict
-            The Redis dictionary to model
-        parent : QObject, optional
-            Parent Qt object
-        """
         super().__init__(parent)
-        # print("Initializing NestedREDISTableModel")
         self._data = redis_dict
-        # print("Initialized data")
+        self._rows = []
+        self._columns = []
         self._data.changed.connect(self.update)
         self.update()
 
     def data(self, index, role):
         if role == Qt.DisplayRole:
-            key = list(self._data.keys())[index.row()]
-            key2 = list(self._data[key].keys())[index.column()]
-            return str(self._data[key][key2])
+            if index.row() < len(self._rows) and index.column() < len(self._columns):
+                key = self._rows[index.row()]
+                key2 = self._columns[index.column()]
+                return str(self._data[key].get(key2, ""))
+        return None
 
-    def rowCount(self, index):
-        return len(self._data.keys())
+    def rowCount(self, index=None):
+        return len(self._rows)
 
-    def columnCount(self, index):
-        mincol = None
-        for k, v in self._data.items():
-            if mincol is None:
-                mincol = len(v.keys())
-            else:
-                mincol = min(len(v.keys()), mincol)
-        if mincol is None:
-            return 0
-        else:
-            return mincol
+    def columnCount(self, index=None):
+        return len(self._columns)
 
     def update(self):
         self.beginResetModel()
         self._rows = list(self._data.keys())
+        self._columns = []
         if len(self._rows) > 0:
+            min_cols = None
             for k, v in self._data.items():
-                self._columns = list(v.keys())
-                break
+                if min_cols is None:
+                    min_cols = set(v.keys())
+                else:
+                    min_cols &= set(v.keys())
+            if min_cols:
+                first_key = self._rows[0]
+                self._columns = [k for k in self._data[first_key].keys() if k in min_cols]
         self.endResetModel()
 
     def headerData(self, section, orientation, role):
         if role == Qt.DisplayRole:
-            if orientation == Qt.Horizontal:
+            if orientation == Qt.Horizontal and section < len(self._columns):
                 return str(self._columns[section])
-            if orientation == Qt.Vertical:
+            if orientation == Qt.Vertical and section < len(self._rows):
                 return self._rows[section]
+        return None
 
     def cleanup(self):
-        """Cleanup is now optional since we don't own the redis dict"""
+        """Cleanup is now optional since we don't own the redis dict."""
         pass

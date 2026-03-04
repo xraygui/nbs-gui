@@ -177,7 +177,7 @@ class XASPlanEditorWidget(QDialog):
 
     def save_to_file(self, file_path):
         try:
-            with open(file_path, "w") as f:
+            with open(file_path, "wb") as f:
                 toml.dump(self.plans_dict, f)
             self.setWindowTitle(f"XAS Plan Editor - {file_path}")
             self.has_unsaved_changes = False
