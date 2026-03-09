@@ -219,6 +219,8 @@ class QtReActiveQueue(BaseQueueWidget):
     def __init__(self, model, parent=None):
         super().__init__(model, parent=parent)
 
+        self.time_estimator = TimeEstimator(model)
+
         # Set True to block processing of table selection change events
         self._block_table_selection_processing = False
         self._registered_item_editors = []
@@ -238,11 +240,13 @@ class QtReActiveQueue(BaseQueueWidget):
 
         self.queue_model.events.plan_queue_changed.connect(self.on_plan_queue_changed)
         self.signal_plan_queue_changed.connect(self.slot_plan_queue_changed)
+        self.signal_plan_queue_changed.connect(self._update_total_time_estimate)
 
         self.queue_model.events.queue_item_selection_changed.connect(
             self.on_queue_item_selection_changed
         )
         self.signal_update_selection.connect(self.slot_change_selection)
+        self.signal_update_selection.connect(self._update_selected_time_estimate)
 
         self._table.signal_drop_event.connect(self.on_table_drop_event)
         self._table.signal_scroll.connect(self.on_table_scroll_event)
@@ -384,7 +388,56 @@ class QtReActiveQueue(BaseQueueWidget):
         self.signal_update_selection.emit(selected_item_uids)
 
     def get_item_value_for_label(self, item, label):
-        return self.queue_model.get_item_value_for_label(item=item, label=label)
+        if label == "Est. Time":
+            try:
+                return self.time_estimator.format_time_estimate(
+                    self.time_estimator.calculate_plan_time(item)
+                )
+            except Exception as e:
+                print(f"[QtRePlanQueue] Error estimating plan time: {e}")
+                return "--"
+        else:
+            try:
+                return self.queue_model.get_item_value_for_label(item=item, label=label)
+            except Exception as e:
+                print(f"[QtRePlanQueue] Error getting item value for label: {e}")
+                return ""
+
+    def _update_total_time_estimate(self, plan_queue_items, selected_item_uids):
+        """Update the total time estimate display"""
+        try:
+            estimate = self.time_estimator.calculate_queue_time(plan_queue_items)
+
+            if estimate is not None:
+                time_str = self.time_estimator.format_time_estimate(estimate)
+                self._total_time_label.setText(f"Total Est. Time: {time_str}")
+                self._total_time_label.setStyleSheet("QLabel { color: black; }")
+            else:
+                self._total_time_label.setText("Total Est. Time: --")
+                self._total_time_label.setStyleSheet("QLabel { color: gray; }")
+
+        except Exception as e:
+            print(f"[QtRePlanQueue] Error updating total time estimate: {e}")
+            self._total_time_label.setText("Total Est. Time: --")
+
+    def _update_selected_time_estimate(self, selected_item_uids):
+        """Update the total time estimate display"""
+        plan_queue_items = [self.queue_model.queue_item_by_uid(u) for u in selected_item_uids]
+        try:
+            estimate = self.time_estimator.calculate_queue_time(plan_queue_items)
+
+            if estimate is not None:
+                time_str = self.time_estimator.format_time_estimate(estimate)
+                self._selected_time_label.setText(f"Selected Est. Time: {time_str}")
+                self._selected_time_label.setStyleSheet("QLabel { color: black; }")
+            else:
+                self._selected_time_label.setText("Selected Est. Time: --")
+                self._selected_time_label.setStyleSheet("QLabel { color: gray; }")
+
+        except Exception as e:
+            print(f"[QtRePlanQueue] Error updating selected time estimate: {e}")
+            self._selected_time_label.setText("Selected Est. Time: --")
+
 
     @Slot(object, object)
     def slot_plan_queue_changed(self, plan_queue_items, selected_item_uids):
@@ -539,10 +592,6 @@ class QtRePlanQueue(QtReActiveQueue):
         super().__init__(model, parent=parent)
         # Load time estimation functions
 
-        self.time_estimator = TimeEstimator(model)
-        self.signal_plan_queue_changed.connect(self._update_total_time_estimate)
-        self.signal_update_selection.connect(self._update_selected_time_estimate)
-
     def _create_buttons(self):
         """Create buttons specific to plan queue."""
         self._pb_move_up = PushButtonMinimumWidth("Up")
@@ -571,6 +620,10 @@ class QtRePlanQueue(QtReActiveQueue):
         self._total_time_label = QLabel("Total Est. Time: --")
         self._total_time_label.setStyleSheet("QLabel { color: gray; }")
         self._group_box = QGroupBox("Plan Queue")
+
+        self._selected_time_label = QLabel("Selected Est. Time: --")
+        self._selected_time_label.setStyleSheet("QLabel { color: gray; }")
+
         vbox = QVBoxLayout()
 
         header_hbox = QHBoxLayout()
@@ -578,6 +631,7 @@ class QtRePlanQueue(QtReActiveQueue):
         label_vbox = QVBoxLayout()
         label_vbox.addWidget(QLabel("QUEUE"))
         label_vbox.addWidget(self._total_time_label)
+        label_vbox.addWidget(self._selected_time_label)
 
         header_hbox.addLayout(label_vbox)
         header_hbox.addStretch(1)
@@ -608,39 +662,6 @@ class QtRePlanQueue(QtReActiveQueue):
         """Get the column labels for the table. Override in subclasses."""
         return ("", "Name", "Parameters", "USER", "GROUP", "Est. Time")
 
-    def _update_total_time_estimate(self, plan_queue_items, selected_item_uids):
-        """Update the total time estimate display"""
-        try:
-            estimate = self.time_estimator.calculate_queue_time(plan_queue_items)
-
-            if estimate is not None:
-                time_str = self.time_estimator.format_time_estimate(estimate)
-                self._total_time_label.setText(f"Total Est. Time: {time_str}")
-                self._total_time_label.setStyleSheet("QLabel { color: black; }")
-            else:
-                self._total_time_label.setText("Total Est. Time: --")
-                self._total_time_label.setStyleSheet("QLabel { color: gray; }")
-
-        except Exception as e:
-            print(f"[QtRePlanQueue] Error updating total time estimate: {e}")
-            self._total_time_label.setText("Total Est. Time: --")
-
-    def _update_selected_time_estimate(self, plan_queue_items):
-        """Update the total time estimate display"""
-        try:
-            estimate = self.time_estimator.calculate_queue_time(plan_queue_items)
-
-            if estimate is not None:
-                time_str = self.time_estimator.format_time_estimate(estimate)
-                self._selected_time_label.setText(f"Selected Est. Time: {time_str}")
-                self._selected_time_label.setStyleSheet("QLabel { color: black; }")
-            else:
-                self._selected_time_label.setText("Selected Est. Time: --")
-                self._selected_time_label.setStyleSheet("QLabel { color: gray; }")
-
-        except Exception as e:
-            print(f"[QtRePlanQueue] Error updating selected time estimate: {e}")
-            self._selected_time_label.setText("Selected Est. Time: --")
 
     def _update_button_states(self):
         is_connected = bool(self.run_engine.re_manager_connected)
@@ -675,21 +696,6 @@ class QtRePlanQueue(QtReActiveQueue):
         self._pb_delete_plan.setEnabled(is_connected and not mon and is_sel)
         self._pb_duplicate_plan.setEnabled(is_connected and not mon and is_sel)
 
-    def get_item_value_for_label(self, item, label):
-        if label == "Est. Time":
-            try:
-                return self.time_estimator.format_time_estimate(
-                    self.time_estimator.calculate_plan_time(item)
-                )
-            except Exception as e:
-                print(f"[QtRePlanQueue] Error estimating plan time: {e}")
-                return "--"
-        else:
-            try:
-                return self.queue_model.get_item_value_for_label(item=item, label=label)
-            except Exception as e:
-                print(f"[QtRePlanQueue] Error getting item value for label: {e}")
-                return ""
 
     def _pb_loop_on_clicked(self):
         loop_enable = self._pb_loop_on.isChecked()
