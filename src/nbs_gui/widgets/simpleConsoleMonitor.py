@@ -1,6 +1,4 @@
-import weakref
-
-from qtpy.QtCore import Qt, QTimer
+from qtpy.QtCore import Qt, QThread, Signal
 from qtpy.QtGui import (
     QFont,
     QFontMetrics,
@@ -8,6 +6,7 @@ from qtpy.QtGui import (
     QTextCursor,
 )
 from qtpy.QtWidgets import (
+    QApplication,
     QPlainTextEdit,
     QWidget,
     QVBoxLayout,
@@ -18,13 +17,10 @@ from qtpy.QtWidgets import (
     QPushButton,
 )
 from qtpy.QtGui import QIntValidator
-from bluesky_widgets.qt.threading import FunctionWorker
 
 
 class PushButtonMinimumWidth(QPushButton):
-    """
-    Push button minimum width necessary to fit the text
-    """
+    """Push button minimum width necessary to fit the text."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -36,13 +32,62 @@ class PushButtonMinimumWidth(QPushButton):
         self.setFixedWidth(text_width)
 
 
+class ConsoleMonitorThread(QThread):
+    """Thread that polls the RE Manager console output stream.
+
+    Runs a loop calling ``next_msg`` with a short timeout.  When a message
+    arrives it is forwarded to the main thread via *message_received*.  The
+    loop checks ``_running`` each iteration so it can be stopped
+    deterministically with :meth:`stop`.
+
+    Parameters
+    ----------
+    re_client : RunEngineClient
+        The run engine client model whose console monitor to poll.
+    parent : QObject, optional
+        Parent Qt object.
+    """
+
+    message_received = Signal(object, object)
+
+    def __init__(self, re_client, parent=None):
+        super().__init__(parent)
+        self._re_client = re_client
+        self._running = False
+
+    def run(self):
+        self._running = True
+        client = self._re_client._client
+        client.console_monitor.enable()
+        while self._running:
+            try:
+                payload = client.console_monitor.next_msg(timeout=0.2)
+                time_val = payload.get("time", None)
+                msg = payload.get("msg", None)
+                if msg is not None:
+                    self.message_received.emit(time_val, msg)
+            except client.RequestTimeoutError:
+                pass
+            except Exception as ex:
+                if self._running:
+                    print(f"Console monitor error: {ex}")
+        try:
+            client.console_monitor.disable_wait()
+        except Exception:
+            pass
+
+    def stop(self):
+        """Stop the monitoring loop and wait for the thread to finish."""
+        self._running = False
+        self.wait(2000)
+
+
 class QtReConsoleMonitor(QWidget):
     def __init__(self, model, parent=None, start_monitoring=True):
         super().__init__(parent)
         self.setAttribute(Qt.WA_DeleteOnClose)
-        print("New QtReConsoleMonitor with QPlainTextEdit")
         self._max_lines = 1000
-        self._thread = None
+        self._monitor_thread = None
 
         self._text_edit = QPlainTextEdit()
         self._text_edit.setReadOnly(True)
@@ -92,36 +137,33 @@ class QtReConsoleMonitor(QWidget):
         self.setLayout(vbox)
 
         self.model = model
-        self._stop = not bool(start_monitoring)
         if start_monitoring:
-            self.model.start_console_output_monitoring()
-            self._start_thread()
-            self._start_timer()
+            self._start_monitoring()
 
-    def __del__(self):
-        self.model.stop_console_output_monitoring()
-        self._stop = True
+    def _start_monitoring(self):
+        """Start the console monitoring thread."""
+        self._monitor_thread = ConsoleMonitorThread(self.model, parent=self)
+        self._monitor_thread.message_received.connect(self._process_message)
+        self._monitor_thread.start()
+        app = QApplication.instance()
+        if app:
+            app.aboutToQuit.connect(self.teardown)
 
-    def _process_new_console_output(self, result):
-        """
-        Process new console output and append to text edit.
+    def _process_message(self, time_val, msg):
+        """Append a console output message to the text display.
 
         Parameters
         ----------
-        result : tuple
-            Tuple of (time, msg) where time is a timestamp and msg is the console output
+        time_val : float or None
+            Timestamp of the message.
+        msg : str or None
+            Console output text.
         """
-        if not result or not isinstance(result, tuple) or len(result) != 2:
+        if msg is None:
             return
-        time, msg = result
-
         msg = msg.rstrip()
-
-        # Handle None or empty messages
-        if msg is None or not msg:
+        if not msg:
             return
-
-        # Strip any trailing newlines to prevent doubles
 
         cursor = QTextCursor(self._text_edit.document())
         cursor.movePosition(QTextCursor.End)
@@ -133,28 +175,11 @@ class QtReConsoleMonitor(QWidget):
             self._text_edit.setTextCursor(cursor)
             self._text_edit.ensureCursorVisible()
 
-    def _update_console_output(self):
-        """
-        Timer callback to update the display
-        """
-        if not self._stop:
-            self._start_timer()
-
-    def _start_timer(self):
-        """
-        Start the update timer
-        """
-        QTimer.singleShot(195, self._update_console_output)
-
     def _slider_pressed(self):
         self._is_slider_pressed = True
 
     def _slider_released(self):
         self._is_slider_pressed = False
-
-    def _is_slider_at_bottom(self):
-        sbar = self._text_edit.verticalScrollBar()
-        return sbar.value() == sbar.maximum() and self._autoscroll_enabled
 
     def _pb_clear_clicked(self):
         self._text_edit.clear()
@@ -169,83 +194,8 @@ class QtReConsoleMonitor(QWidget):
     def _cb_autoscroll_state_changed(self, state):
         self._autoscroll_enabled = state == Qt.Checked
 
-    def _start_thread(self):
-        """
-        Start a new thread to monitor console output.
-        """
-        if self._thread is not None:
-            self._cleanup_worker(self._thread)
-        worker = FunctionWorker(self.model.console_monitoring_thread)
-        self._thread = worker
-        worker.returned.connect(self._process_new_console_output)
-
-        worker_ref = weakref.ref(worker)
-
-        def on_finished():
-            w = worker_ref()
-            if w is not None:
-                self._finished_receiving_console_output(w)
-
-        worker.finished.connect(on_finished)
-        worker.start()
-
-    def _cleanup_worker(self, worker):
-        """
-        Disconnect and schedule deletion for a worker.
-
-        Parameters
-        ----------
-        worker : object
-            Worker instance to clean up.
-
-        Returns
-        -------
-        None
-        """
-        try:
-            worker.returned.disconnect(self._process_new_console_output)
-        except Exception:
-            pass
-        try:
-            worker.finished.disconnect()
-        except Exception:
-            pass
-        try:
-            worker.deleteLater()
-        except Exception:
-            pass
-        if self._thread is worker:
-            self._thread = None
-
-    def _finished_receiving_console_output(self, worker):
-        """
-        Callback when thread finishes.
-
-        Parameters
-        ----------
-        worker : object
-            Worker instance that finished.
-
-        Returns
-        -------
-        None
-        """
-        self._cleanup_worker(worker)
-        if not self._stop:
-            self._start_thread()
-
     def teardown(self):
-        """
-        Stop monitoring and disconnect callbacks for reload.
-
-        Returns
-        -------
-        None
-        """
-        self._stop = True
-        try:
-            self.model.stop_console_output_monitoring()
-        except Exception:
-            pass
-        if self._thread is not None:
-            self._cleanup_worker(self._thread)
+        """Stop monitoring and clean up the thread."""
+        if self._monitor_thread is not None:
+            self._monitor_thread.stop()
+            self._monitor_thread = None

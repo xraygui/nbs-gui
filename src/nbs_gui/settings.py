@@ -40,10 +40,12 @@ class Settings:
     http_server_api_key = None
     zmq_re_manager_control_addr = None
     zmq_re_manager_info_addr = None
-    object_config = None
+    object_config = {}
     object_config_file = None
-    gui_config = None
+    gui_config = {}
     gui_config_file = None
+    beamline_config = {}
+    beamline_config_file = None
 
 
 SETTINGS = Settings()

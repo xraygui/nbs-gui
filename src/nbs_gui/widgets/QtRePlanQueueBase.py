@@ -541,6 +541,7 @@ class QtRePlanQueue(QtReActiveQueue):
 
         self.time_estimator = TimeEstimator(model)
         self.signal_plan_queue_changed.connect(self._update_total_time_estimate)
+        self.signal_update_selection.connect(self._update_selected_time_estimate)
 
     def _create_buttons(self):
         """Create buttons specific to plan queue."""
@@ -623,6 +624,23 @@ class QtRePlanQueue(QtReActiveQueue):
         except Exception as e:
             print(f"[QtRePlanQueue] Error updating total time estimate: {e}")
             self._total_time_label.setText("Total Est. Time: --")
+
+    def _update_selected_time_estimate(self, plan_queue_items):
+        """Update the total time estimate display"""
+        try:
+            estimate = self.time_estimator.calculate_queue_time(plan_queue_items)
+
+            if estimate is not None:
+                time_str = self.time_estimator.format_time_estimate(estimate)
+                self._selected_time_label.setText(f"Selected Est. Time: {time_str}")
+                self._selected_time_label.setStyleSheet("QLabel { color: black; }")
+            else:
+                self._selected_time_label.setText("Selected Est. Time: --")
+                self._selected_time_label.setStyleSheet("QLabel { color: gray; }")
+
+        except Exception as e:
+            print(f"[QtRePlanQueue] Error updating selected time estimate: {e}")
+            self._selected_time_label.setText("Selected Est. Time: --")
 
     def _update_button_states(self):
         is_connected = bool(self.run_engine.re_manager_connected)
