@@ -589,6 +589,7 @@ class QtRePlanQueue(QtReActiveQueue):
 
     def __init__(self, model, parent=None):
         self.queue_model = model.run_engine
+        self.staging_model = model.queue_staging
         super().__init__(model, parent=parent)
         # Load time estimation functions
 
@@ -614,6 +615,21 @@ class QtRePlanQueue(QtReActiveQueue):
         self._pb_clear_queue.clicked.connect(self._pb_clear_queue_clicked)
         self._pb_deselect.clicked.connect(self._pb_deselect_clicked)
         self._pb_loop_on.clicked.connect(self._pb_loop_on_clicked)
+
+                # Second row of buttons (staging-specific)
+        self._pb_move_selected_to_staging = PushButtonMinimumWidth(
+            "Move Selected to Staging"
+        )
+        self._pb_move_all_to_staging = PushButtonMinimumWidth("Move All to Staging")
+        self._pb_copy_selected_to_staging = PushButtonMinimumWidth(
+            "Copy Selected to Staging"
+        )
+        self._pb_copy_all_to_staging = PushButtonMinimumWidth("Copy All to Staging")
+
+        self._pb_move_selected_to_staging.clicked.connect(self._pb_move_selected_to_staging_clicked)
+        self._pb_move_all_to_staging.clicked.connect(self._pb_move_all_to_staging_clicked)
+        self._pb_copy_selected_to_staging.clicked.connect(self._pb_copy_selected_to_staging_clicked)
+        self._pb_copy_all_to_staging.clicked.connect(self._pb_copy_all_to_staging_clicked)
 
     def _create_layout(self):
         # Add total time estimate label
@@ -652,6 +668,12 @@ class QtRePlanQueue(QtReActiveQueue):
         hbox.addWidget(self._pb_duplicate_plan)
 
         button_vbox.addLayout(hbox)
+        staging_hbox = QHBoxLayout()
+        staging_hbox.addWidget(self._pb_move_selected_to_staging)
+        staging_hbox.addWidget(self._pb_move_all_to_staging)
+        staging_hbox.addWidget(self._pb_copy_selected_to_staging)
+        staging_hbox.addWidget(self._pb_copy_all_to_staging)
+        button_vbox.addLayout(staging_hbox)
 
         header_hbox.addLayout(button_vbox)
         vbox.addLayout(header_hbox)
@@ -676,25 +698,28 @@ class QtRePlanQueue(QtReActiveQueue):
         sel_top = len(selected_items_pos) and (selected_items_pos[0] == 0)
         sel_bottom = len(selected_items_pos) and (selected_items_pos[-1] == n_items - 1)
 
-        self._pb_move_up.setEnabled(is_connected and not mon and is_sel and not sel_top)
-        self._pb_move_down.setEnabled(
-            is_connected and not mon and is_sel and not sel_bottom
-        )
-        self._pb_move_to_top.setEnabled(
-            is_connected and not mon and is_sel and not sel_top
-        )
-        self._pb_move_to_bottom.setEnabled(
-            is_connected and not mon and is_sel and not sel_bottom
-        )
+        sel_enabled = is_connected and not mon and is_sel
+        all_enabled = is_connected and not mon and n_items
 
-        self._pb_clear_queue.setEnabled(is_connected and not mon and n_items)
+        self._pb_move_up.setEnabled(sel_enabled and not sel_top)
+        self._pb_move_down.setEnabled(sel_enabled and not sel_bottom)
+        self._pb_move_to_top.setEnabled(sel_enabled and not sel_top)
+        self._pb_move_to_bottom.setEnabled(sel_enabled and not sel_bottom)
+
+        self._pb_clear_queue.setEnabled(all_enabled)
         self._pb_deselect.setEnabled(is_sel)
 
         self._pb_loop_on.setEnabled(is_connected and not mon)
         self._pb_loop_on.setChecked(loop_mode_on)
 
-        self._pb_delete_plan.setEnabled(is_connected and not mon and is_sel)
-        self._pb_duplicate_plan.setEnabled(is_connected and not mon and is_sel)
+        self._pb_delete_plan.setEnabled(sel_enabled)
+        self._pb_duplicate_plan.setEnabled(sel_enabled)
+
+
+        self._pb_move_selected_to_staging.setEnabled(sel_enabled)
+        self._pb_move_all_to_staging.setEnabled(all_enabled)
+        self._pb_copy_selected_to_staging.setEnabled(sel_enabled)
+        self._pb_copy_all_to_staging.setEnabled(all_enabled)
 
 
     def _pb_loop_on_clicked(self):
@@ -703,6 +728,31 @@ class QtRePlanQueue(QtReActiveQueue):
             self.queue_model.queue_mode_loop_enable(loop_enable)
         except Exception as ex:
             print(f"Exception: {ex}")
+
+    def _pb_move_selected_to_staging_clicked(self):
+        self._pb_copy_selected_to_staging_clicked()
+        self.queue_model.queue_items_remove()
+
+    def _pb_move_all_to_staging_clicked(self):
+        self._pb_copy_all_to_staging_clicked()
+        self.queue_model.queue_clear()
+
+    def _pb_copy_selected_to_staging_clicked(self):
+        uids = self.queue_model.selected_queue_item_uids.copy()
+        if uids:
+            try:
+                queue_items = [self.queue_model.queue_item_by_uid(u) for u in uids]
+                self.staging_model.queue_item_add_batch(items=queue_items)
+            except Exception as ex:
+                print(f"Exception: {ex}")
+
+    def _pb_copy_all_to_staging_clicked(self):
+        queue_items = copy.deepcopy(self.queue_model._plan_queue_items)
+        if queue_items:
+            try:
+                self.staging_model.queue_item_add_batch(items=queue_items)
+            except Exception as ex:
+                print(f"Exception: {ex}")
 
 
 class QtRePlanHistory(BaseQueueWidget):
@@ -715,10 +765,12 @@ class QtRePlanHistory(BaseQueueWidget):
         self._block_table_selection_processing = False
 
         self._pb_copy_to_queue = PushButtonMinimumWidth("Copy to Queue")
+        self._pb_copy_to_staging = PushButtonMinimumWidth("Copy to Staging")
         self._pb_deselect_all = PushButtonMinimumWidth("Deselect All")
         self._pb_clear_history = ConfirmationButton("Clear History")
 
         self._pb_copy_to_queue.clicked.connect(self._pb_copy_to_queue_clicked)
+        self._pb_copy_to_staging.clicked.connect(self._pb_copy_to_staging_clicked)
         self._pb_deselect_all.clicked.connect(self._pb_deselect_all_clicked)
         self._pb_clear_history.clicked.connect(self._pb_clear_history_clicked)
 
@@ -727,6 +779,7 @@ class QtRePlanHistory(BaseQueueWidget):
         hbox.addWidget(QLabel("HISTORY"))
         hbox.addStretch(1)
         hbox.addWidget(self._pb_copy_to_queue)
+        hbox.addWidget(self._pb_copy_to_staging)
         hbox.addStretch(3)
         hbox.addWidget(self._pb_deselect_all)
         hbox.addWidget(self._pb_clear_history)
@@ -785,6 +838,7 @@ class QtRePlanHistory(BaseQueueWidget):
         is_sel = bool(n_selected_items)
 
         self._pb_copy_to_queue.setEnabled(is_connected and not mon and is_sel)
+        self._pb_copy_to_staging.setEnabled(is_connected and not mon and is_sel)
         self._pb_deselect_all.setEnabled(is_sel)
         self._pb_clear_history.setEnabled(is_connected and not mon and n_items)
 
@@ -914,6 +968,15 @@ class QtRePlanHistory(BaseQueueWidget):
             self.run_engine.history_item_add_to_queue()
         except Exception as ex:
             print(f"Exception: {ex}")
+
+    def _pb_copy_to_staging_clicked(self):
+        selected_item_pos = self.run_engine.selected_history_item_pos
+        if selected_item_pos:
+            try:
+                history_items = [self.run_engine._plan_history_items[_] for _ in selected_item_pos]
+                self.model.queue_staging.queue_item_add_batch(items=history_items)
+            except Exception as ex:
+                print(f"Exception: {ex}")
 
     def _pb_deselect_all_clicked(self):
         self._table.clearSelection()

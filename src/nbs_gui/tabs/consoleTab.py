@@ -95,7 +95,7 @@ class IPythonConsoleTab(QWidget):
         button_layout.addStretch()
         self.vbox.addLayout(button_layout)
 
-        self._setup_debug_panel()
+        # self._setup_debug_panel()
 
         self.vbox.addWidget(self.placeholder)
 
@@ -103,9 +103,9 @@ class IPythonConsoleTab(QWidget):
         self.kernel_manager = None
         self.kernel_client = None
 
-        self.diagnostic_timer = QTimer(self)
-        self.diagnostic_timer.timeout.connect(self.refresh_diagnostics)
-        self.diagnostic_timer.start(10000)
+        # self.diagnostic_timer = QTimer(self)
+        # self.diagnostic_timer.timeout.connect(self.refresh_diagnostics)
+        # self.diagnostic_timer.start(10000)
 
     def _setup_debug_panel(self):
         """Set up the collapsible debug panel."""
@@ -309,7 +309,7 @@ class IPythonConsoleTab(QWidget):
         self.console.kernel_client = self.kernel_client
         print("Done connecting to Kernel")
 
-        self.refresh_diagnostics()
+        # self.refresh_diagnostics()
 
     def is_console_connected(self):
         if (

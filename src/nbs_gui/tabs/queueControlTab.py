@@ -33,9 +33,9 @@ class QueueControlTab(QWidget):
             pe._tab_widget.addTab(ps, "Plan Widgets")
             pe._tab_widget.addTab(pl, "Plan Loaders")
 
-        # Add MetaPlanSubmissionWidget tab
-        mps = MetaPlanSubmissionWidget(model, self)
-        pe._tab_widget.addTab(mps, "Meta Plan Widget")
+            # Add MetaPlanSubmissionWidget tab
+            mps = MetaPlanSubmissionWidget(model, self)
+            pe._tab_widget.addTab(mps, "Meta Plan Widget")
 
         horizontal_splitter.addWidget(pe)
 
