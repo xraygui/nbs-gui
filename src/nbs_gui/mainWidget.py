@@ -17,6 +17,7 @@ class TabViewer(QTabWidget):
 
         tabs_to_include = config.get("gui", {}).get("tabs", {}).get("include", [])
         tabs_to_exclude = config.get("gui", {}).get("tabs", {}).get("exclude", [])
+        print(f"Tabs to include: {tabs_to_include}")
 
         explicit_inclusion = len(tabs_to_include) > 0
         self.tab_dict = {}

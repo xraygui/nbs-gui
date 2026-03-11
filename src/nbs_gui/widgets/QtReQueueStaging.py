@@ -76,10 +76,22 @@ class QtReQueueStaging(QtReActiveQueue):
         """Create layout specific to queue staging."""
         self._group_box = QGroupBox("Queue Staging")
 
+        self._total_time_label = QLabel("Total Est. Time: --")
+        self._total_time_label.setStyleSheet("QLabel { color: gray; }")
+        self._group_box = QGroupBox("Plan Queue")
+
+        self._selected_time_label = QLabel("Selected Est. Time: --")
+        self._selected_time_label.setStyleSheet("QLabel { color: gray; }")
+
         vbox = QVBoxLayout()
 
+        label_vbox = QVBoxLayout()
+        label_vbox.addWidget(QLabel("QUEUE"))
+        label_vbox.addWidget(self._total_time_label)
+        label_vbox.addWidget(self._selected_time_label)
+
         header_hbox = QHBoxLayout()
-        header_hbox.addWidget(QLabel("STAGING"))
+        header_hbox.addLayout(label_vbox)
         header_hbox.addStretch(1)
 
         header_vbox = QVBoxLayout()

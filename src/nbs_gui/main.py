@@ -78,8 +78,8 @@ def minimal(argv=None):
     )
     parser.add_argument(
         "--beamline",
-        default="nbs",
-        help="Beamline acronym (e.g., 'nbs', 'sst'). Default: nbs",
+        default=None,
+        help="Beamline acronym (e.g., 'sst', 'haxpes') for kafka configuration.",
     )
     add_communication_args(parser)
     args = parser.parse_args(argv)
@@ -97,10 +97,13 @@ def minimal(argv=None):
         },
         # "kafka": {"config_file": args.kafka_config, "bl_acronym": args.beamline},
     }
+    if args.kafka_config and args.beamline is not None:
+        SETTINGS.gui_config["kafka"] = {"config_file": args.kafka_config, "bl_acronym": args.beamline}
+        SETTINGS.gui_config["gui"]["tabs"]["include"].append("kafka-table-tab")
     SETTINGS.object_config = {}
     SETTINGS.beamline_config = {}
     with gui_qt("Minimal NBS Queue Monitor"):
-        model = ViewerModel()
+        model = ViewerModel("", no_devices=True)
         set_top_level_model(model)
         viewer = MainWindow(model)  # noqa: 401
 

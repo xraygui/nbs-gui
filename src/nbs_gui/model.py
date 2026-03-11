@@ -33,8 +33,7 @@ class ViewerModel:
             except Exception as e:
                 print(f"Error loading {SETTINGS.gui_config_file}:\n {e}")
                 raise e
-        else:
-            SETTINGS.gui_config = {}
+
 
         if not no_devices and exists(SETTINGS.object_config_file):
             try:
@@ -43,8 +42,7 @@ class ViewerModel:
             except Exception as e:
                 print(f"Error loading {SETTINGS.object_config_file}:\n {e}")
                 raise e
-        else:
-            SETTINGS.object_config = {}
+
 
         if exists(SETTINGS.beamline_config_file):
             try:
@@ -53,8 +51,7 @@ class ViewerModel:
             except Exception as e:
                 print(f"Error loading {SETTINGS.beamline_config_file}:\n {e}")
                 raise e
-        else:
-            SETTINGS.beamline_config = {}
+
         self._mode_override = None
         self.init_beamline()
         self.init_queue_staging()
