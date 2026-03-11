@@ -24,6 +24,8 @@ dependencies = [
     "nbs-bl>=0.2",
     "qtconsole",
     "nbs-livetable",
+    "pyepics",
+    "orjson"
 ]
 
 classifiers = [
