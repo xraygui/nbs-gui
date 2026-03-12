@@ -11,7 +11,6 @@ from qtpy.QtWidgets import (
     QSizePolicy,
 )
 from qtpy.QtCore import Signal, Slot, Qt
-from bluesky_widgets.qt.run_engine_client import QtReStatusMonitor
 
 
 class PlanControls(QWidget):

@@ -1,11 +1,5 @@
 import argparse
 import os
-from os.path import join, dirname, exists
-
-try:
-    import tomllib
-except ModuleNotFoundError:
-    import tomli as tomllib
 
 from bluesky_widgets.qt import gui_qt
 from .window import MainWindow

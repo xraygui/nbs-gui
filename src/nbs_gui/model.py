@@ -5,7 +5,6 @@ from .models import UserStatus
 from .models.QtReQueueStaging import QueueStagingModel
 from nbs_core.autoconf import generate_device_config
 from nbs_core.autoload import simpleResolver
-from nbs_bl.redisDevice import _RedisSignal
 
 from .settings import SETTINGS
 from .models.redis import RedisStatusProvider
@@ -79,6 +78,8 @@ class ViewerModel:
             )
         # Provide Redis status provider to RedisDevice for GUI context
         try:
+            from nbs_bl.redisDevice import _RedisSignal
+
             _RedisSignal.set_default_status_provider(RedisStatusProvider(self.user_status))
         except Exception as e:
             print(f"Could not set RedisDevice status provider: {e}")

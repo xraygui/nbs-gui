@@ -1,17 +1,10 @@
-import copy
 from qtpy.QtWidgets import (
-    QWidget,
     QVBoxLayout,
     QHBoxLayout,
     QGroupBox,
     QLabel,
-    QTableWidget,
-    QTableWidgetItem,
-    QHeaderView,
-    QTableView,
-    QAbstractItemView,
+
 )
-from qtpy.QtCore import Signal, Slot, Qt
 from bluesky_widgets.qt.run_engine_client import PushButtonMinimumWidth
 from .QtRePlanQueueBase import QtReActiveQueue
 
