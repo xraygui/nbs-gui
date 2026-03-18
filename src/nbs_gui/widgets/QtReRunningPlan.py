@@ -229,12 +229,12 @@ class QtReRunningPlan(QWidget):
 
     def _pb_copy_to_queue_clicked(self):
         try:
-            self.model.running_item_add_to_queue()
+            self.run_engine.running_item_add_to_queue()
         except Exception as ex:
             print(f"Exception: {ex}")
 
     def _pb_environment_update_clicked(self):
         try:
-            self.model.environment_update()
+            self.run_engine.environment_update()
         except Exception as ex:
             print(f"Exception: {ex}")
