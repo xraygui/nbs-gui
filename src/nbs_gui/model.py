@@ -3,12 +3,13 @@
 from bluesky_widgets.models.run_engine_client import RunEngineClient
 from .models import UserStatus
 from .models.QtReQueueStaging import QueueStagingModel
-from nbs_core.autoconf import generate_device_config
+from nbs_core.autoconf import generate_device_config, load_settings
 from nbs_core.autoload import simpleResolver
 
 from .settings import SETTINGS
 from .models.redis import RedisStatusProvider
 from os.path import join, exists
+import os
 try:
     import tomllib
 except ModuleNotFoundError:
@@ -25,19 +26,23 @@ class ViewerModel:
         SETTINGS.gui_config_file = join(profile_dir, "gui_config.toml")
         SETTINGS.beamline_config_file = join(profile_dir, "beamline.toml")
 
+        sim_mode = os.environ.get("NBS_SIM_MODE", "0")
+        if sim_mode == "1":
+            sim_mode = True
+        else:
+            sim_mode = False
+        SETTINGS.sim_mode = sim_mode
+
         if exists(SETTINGS.gui_config_file):
             try:
-                with open(SETTINGS.gui_config_file, "rb") as config_file:
-                    SETTINGS.gui_config = tomllib.load(config_file)
+                SETTINGS.gui_config = load_settings(SETTINGS.gui_config_file, sim_mode=sim_mode)
             except Exception as e:
                 print(f"Error loading {SETTINGS.gui_config_file}:\n {e}")
                 raise e
-
-
+        
         if not no_devices and exists(SETTINGS.object_config_file):
             try:
-                with open(SETTINGS.object_config_file, "rb") as config_file:
-                    SETTINGS.object_config = tomllib.load(config_file)
+                SETTINGS.object_config = load_settings(SETTINGS.object_config_file, sim_mode=sim_mode)
             except Exception as e:
                 print(f"Error loading {SETTINGS.object_config_file}:\n {e}")
                 raise e
@@ -45,8 +50,7 @@ class ViewerModel:
 
         if exists(SETTINGS.beamline_config_file):
             try:
-                with open(SETTINGS.beamline_config_file, "rb") as config_file:
-                    SETTINGS.beamline_config = tomllib.load(config_file)
+                SETTINGS.beamline_config = load_settings(SETTINGS.beamline_config_file, sim_mode=sim_mode)
             except Exception as e:
                 print(f"Error loading {SETTINGS.beamline_config_file}:\n {e}")
                 raise e
@@ -98,7 +102,7 @@ class ViewerModel:
 
             # Generate device config
             config = generate_device_config(
-                SETTINGS.object_config_file, SETTINGS.gui_config_file
+                SETTINGS.object_config_file, SETTINGS.gui_config_file, sim_mode=SETTINGS.sim_mode
             )
 
             if mode_override is not None:
