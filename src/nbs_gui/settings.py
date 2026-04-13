@@ -46,6 +46,7 @@ class Settings:
     gui_config_file = None
     beamline_config = {}
     beamline_config_file = None
+    sim_mode = False
 
 
 SETTINGS = Settings()

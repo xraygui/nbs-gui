@@ -20,10 +20,10 @@ dependencies = [
     "ophyd",
     'tomli ; python_version < "3.11"',
     "tomli_w",
-    "nbs-core>=0.1",
-    "nbs-bl>=0.2",
+    "nbs-core>=0.2",
+    "nbs-bl>=0.3",
     "qtconsole",
-    "nbs-livetable",
+    "nbs-livetable>=0.1.2",
     "pyepics",
     "orjson"
 ]
@@ -45,6 +45,7 @@ platforms = ["linux-64"]
 [tool.pixi.dependencies]
 pip = "*"
 bluesky-base = "*"
+bluesky-widgets = ">=0.0.17,<0.0.19"
 bluesky-queueserver = "*"
 matplotlib-base= ">=3.9.3,<4"
 networkx = ">=3.4.2,<4"
