@@ -1,6 +1,7 @@
 from qtpy.QtCore import QObject, Signal, QThread
 from qtpy.QtCore import QAbstractTableModel, Qt
 import orjson
+import redis
 from nslsii.utils import open_redis_client
 
 
@@ -52,13 +53,17 @@ class RedisWatcherThread(QThread):
     def __init__(self, redis_client, prefix):
         super().__init__()
         self._redis = redis_client
-        self._pubsub = self._redis.pubsub()
+        self._pubsub = None
         self._prefix = prefix
         self._db = redis_client.connection_pool.connection_kwargs.get("db", 0)
         self._running = True
 
     def run(self):
-        self._redis.config_set("notify-keyspace-events", "KEA")
+        try:
+            self._redis.config_set("notify-keyspace-events", "KEA")
+        except redis.exceptions.ResponseError:
+            pass
+        self._pubsub = self._redis.pubsub()
         self._pubsub.psubscribe(f"__keyspace@{self._db}__:{self._prefix}*")
 
         while self._running:
@@ -71,7 +76,8 @@ class RedisWatcherThread(QThread):
 
     def stop(self):
         self._running = False
-        self._pubsub.unsubscribe()
+        if self._pubsub is not None:
+            self._pubsub.unsubscribe()
         self.wait()
 
 
@@ -118,9 +124,11 @@ class QtRedisJSONDict(QObject):
         QtRedisJSONDict
             New instance configured with the given settings
         """
+        default_port = 6380 if settings.get("ssl", False) else 6379
+
         redis_client = open_redis_client(
             redis_url=settings["host"],
-            redis_port=settings.get("port", 6379),
+            redis_port=settings.get("port", default_port),
             redis_ssl=settings.get("ssl", False),
             redis_db=settings.get("db", 0),
         )
@@ -135,10 +143,9 @@ class QtRedisJSONDict(QObject):
         self._redis_key = f"{prefix}{topic}"
         self._cache = {}
 
+        self._refresh_cache()
         self._watcher = RedisWatcherThread.get_or_create(redis_client, prefix)
         self._watcher.change_detected.connect(self._on_redis_change)
-
-        self._refresh_cache()
 
     def _refresh_cache(self):
         """Load all data from Redis into the cache."""

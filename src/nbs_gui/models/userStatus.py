@@ -29,9 +29,12 @@ class UserStatus(QObject):
         """Initialize Redis client from settings"""
         from nslsii.utils import open_redis_client
 
+        default_port = 6380 if self._redis_settings.get("ssl", False) else 6379
+        port = self._redis_settings.get("port", default_port)
+
         self._redis_client = open_redis_client(
             redis_url=self._redis_settings["host"],
-            redis_port=self._redis_settings.get("port", 6379),
+            redis_port=self._redis_settings.get("port", default_port),
             redis_ssl=self._redis_settings.get("ssl", False),
             redis_db=self._redis_settings.get("db", 0),
         )
