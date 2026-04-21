@@ -144,8 +144,8 @@ class QtRedisJSONDict(QObject):
         self._cache = {}
         try:
             self._refresh_cache()
-        except ConnectionResetError:
-            print(f"ConnectionResetError for Redis client: {self._redis.connection_pool.connection_kwargs}")
+        except Exception as e:
+            print(f"Error {e} for Redis client: {self._redis.connection_pool.connection_kwargs}")
             raise
         self._watcher = RedisWatcherThread.get_or_create(redis_client, prefix)
         self._watcher.change_detected.connect(self._on_redis_change)
