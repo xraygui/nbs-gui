@@ -21,7 +21,7 @@ dependencies = [
     'tomli ; python_version < "3.11"',
     "tomli_w",
     "nbs-core>=0.2",
-    "nbs-bl>=0.3",
+    "nbs-bl>=0.3.1",
     "qtconsole",
     "nbs-livetable>=0.1.2",
     "pyepics",
