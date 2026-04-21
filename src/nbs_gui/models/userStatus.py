@@ -27,12 +27,13 @@ class UserStatus(QObject):
 
     def _init_redis_client(self):
         """Initialize Redis client from settings"""
-        import redis
+        from nslsii.utils import open_redis_client
 
-        self._redis_client = redis.Redis(
-            host=self._redis_settings["host"],
-            port=self._redis_settings.get("port", 6379),
-            db=self._redis_settings.get("db", 0),
+        self._redis_client = open_redis_client(
+            redis_url=self._redis_settings["host"],
+            redis_port=self._redis_settings.get("port", 6379),
+            redis_ssl=self._redis_settings.get("ssl", False),
+            redis_db=self._redis_settings.get("db", 0),
         )
         self._redis_prefix = self._redis_settings.get("prefix", "")
 

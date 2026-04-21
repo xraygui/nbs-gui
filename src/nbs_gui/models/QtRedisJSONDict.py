@@ -1,6 +1,7 @@
 from qtpy.QtCore import QObject, Signal, QThread
 from qtpy.QtCore import QAbstractTableModel, Qt
 import orjson
+from nslsii.utils import open_redis_client
 
 
 class RedisWatcherThread(QThread):
@@ -117,12 +118,11 @@ class QtRedisJSONDict(QObject):
         QtRedisJSONDict
             New instance configured with the given settings
         """
-        import redis
-
-        redis_client = redis.Redis(
-            host=settings["host"],
-            port=settings.get("port", 6379),
-            db=settings.get("db", 0),
+        redis_client = open_redis_client(
+            redis_url=settings["host"],
+            redis_port=settings.get("port", 6379),
+            redis_ssl=settings.get("ssl", False),
+            redis_db=settings.get("db", 0),
         )
         prefix = settings.get("prefix", "")
         return cls(redis_client, prefix, topic, parent)
