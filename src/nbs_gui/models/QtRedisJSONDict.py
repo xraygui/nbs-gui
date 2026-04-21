@@ -1,6 +1,8 @@
 from qtpy.QtCore import QObject, Signal, QThread
 from qtpy.QtCore import QAbstractTableModel, Qt
 import orjson
+import redis
+from nbs_bl.redisUtils import open_redis_client_from_settings
 
 
 class RedisWatcherThread(QThread):
@@ -51,13 +53,17 @@ class RedisWatcherThread(QThread):
     def __init__(self, redis_client, prefix):
         super().__init__()
         self._redis = redis_client
-        self._pubsub = self._redis.pubsub()
+        self._pubsub = None
         self._prefix = prefix
         self._db = redis_client.connection_pool.connection_kwargs.get("db", 0)
         self._running = True
 
     def run(self):
-        self._redis.config_set("notify-keyspace-events", "KEA")
+        try:
+            self._redis.config_set("notify-keyspace-events", "KEA")
+        except redis.exceptions.ResponseError:
+            pass
+        self._pubsub = self._redis.pubsub()
         self._pubsub.psubscribe(f"__keyspace@{self._db}__:{self._prefix}*")
 
         while self._running:
@@ -70,7 +76,8 @@ class RedisWatcherThread(QThread):
 
     def stop(self):
         self._running = False
-        self._pubsub.unsubscribe()
+        if self._pubsub is not None:
+            self._pubsub.unsubscribe()
         self.wait()
 
 
@@ -117,13 +124,9 @@ class QtRedisJSONDict(QObject):
         QtRedisJSONDict
             New instance configured with the given settings
         """
-        import redis
 
-        redis_client = redis.Redis(
-            host=settings["host"],
-            port=settings.get("port", 6379),
-            db=settings.get("db", 0),
-        )
+        redis_client = open_redis_client_from_settings(settings)
+
         prefix = settings.get("prefix", "")
         return cls(redis_client, prefix, topic, parent)
 
@@ -134,11 +137,13 @@ class QtRedisJSONDict(QObject):
         self._topic = topic
         self._redis_key = f"{prefix}{topic}"
         self._cache = {}
-
+        try:
+            self._refresh_cache()
+        except Exception as e:
+            print(f"Error {e} for Redis client: {self._redis.connection_pool.connection_kwargs}")
+            raise
         self._watcher = RedisWatcherThread.get_or_create(redis_client, prefix)
         self._watcher.change_detected.connect(self._on_redis_change)
-
-        self._refresh_cache()
 
     def _refresh_cache(self):
         """Load all data from Redis into the cache."""

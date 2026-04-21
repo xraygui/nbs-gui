@@ -27,13 +27,9 @@ class UserStatus(QObject):
 
     def _init_redis_client(self):
         """Initialize Redis client from settings"""
-        import redis
+        from nbs_bl.redisUtils import open_redis_client_from_settings
 
-        self._redis_client = redis.Redis(
-            host=self._redis_settings["host"],
-            port=self._redis_settings.get("port", 6379),
-            db=self._redis_settings.get("db", 0),
-        )
+        self._redis_client = open_redis_client_from_settings(self._redis_settings)
         self._redis_prefix = self._redis_settings.get("prefix", "")
 
     def get_redis_dict(self, topic=""):
