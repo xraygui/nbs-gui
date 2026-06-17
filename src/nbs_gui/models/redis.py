@@ -20,6 +20,16 @@ class RedisStatusProvider:
             self._cache[name] = dct
         return self._cache[name]
 
+    def request_status_list(self, name, use_redis=True):
+        dct = self.request_status_dict("")
+        return list(dct.get(name, []))
+
+    def set_status_list(self, name, values, use_redis=True):
+        values = list(values)
+        dct = self.request_status_dict("")
+        dct[name] = values
+        return values
+
     def __getitem__(self, name):
         return self.request_status_dict(name)
 

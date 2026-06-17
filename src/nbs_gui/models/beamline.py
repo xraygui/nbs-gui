@@ -45,7 +45,7 @@ class GUIBeamlineModel(CoreBeamlineModel):
 
 
         # Determine current mode value if mode device exists
-        target_mode = default_mode
+        target_mode = [default_mode]
         print("Beamline target_mode", target_mode)
         if "mode" in base_roles:
             mode_device = base_devices.get(base_roles["mode"])
@@ -59,6 +59,8 @@ class GUIBeamlineModel(CoreBeamlineModel):
                             target_mode = mode_device.enum_strs[int(raw)]
                         else:
                             target_mode = str(raw)
+                    elif isinstance(raw, (list, tuple, set)):
+                        target_mode = list(raw)
                     else:
                         target_mode = str(raw)
                 except Exception as e:
@@ -74,7 +76,7 @@ class GUIBeamlineModel(CoreBeamlineModel):
         extra_groups = {}
         extra_roles = {}
         # Only perform second pass if the mode changed and there is deferred config
-        if deferred_config and target_mode != default_mode:
+        if deferred_config and target_mode != [default_mode]:
             extra_devices, extra_groups, extra_roles = loadFromConfig(
                 deferred_config,
                 instantiateGUIDevice,
@@ -119,7 +121,11 @@ class GUIBeamlineModel(CoreBeamlineModel):
                     try:
                         self.mode_model.mode_changed.connect(self._on_mode_change)
                         # Apply initial mode to all devices
-                        if hasattr(self.mode_model, "current_mode"):
+                        if hasattr(self.mode_model, "active_modes"):
+                            self._update_device_availability(
+                                self.mode_model.active_modes
+                            )
+                        elif hasattr(self.mode_model, "current_mode"):
                             self._update_device_availability(
                                 self.mode_model.current_mode
                             )
@@ -152,15 +158,17 @@ class GUIBeamlineModel(CoreBeamlineModel):
         mode : str
             New mode name
         """
-        print(f"Updating device availability for mode: {mode}")
+        active_modes = self._normalize_modes(mode)
+        print(f"Updating device availability for mode: {active_modes}")
         for group in self.groups:
             group_dict = getattr(self, group)
             for name, device in group_dict.items():
                 if hasattr(device, "set_available"):
                     try:
-                        # Get mode info from config
                         device_config = self.config.get(name, {})
-                        available = self._check_mode_availability(device_config, mode)
+                        available = self._check_mode_availability(
+                            device_config, active_modes
+                        )
                         print(f"Device {name}: available={available}")
                         device.set_available(available)
                     except Exception as e:
@@ -182,16 +190,20 @@ class GUIBeamlineModel(CoreBeamlineModel):
             Whether device is available
         """
         modes = device_config.get("_modes", [])
+        active_modes = self._normalize_modes(mode)
 
         if not modes:
-            # No modes specified, always available
             return True
-        elif mode in modes:
-            # Mode explicitly allowed
+        elif set(modes).intersection(active_modes):
             return True
         else:
-            # Mode not allowed
             return False
+
+    def _normalize_modes(self, mode):
+        if isinstance(mode, (list, tuple, set)):
+            return list(mode)
+        return [mode]
+
 
     def reload_for_mode(self, mode):
         """

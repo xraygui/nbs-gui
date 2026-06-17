@@ -63,6 +63,8 @@ class TabViewer(QTabWidget):
             Application model containing the refreshed beamline.
         """
         self.model = model
+        current_tab_key = self._current_tab_key()
+        fallback_index = self.currentIndex()
         latest_entries = {ep.name: ep for ep in entry_points(group="nbs_gui.tabs")}
         for tab_name in list(self._tab_order):
             widget = self.tab_dict.get(tab_name)
@@ -98,3 +100,21 @@ class TabViewer(QTabWidget):
                     self.tab_dict.pop(tab_name, None)
             except Exception as exc:
                 print(f"Reload failed for tab {tab_name}: {exc}")
+        self._restore_tab(current_tab_key, fallback_index)
+
+    def _current_tab_key(self):
+        current_widget = self.currentWidget()
+        for tab_name, widget in self.tab_dict.items():
+            if widget is current_widget:
+                return tab_name
+        return None
+
+    def _restore_tab(self, tab_name, fallback_index):
+        if tab_name in self.tab_dict:
+            tab_index = self.indexOf(self.tab_dict[tab_name])
+            if tab_index >= 0:
+                self.setCurrentIndex(tab_index)
+                return
+        if self.count() == 0:
+            return
+        self.setCurrentIndex(min(fallback_index, self.count() - 1))
