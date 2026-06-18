@@ -155,7 +155,7 @@ class DefaultBeamlineModifierParam(ParamGroup):
 
 try:
     beamline_modifier_name = (
-        SETTINGS.beamline_config.get("configuration", {}).get("beamline_modifier", None)
+        SETTINGS.gui_config.get("gui", {}).get("plans", {}).get("beamline_modifier", None)
     )
 except Exception as e:
     print(f"Error getting beamline modifier name: {e}")
