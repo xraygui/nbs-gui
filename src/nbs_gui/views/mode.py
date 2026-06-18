@@ -10,6 +10,7 @@ from qtpy.QtWidgets import (
     QPushButton,
     QDialog,
     QFrame,
+    QSizePolicy,
 )
 from qtpy.QtCore import Qt
 
@@ -173,11 +174,17 @@ class RedisModeControl(QWidget):
         self.active_modes_label.setWordWrap(True)
         self.active_modes_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.active_modes_label.setFrameStyle(QFrame.Box)
+        self.active_modes_label.setMinimumWidth(100)
+        self.active_modes_label.setFixedHeight(20)
+        self.active_modes_label.setSizePolicy(
+            QSizePolicy.Minimum,
+            QSizePolicy.Fixed,
+        )
 
         layout.addWidget(self.label)
         layout.addStretch()
         layout.addWidget(self.change_modes_button)
-        layout.addWidget(self.active_modes_label, 1)
+        layout.addWidget(self.active_modes_label)
         self.setLayout(layout)
 
         self.model.active_modes_changed.connect(self.set_modes)
@@ -193,7 +200,10 @@ class RedisModeControl(QWidget):
             Active mode names.
         """
         mode_names = [str(mode) for mode in modes or []]
-        self.active_modes_label.setText(", ".join(mode_names))
+        mode_text = ", ".join(mode_names)
+        self.active_modes_label.setText(mode_text)
+        text_width = self.active_modes_label.fontMetrics().horizontalAdvance(mode_text)
+        self.active_modes_label.setMinimumWidth(max(100, text_width + 12))
 
     def open_mode_dialog(self):
         """Open mode activation controls."""
