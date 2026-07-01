@@ -14,6 +14,7 @@ class DefaultScanModifierParam(ParamGroup):
     def __init__(self, model, parent=None):
         super().__init__(parent, "Scan Setup")
         self.add_param(SpinBoxParam("repeat", "Repeat", minimum=1, default=1))
+        self.add_param(SpinBoxParam("settle_time", "Settle Time", minimum=0, value_type=float))
         self.add_param(
             LineEditParam(
                 "group_name",
