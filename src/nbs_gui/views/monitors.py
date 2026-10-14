@@ -205,6 +205,15 @@ SI_PREFIXES = [
 PREFIX_INDEX = {p: i for i, (p, _) in enumerate(SI_PREFIXES)}
 
 
+class UnitPVMonitor(PVMonitor):
+    def __init__(self, model, *args, **kwargs):
+        self.unit = model.unit
+        super().__init__(model, *args, **kwargs)
+        self.unit.valueChanged.connect(self.setText)
+
+    def setText(self, val):
+        self.value.setText(f"{val} {self.unit.value}")
+
 class SIPVMonitor(PVMonitor):
     """
     PVMonitor that formats values with SI prefixes.
@@ -222,10 +231,11 @@ class SIPVMonitor(PVMonitor):
     """
 
     def __init__(
-        self, model, *args, base_unit="", min_prefix="", max_prefix="", **kwargs
+        self, model, *args, base_unit="", base_prefix="", min_prefix="", max_prefix="", **kwargs
     ):
         super().__init__(model, *args, **kwargs)
         self.base_unit = base_unit
+        self.base_prefix = base_prefix
         self.min_prefix = min_prefix
         self.max_prefix = max_prefix
 
@@ -239,6 +249,8 @@ class SIPVMonitor(PVMonitor):
 
     def format_si(self, value):
         abs_val = abs(value)
+        multiplier = SI_PREFIXES[PREFIX_INDEX.get(self.base_prefix, 0)][1]
+        abs_val = abs_val * multiplier
         # Find the best prefix within min/max
         min_idx = PREFIX_INDEX.get(self.min_prefix, 0)
         max_idx = PREFIX_INDEX.get(self.max_prefix, len(SI_PREFIXES) - 1)

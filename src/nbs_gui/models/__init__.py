@@ -3,3 +3,4 @@ from .motors import *
 from .userStatus import *
 from .misc import *
 from .QtRedisJSONDict import *
+from .mode import *

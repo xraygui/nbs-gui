@@ -20,31 +20,40 @@ class MonitorTab(QWidget):
         self.user_status = model.user_status
         self.beamline = model.beamline
         self.model = model
+        self.monitor_layout = None
+        self.energy_layout = None
+        self.control_layout = None
 
         # Main layout
-        vbox = QVBoxLayout()
+        self.main_layout = QVBoxLayout()
 
         # Add beamline monitoring section
         print("Adding beamline monitoring section...")
-        self._add_beamline_monitoring(vbox)
-        vbox.addWidget(HLine())
+        self.monitor_layout = self._create_beamline_monitoring()
+        if self.monitor_layout.count() > 0:
+            self.main_layout.addLayout(self.monitor_layout)
+            self.main_layout.addWidget(HLine())
 
         # Add energy control if available
-        if hasattr(self.beamline, "energy") and self.beamline.energy is not None:
-            print("Adding energy control...")
-            vbox.addWidget(AutoControl(self.beamline.energy))
-            print("Energy control added")
+        self.energy_layout = self._create_energy_control()
+        if self.energy_layout.count() > 0:
+            self.main_layout.addLayout(self.energy_layout)
+            self.main_layout.addWidget(HLine())
+
 
         # Add motor controls and sample selection
         print("Adding motor and sample controls...")
-        self._add_motor_and_sample_controls(vbox)
+        self.control_layout = self._create_motor_and_sample_controls()
+        if self.control_layout.count() > 0:
+            self.main_layout.addLayout(self.control_layout)
+
         print("Motor and sample controls added")
 
-        vbox.addStretch()
-        self.setLayout(vbox)
+        self.main_layout.addStretch()
+        self.setLayout(self.main_layout)
         print("Monitor Tab initialization complete")
 
-    def _add_beamline_monitoring(self, layout):
+    def _create_beamline_monitoring(self):
         beamBox = QHBoxLayout()
 
         # Add signals monitoring if available
@@ -84,11 +93,17 @@ class MonitorTab(QWidget):
 
         if vbox1.count() > 0:
             beamBox.addLayout(vbox1)
+        return beamBox
 
-        if beamBox.count() > 0:
-            layout.addLayout(beamBox)
+    def _create_energy_control(self):
+        energy_layout = QHBoxLayout()
+        if hasattr(self.beamline, "energy") and self.beamline.energy is not None:
+            print("Adding energy control...")
+            energy_layout.addWidget(AutoControl(self.beamline.energy))
+            print("Energy control added")
+        return energy_layout
 
-    def _add_motor_and_sample_controls(self, layout):
+    def _create_motor_and_sample_controls(self):
         hbox = QHBoxLayout()
 
         # Combine available motor-like devices
@@ -126,8 +141,7 @@ class MonitorTab(QWidget):
             hbox.addWidget(SampleStatusBox(self.user_status, "Selected Sample"))
             print("Sample selection widgets added")
 
-        if hbox.count() > 0:
-            layout.addLayout(hbox)
+        return hbox
 
     def teardown(self):
         """
