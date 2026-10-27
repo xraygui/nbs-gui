@@ -4,3 +4,4 @@ from .userStatus import *
 from .misc import *
 from .QtRedisJSONDict import *
 from .mode import *
+from .beam_status import *

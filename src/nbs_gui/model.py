@@ -48,6 +48,16 @@ class ViewerModel:
                 raise e
 
 
+        # nbs_bl factories (e.g. BeamMapFactory) resolve relative files
+        # against the startup dir, which only the IPython profile sets
+        try:
+            from nbs_bl.beamline import GLOBAL_BEAMLINE
+
+            if not GLOBAL_BEAMLINE.settings.get("startup_dir"):
+                GLOBAL_BEAMLINE.settings["startup_dir"] = profile_dir
+        except Exception as e:
+            print(f"Could not set nbs_bl startup_dir: {e}")
+
         if exists(SETTINGS.beamline_config_file):
             try:
                 SETTINGS.beamline_config = load_settings(SETTINGS.beamline_config_file, sim_mode=sim_mode)
