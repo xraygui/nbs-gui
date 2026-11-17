@@ -76,6 +76,11 @@ class QtReQueueStaging(QtReActiveQueue):
         self._selected_time_label = QLabel("Selected Est. Time: --")
         self._selected_time_label.setStyleSheet("QLabel { color: gray; }")
 
+        self._store_label = QLabel()
+        self._store_label.setWordWrap(True)
+        self._show_store_status(*self.queue_model.store_status)
+        self.queue_model.signal_store_status_changed.connect(self._show_store_status)
+
         vbox = QVBoxLayout()
 
         label_vbox = QVBoxLayout()
@@ -114,8 +119,15 @@ class QtReQueueStaging(QtReActiveQueue):
 
         header_hbox.addLayout(header_vbox)
         vbox.addLayout(header_hbox)
+        vbox.addWidget(self._store_label)
         vbox.addWidget(self._table)
         self.setLayout(vbox)
+
+    def _show_store_status(self, text, warning):
+        """Show where the staging queue is kept, or the last problem with it."""
+        self._store_label.setText(text)
+        color = "#a05f00" if warning else "gray"
+        self._store_label.setStyleSheet(f"QLabel {{ color: {color}; }}")
 
     def _update_button_states(self):
         """Update button states specific to queue staging."""

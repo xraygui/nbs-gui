@@ -3,6 +3,7 @@
 from bluesky_widgets.models.run_engine_client import RunEngineClient
 from .models import UserStatus
 from .models.QtReQueueStaging import QueueStagingModel
+from .models.stagingStore import make_staging_store
 from nbs_core.autoconf import generate_device_config, load_settings
 from nbs_core.autoload import simpleResolver
 
@@ -126,9 +127,17 @@ class ViewerModel:
         self.settings = SETTINGS
 
     def init_queue_staging(self):
-        """Initialize queue staging model."""
+        """Initialize queue staging model, shared through the beamline Redis."""
         print("Initializing Queue Staging")
-        self.queue_staging = QueueStagingModel(self.run_engine)
+        store, note = make_staging_store(getattr(self, "user_status", None))
+        self.queue_staging = QueueStagingModel(
+            self.run_engine, store=store, store_note=note
+        )
+        if self.queue_staging.store is not None:
+            try:
+                self.queue_staging.store.watch(self.queue_staging.on_redis_key_changed)
+            except Exception as e:
+                print(f"Could not watch the staging queue in Redis: {e}")
 
     def reload_beamline_for_mode(self, mode):
         """Reload beamline for a new mode without recreating RE client."""

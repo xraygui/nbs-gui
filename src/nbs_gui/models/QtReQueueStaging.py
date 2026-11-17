@@ -3,14 +3,102 @@ from bluesky_queueserver import bind_plan_arguments
 from qtpy.QtCore import Signal, QObject
 import collections
 import copy
+import functools
+import logging
 import uuid
+
+from .stagingStore import StagingConflict
+
+LOGGER = logging.getLogger(__name__)
+
+
+def _stored(method):
+    """
+    Save the queue to the store after a change made by ``method``.
+
+    Nested calls save once, at the outermost call. On a version conflict the
+    stored queue is reloaded and the change is made again once; if that
+    conflicts too, the stored queue is kept and a warning is shown.
+    """
+
+    @functools.wraps(method)
+    def wrapper(self, *args, **kwargs):
+        if self._store is None or self._write_depth:
+            return method(self, *args, **kwargs)
+        self._write_depth += 1
+        try:
+            selection = list(self._selected_queue_item_uids)
+            before = copy.deepcopy(self._plan_queue_items)
+            result = method(self, *args, **kwargs)
+            reloaded = False
+            for attempt in range(2):
+                if self._plan_queue_items == before:
+                    if reloaded:
+                        self.load_plan_queue()
+                    return result
+                try:
+                    self._version = self._store.save(
+                        self._plan_queue_items, self._version
+                    )
+                    self._set_store_status(self._store.description)
+                    return result
+                except StagingConflict:
+                    if not self._reload_items():
+                        return result
+                    reloaded = True
+                    if attempt == 0:
+                        self._selected_queue_item_uids = [
+                            uid for uid in selection
+                            if self.queue_item_uid_to_pos(uid) >= 0
+                        ]
+                        before = copy.deepcopy(self._plan_queue_items)
+                        result = method(self, *args, **kwargs)
+                except Exception as e:
+                    LOGGER.warning("Could not save the staging queue", exc_info=True)
+                    self._set_store_status(
+                        f"Could not save the staging queue to Redis ({e}): "
+                        "this change is only in this GUI",
+                        warning=True,
+                    )
+                    return result
+            self._set_store_status(
+                "Someone else changed the staging queue at the same time: "
+                "your last change was not applied",
+                warning=True,
+            )
+            self.load_plan_queue()
+            return result
+        finally:
+            self._write_depth -= 1
+
+    return wrapper
 
 
 class QueueStagingModel(QObject):
+    """
+    The staging queue: plans being prepared before they go to the main queue.
+
+    With a store (the beamline Redis), the queue is shared with every GUI and
+    with nbs-cli, and survives restarts; without one it lives in this GUI
+    only. The selection is always local.
+
+    Parameters
+    ----------
+    model : RunEngineClient
+        Client of the RE Manager, for the allowed plans.
+    parent : QObject, optional
+        Parent object.
+    store : RedisStagingStore, optional
+        Where the queue is kept; None keeps it in memory.
+    store_note : str, optional
+        Why there is no store, shown in the staging tab.
+    """
+
     signal_item_selection_changed = Signal(object)
     signal_plan_queue_changed = Signal(object, object)
+    signal_store_status_changed = Signal(str, bool)
 
-    def __init__(self, model, parent=None):
+    def __init__(self, model, parent=None, store=None, store_note=""):
         super().__init__()
         self._plan_queue_items = []
         self._plan_queue_items_pos = {}
@@ -18,6 +106,10 @@ class QueueStagingModel(QObject):
         self._map_column_labels_to_keys = {}
         self.run_engine_client = model
         self._allowed_plans = self.run_engine_client._allowed_plans
+        self._store = store
+        self._version = 0
+        self._write_depth = 0
+        self._store_status = ("", False)
 
         # Initialize the default mapping
         self.set_map_param_labels_to_keys()
@@ -30,13 +122,91 @@ class QueueStagingModel(QObject):
             queue_item_selection_changed=Event,
         )
 
-    def load_plan_queue(self):
-        """Update the position mapping and emit queue changed event."""
+        if self._store is not None:
+            try:
+                self._version, self._plan_queue_items = self._store.load()
+                self._set_store_status(self._store.description)
+            except Exception as e:
+                LOGGER.warning("Could not read the staging queue", exc_info=True)
+                self._store = None
+                store_note = f"could not read the staging queue from Redis ({e})"
+        if self._store is None:
+            reason = f": {store_note}" if store_note else ""
+            self._set_store_status(
+                f"Staging queue is local to this GUI{reason}", warning=True
+            )
+        self._update_positions()
+
+    # ============================================================================
+    #                         Shared store
+
+    @property
+    def store(self):
+        """The store the queue is kept in, or None when it is local."""
+        return self._store
+
+    @property
+    def store_status(self):
+        """
+        Where the queue is kept, or the last problem with it.
+
+        Returns
+        -------
+        tuple of (str, bool)
+            Message and whether it is a warning.
+        """
+        return self._store_status
+
+    def _set_store_status(self, text, warning=False):
+        if self._store_status != (text, warning):
+            self._store_status = (text, warning)
+            self.signal_store_status_changed.emit(text, warning)
+
+    def _reload_items(self):
+        """Replace the local items with the stored ones; False if unreadable."""
+        try:
+            self._version, self._plan_queue_items = self._store.load()
+        except Exception as e:
+            LOGGER.warning("Could not read the staging queue", exc_info=True)
+            self._set_store_status(
+                f"Could not read the staging queue from Redis ({e})", warning=True
+            )
+            return False
+        self._update_positions()
+        return True
+
+    def reload_from_store(self):
+        """Load the stored queue if it changed, and redraw."""
+        if self._store is None or self._write_depth:
+            return
+        version = self._version
+        if self._reload_items() and self._version != version:
+            self.load_plan_queue()
+
+    def on_redis_key_changed(self, key, event):
+        """
+        Reload when another client writes the staging queue key.
+
+        Parameters
+        ----------
+        key : str
+            Changed Redis key.
+        event : str
+            Keyspace event name.
+        """
+        if self._store is not None and key == self._store.key:
+            self.reload_from_store()
+
+    def _update_positions(self):
         self._plan_queue_items_pos = {
             item["item_uid"]: n
             for n, item in enumerate(self._plan_queue_items)
             if "item_uid" in item
         }
+
+    def load_plan_queue(self):
+        """Update the position mapping and emit queue changed event."""
+        self._update_positions()
 
         # Deselect queue items that are not in the queue or are not part of the
         # contiguous selection. The selection will be cleared when the table is
@@ -247,6 +417,7 @@ class QueueStagingModel(QObject):
                 return copy.deepcopy(self._plan_queue_items[sel_item_pos])
         return None
 
+    @_stored
     def _queue_items_move(self, *, sel_items, ref_item, position):
         """
         Move the batch of selected items above or below the reference item.
@@ -305,6 +476,7 @@ class QueueStagingModel(QObject):
         new_sel_uids = [item["item_uid"] for item in items_to_move]
         self.selected_queue_item_uids = new_sel_uids
 
+    @_stored
     def queue_items_move_up(self):
         """Move the selected batch of items up by one position."""
         n_items = len(self._plan_queue_items)
@@ -323,6 +495,7 @@ class QueueStagingModel(QObject):
                 position="before",
             )
 
+    @_stored
     def queue_items_move_down(self):
         """Move the selected batch of items down by one position."""
         n_items = len(self._plan_queue_items)
@@ -335,23 +508,13 @@ class QueueStagingModel(QObject):
         if item_uid and (0 <= n_item < n_items - 1):  # Check if we can move down
             n_item_below = n_item + 1  # Find item below the last selected item
             item_uid_below = self.queue_item_pos_to_uid(n_item_below)
-            print(
-                f"DEBUG: queue_items_move_down - n_item_below={n_item_below}, item_uid_below={item_uid_below}"
-            )
-            print(
-                f"DEBUG: queue_items_move_down - selected_uids={self._selected_queue_item_uids}"
-            )
-
             self._queue_items_move(
                 sel_items=self._selected_queue_item_uids,
                 ref_item=item_uid_below,
                 position="after",  # Move selection after the item below
             )
-        else:
-            print(
-                f"DEBUG: queue_items_move_down - cannot move down: item_uid={item_uid}, n_item={n_item}, n_items={n_items}"
-            )
 
+    @_stored
     def queue_items_move_in_place_of(self, uid_ref_item):
         """
         Move the selected batch of items in the queue so that the first item of the batch assumes
@@ -376,12 +539,14 @@ class QueueStagingModel(QObject):
                 position=position,
             )
 
+    @_stored
     def queue_items_move_to_top(self):
         """Move the selected batch of items to the top of the queue."""
         if not self._plan_queue_items:
             return
         self.queue_items_move_in_place_of(self._plan_queue_items[0].get("item_uid", ""))
 
+    @_stored
     def queue_items_move_to_bottom(self):
         """Move the selected batch of items to the bottom of the queue."""
         if not self._plan_queue_items:
@@ -390,6 +555,7 @@ class QueueStagingModel(QObject):
             self._plan_queue_items[-1].get("item_uid", "")
         )
 
+    @_stored
     def queue_items_remove(self):
         """Delete the selected batch of items from queue."""
         sel_item_uids = self.selected_queue_item_uids.copy()
@@ -425,12 +591,14 @@ class QueueStagingModel(QObject):
             # Update the queue
             self.load_plan_queue()
 
+    @_stored
     def queue_clear(self):
         """Clear the plan queue."""
         self._plan_queue_items.clear()
         self.selected_queue_item_uids = []
         self.load_plan_queue()
 
+    @_stored
     def queue_item_copy_to_queue(self):
         """Copy currently selected item to queue."""
         sel_item_uids = self._selected_queue_item_uids
@@ -454,6 +622,7 @@ class QueueStagingModel(QObject):
         new_item["user_group"] = "primary"
         return new_item
 
+    @_stored
     def queue_item_add(self, *, item, params=None):
         """
         Add item to queue. The new item is inserted after the selected item or to the back of the queue
@@ -502,6 +671,7 @@ class QueueStagingModel(QObject):
         # Set the new item as selected
         self.selected_queue_item_uids = [new_item["item_uid"]]
 
+    @_stored
     def queue_item_update(self, *, item):
         """
         Update the existing plan in the queue.
@@ -522,6 +692,7 @@ class QueueStagingModel(QObject):
             self.load_plan_queue()
             self.selected_queue_item_uids = [item_uid]
 
+    @_stored
     def queue_item_add_batch(self, *, items, params=None):
         """
         Add a batch of items to queue.
@@ -581,6 +752,7 @@ class QueueStagingModel(QObject):
     # ============================================================================
     #                         Staging-specific methods
 
+    @_stored
     def add_plan(self, plan):
         """
         Add a plan to the staging area.
@@ -592,6 +764,7 @@ class QueueStagingModel(QObject):
         """
         self.queue_item_add(item=plan)
 
+    @_stored
     def remove_plans(self, indices):
         """
         Remove plans at the specified indices.
@@ -614,6 +787,7 @@ class QueueStagingModel(QObject):
             self.selected_queue_item_uids = uids_to_remove
             self.queue_items_remove()
 
+    @_stored
     def duplicate_plan(self, index):
         """
         Duplicate the plan at the specified index.
@@ -629,6 +803,7 @@ class QueueStagingModel(QObject):
             plan.pop("item_uid", None)
             self.queue_item_add(item=plan)
 
+    @_stored
     def clear_all(self):
         """Clear all staged plans."""
         self.queue_clear()
